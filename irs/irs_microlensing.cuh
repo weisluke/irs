@@ -77,9 +77,9 @@ __global__ void shoot_rays_kernel(star<T>* stars, int nstars, T kappasmooth, T g
 	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
 	int y_stride = blockDim.y * gridDim.y;
 
-	for (int i = x_index; i < 2.0 * hlx / raysep; i += x_stride)
+	for (int i = x_index; i < 2.0f * hlx / raysep; i += x_stride)
 	{
-		for (int j = y_index; j < 2.0 * hly / raysep; j += y_stride)
+		for (int j = y_index; j < 2.0f * hly / raysep; j += y_stride)
 		{
 			/*x = image plane, y = source plane
 			pay note in comments, as I may also use x and y to denote
@@ -88,12 +88,12 @@ __global__ void shoot_rays_kernel(star<T>* stars, int nstars, T kappasmooth, T g
 			Complex<T> y[4];
 
 			/*location of central ray in image plane*/
-			T cx = -hlx + raysep * (0.5 + i);
-			T cy = -hly + raysep * (0.5 + j);
+			T cx = -hlx + raysep * (0.5f + i);
+			T cy = -hly + raysep * (0.5f + j);
 
 			/*shooting more rays in image plane at center +/- 1/3 * distance
 			to next central ray in x and y direction*/
-			T dx = raysep / 3.0;
+			T dx = raysep / 3.0f;
 
 			x[0] = Complex<T>(cx + dx, cy + dx);
 			x[1] = Complex<T>(cx - dx, cy + dx);
@@ -107,29 +107,29 @@ __global__ void shoot_rays_kernel(star<T>* stars, int nstars, T kappasmooth, T g
 			}
 
 			/*repurpose cx and cy variables to now represent values in the source plane*/
-			cx = (y[0].re + y[1].re + y[2].re + y[3].re) / 4.0;
-			cy = (y[0].im + y[1].im + y[2].im + y[3].im) / 4.0;
+			cx = (y[0].re + y[1].re + y[2].re + y[3].re) / 4.0f;
+			cy = (y[0].im + y[1].im + y[2].im + y[3].im) / 4.0f;
 
 			/*calculate Taylor coefficients of the time delay
 			relies on symmetries and the fact that there are no higher
 			order macro-derivatives than kappasmooth and shear to
 			be able to calculate down to the 4th derivatives of the time delay
 			with our 4 rays shot*/
-			T t11 = (1.0 - kappasmooth) + (y[0].re - y[1].re - y[2].re + y[3].re - y[0].im - y[1].im + y[2].im + y[3].im) / (8.0 * dx);
-			T t12 = (y[0].re + y[1].re - y[2].re - y[3].re + y[0].im - y[1].im - y[2].im + y[3].im) / (8.0 * dx);
+			T t11 = (1.0f - kappasmooth) + (y[0].re - y[1].re - y[2].re + y[3].re - y[0].im - y[1].im + y[2].im + y[3].im) / (8.0f * dx);
+			T t12 = (y[0].re + y[1].re - y[2].re - y[3].re + y[0].im - y[1].im - y[2].im + y[3].im) / (8.0f * dx);
 
-			T t111 = (y[3].im - y[2].im + y[1].im - y[0].im) / (4.0 * dx * dx);
-			T t112 = (y[0].re - y[1].re + y[2].re - y[3].re) / (4.0 * dx * dx);
+			T t111 = (y[3].im - y[2].im + y[1].im - y[0].im) / (4.0f * dx * dx);
+			T t112 = (y[0].re - y[1].re + y[2].re - y[3].re) / (4.0f * dx * dx);
 
-			T t1111 = 3.0 * (8.0 * dx * (1.0 - kappasmooth) - y[0].re + y[1].re + y[2].re - y[3].re - y[0].im - y[1].im + y[2].im + y[3].im) / (8.0 * dx * dx * dx);
-			T t1112 = 3.0 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8.0 * dx * dx * dx);
+			T t1111 = 3.0f * (8.0f * dx * (1.0f - kappasmooth) - y[0].re + y[1].re + y[2].re - y[3].re - y[0].im - y[1].im + y[2].im + y[3].im) / (8.0f * dx * dx * dx);
+			T t1112 = 3.0f * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8.0f * dx * dx * dx);
 
 			/*divide distance between rays again, by 9
 			this gives us an increase in ray density of 27 (our
 			initial division of 3, times this one of 9) per unit
 			length, so 27^2 per unit area. these rays will use
 			Taylor coefficients rather than being directly shot*/
-			dx = dx / 9.0;
+			dx = dx / 9.0f;
 
 			T ptx;
 			T pty;
@@ -144,14 +144,14 @@ __global__ void shoot_rays_kernel(star<T>* stars, int nstars, T kappasmooth, T g
 				for (int l = -13; l <= 13; l++)
 				{
 					ptx = cx + t11 * (dx * k) + t12 * (dx * l)
-						+ 0.5 * t111 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) + t112 * (dx * k) * (dx * l)
-						+ 1.0 / 6.0 * t1111 * ((dx * k) * (dx * k) * (dx * k) - 3.0 * (dx * k) * (dx * l) * (dx * l))
-						+ 1.0 / 6.0 * t1112 * (3.0 * (dx * k) * (dx * k) * (dx * l) - (dx * l) * (dx * l) * (dx * l));
+						+ 0.5f * t111 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) + t112 * (dx * k) * (dx * l)
+						+ 1.0f / 6.0f * t1111 * ((dx * k) * (dx * k) * (dx * k) - 3.0f * (dx * k) * (dx * l) * (dx * l))
+						+ 1.0f / 6.0f * t1112 * (3.0f * (dx * k) * (dx * k) * (dx * l) - (dx * l) * (dx * l) * (dx * l));
 
-					pty = cy + t12 * (dx * k) + (2.0 * (1.0 - kappasmooth) - t11) * (dx * l)
-						+ 0.5 * t112 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) - t111 * (dx * k) * (dx * l)
-						+ 1.0 / 6.0 * t1112 * ((dx * k) * (dx * k) * (dx * k) - 3.0 * (dx * k) * (dx * l) * (dx * l))
-						- 1.0 / 6.0 * t1111 * (3.0 * (dx * k) * (dx * k) * (dx * l) - (dx * l) * (dx * l) * (dx * l));
+					pty = cy + t12 * (dx * k) + (2.0f * (1.0f - kappasmooth) - t11) * (dx * l)
+						+ 0.5f * t112 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) - t111 * (dx * k) * (dx * l)
+						+ 1.0f / 6.0f * t1112 * ((dx * k) * (dx * k) * (dx * k) - 3.0f * (dx * k) * (dx * l) * (dx * l))
+						- 1.0f / 6.0f * t1111 * (3.0f * (dx * k) * (dx * k) * (dx * l) - (dx * l) * (dx * l) * (dx * l));
 
 					pt = Complex<T>(ptx, pty);
 					pt = point_to_pixel(pt, hl, npixels);
@@ -165,9 +165,9 @@ __global__ void shoot_rays_kernel(star<T>* stars, int nstars, T kappasmooth, T g
 						continue;
 					}
 
-					a11 = t11 + t111 * (dx * k) + t112 * (dx * l) + 0.5 * t1111 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) + t1112 * (dx * k) * (dx * l);
-					a12 = t12 + t112 * (dx * k) - t111 * (dx * l) + 0.5 * t1112 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) - t1111 * (dx * k) * (dx * l);
-					invmag = a11 * (2.0 * (1.0 - kappasmooth) - a11) - a12 * a12;
+					a11 = t11 + t111 * (dx * k) + t112 * (dx * l) + 0.5f * t1111 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) + t1112 * (dx * k) * (dx * l);
+					a12 = t12 + t112 * (dx * k) - t111 * (dx * l) + 0.5f * t1112 * ((dx * k) * (dx * k) - (dx * l) * (dx * l)) - t1111 * (dx * k) * (dx * l);
+					invmag = a11 * (2.0f * (1.0f - kappasmooth) - a11) - a12 * a12;
 
 					if (invmag > 0)
 					{

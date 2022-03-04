@@ -12,7 +12,7 @@ determine if a string exists within some array of char*s
 
 \returns bool -- true if string is in array, false if not
 ********************************************************/
-bool cmdOptionExists(char** begin, char** end, const std::string& option);
+bool cmd_option_exists(char** begin, char** end, const std::string& option);
 
 /***************************************************************
 determine if a string is a valid option from some options array
@@ -23,7 +23,7 @@ determine if a string is a valid option from some options array
 
 \returns bool -- true if string was found in array, false if not
 ***************************************************************/
-bool cmdOptionValid(const std::string* begin, const std::string* end, const std::string& option);
+bool cmd_option_valid(const std::string* begin, const std::string* end, const std::string& option);
 
 /**************************************************************
 determine the parameter value of an option in array of char*s
@@ -35,7 +35,7 @@ assumed to be placed immediately after the option in some range
 
 \returns char* -- array of chars of the value after the option
 **************************************************************/
-char* cmdOptionValue(char** begin, char** end, const std::string& option);
+char* cmd_option_value(char** begin, char** end, const std::string& option);
 
 /**********************************************************************
 determine if conversion of chars to double through std::strtod is valid
@@ -44,7 +44,7 @@ determine if conversion of chars to double through std::strtod is valid
 
 \returns bool -- true if text can be converted to double, false if not
 **********************************************************************/
-bool validDouble(char* val);
+bool valid_double(char* val);
 
 /*********************************************************************
 determine if conversion of chars to float through std::strtof is valid
@@ -53,5 +53,5 @@ determine if conversion of chars to float through std::strtof is valid
 
 \returns bool -- true if text can be converted to float, false if not
 *********************************************************************/
-bool validFloat(char* val);
+bool valid_float(char* val);
 

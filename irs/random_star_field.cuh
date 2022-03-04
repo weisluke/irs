@@ -25,7 +25,7 @@ int generate_star_field(star<T>* stars, int nstars, T rad, T mass, int seed = st
 {
 	const T PI = 3.1415926535898;
 
-	/*random number generator seeded according to current time*/
+	/*random number generator seeded according to the provided seed*/
 	std::mt19937 gen(seed);
 
 	/*uniform distribution to pick real values between 0 and 1*/

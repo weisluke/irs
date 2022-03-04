@@ -24,9 +24,9 @@ determines star field parameters from the given starfile
 \param meanmass2 -- mean squared mass
 \param starfile -- location of the star field file. the file may
 				   be either a whitespace delimited .txt file
-				   containing valid double precision values for a
-				   star's x coordinate, y coordinate, and mass, in
-				   that order, on each line, or a .bin file of star
+				   containing valid values for a star's x
+				   coordinate, y coordinate, and mass, in that
+				   order, on each line, or a .bin file of star
 				   structures (as defined in this source code).
 
 \return bool -- true if file successfully read, false if not
@@ -186,9 +186,9 @@ read star field file
 \param nstars -- number of stars
 \param starfile -- location of the star field file. the file may
 				   be either a whitespace delimited .txt file
-				   containing valid double precision values for a
-				   star's x coordinate, y coordinate, and mass, in
-				   that order, on each line, or a .bin file of star
+				   containing valid values for a star's x
+				   coordinate, y coordinate, and mass, in that
+				   order, on each line, or a .bin file of star
 				   structures (as defined in this source code).
 
 \return bool -- true if file successfully read, false if not
@@ -302,9 +302,9 @@ write star field file
 \param nstars -- number of stars
 \param starfile -- location of the star field file. the file may
 				   be either a whitespace delimited .txt file which
-				   will contain valid double precision values for a
-				   star's x coordinate, y coordinate, and mass, in
-				   that order, on each line, or a .bin file of star
+				   will contain valid values for a star's x
+				   coordinate, y coordinate, and mass, in that
+				   order, on each line, or a .bin file of star
 				   structures (as defined in this source code).
 
 \return bool -- true if file successfully written, false if not
@@ -405,7 +405,7 @@ bool write_array(T* vals, int nrows, int ncols, const std::string& fname)
 	}
 	else
 	{
-		std::cerr << "Error. File " << fname << " is not a .bin file.\n";
+		std::cerr << "Error. File " << fname << " is not a .bin or .txt file.\n";
 		return false;
 	}
 

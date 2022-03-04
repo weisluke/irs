@@ -58,8 +58,8 @@ int random_seed = 0;
 int write_maps = 1;
 int write_parities = 1;
 std::string starfile = "";
-std::string outfile_prefix = "./";
 std::string outfile_type = ".bin";
+std::string outfile_prefix = "./";
 
 /*default derived parameter values
 number of stars, upper and lower mass cutoffs,
@@ -75,7 +75,6 @@ float mean_squared_mass = 1.0f;
 /************************************************************
 BEGIN structure definitions and function forward declarations
 ************************************************************/
-
 
 /************************************
 Print the program usage help message
@@ -105,7 +104,7 @@ CUDA error checking
 
 \return bool -- true for error, false for no error
 *********************************************************************/
-bool CUDAError(const char* name, bool sync, const char* file, const int line);
+bool cuda_error(const char* name, bool sync, const char* file, const int line);
 
 /**********************************************************
 END structure definitions and function forward declarations
@@ -119,7 +118,7 @@ int main(int argc, char* argv[])
 	std::cout.precision(7);
 
 	/*if help option has been input, display usage message*/
-	if (cmdOptionExists(argv, argv + argc, "-h") || cmdOptionExists(argv, argv + argc, "--help"))
+	if (cmd_option_exists(argv, argv + argc, "-h") || cmd_option_exists(argv, argv + argc, "--help"))
 	{
 		display_usage(argv[0]);
 		return -1;
@@ -140,7 +139,7 @@ int main(int argc, char* argv[])
 	start at 1, since first array element, argv[0], is program name*/
 	for (int i = 1; i < argc; i += 2)
 	{
-		if (!cmdOptionValid(OPTS, OPTS + OPTS_SIZE, argv[i]))
+		if (!cmd_option_valid(OPTS, OPTS + OPTS_SIZE, argv[i]))
 		{
 			std::cerr << "Error. Invalid input syntax.\n";
 			display_usage(argv[0]);
@@ -157,11 +156,11 @@ int main(int argc, char* argv[])
 
 	for (int i = 1; i < argc; i += 2)
 	{
-		cmdinput = cmdOptionValue(argv, argv + argc, std::string(argv[i]));
+		cmdinput = cmd_option_value(argv, argv + argc, std::string(argv[i]));
 
 		if (argv[i] == std::string("-k") || argv[i] == std::string("--kappa_tot"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				kappa_tot = strtof(cmdinput, nullptr);
 			}
@@ -173,7 +172,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_smooth"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				kappa_smooth = strtof(cmdinput, nullptr);
 			}
@@ -185,7 +184,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-s") || argv[i] == std::string("--shear"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				shear = strtof(cmdinput, nullptr);
 			}
@@ -197,7 +196,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-t") || argv[i] == std::string("--theta_e"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				theta_e = strtof(cmdinput, nullptr);
 				if (theta_e < std::numeric_limits<float>::min())
@@ -214,7 +213,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-hl") || argv[i] == std::string("--half_length"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				half_length = strtof(cmdinput, nullptr);
 				if (half_length < std::numeric_limits<float>::min())
@@ -231,7 +230,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-px") || argv[i] == std::string("--pixels"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				num_pixels = static_cast<int>(strtof(cmdinput, nullptr));
 				if (num_pixels < 1)
@@ -248,7 +247,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-nr") || argv[i] == std::string("--num_rays"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				num_rays = static_cast<int>(strtof(cmdinput, nullptr));
 				if (num_rays < 1)
@@ -265,7 +264,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-rs") || argv[i] == std::string("--random_seed"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				random_seed = static_cast<int>(std::strtof(cmdinput, nullptr));
 			}
@@ -277,7 +276,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-wm") || argv[i] == std::string("--write_maps"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				write_maps = static_cast<int>(std::strtof(cmdinput, nullptr));
 				if (write_maps != 0 && write_maps != 1)
@@ -294,7 +293,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-wp") || argv[i] == std::string("--write_parities"))
 		{
-			if (validFloat(cmdinput))
+			if (valid_float(cmdinput))
 			{
 				write_parities = static_cast<int>(std::strtof(cmdinput, nullptr));
 				if (write_parities != 0 && write_parities != 1)
@@ -335,11 +334,11 @@ int main(int argc, char* argv[])
 
 	/*check that a CUDA capable device is present*/
 	cudaSetDevice(0);
-	if (CUDAError("cudaSetDevice", false, __FILE__, __LINE__)) return -1;
+	if (cuda_error("cudaSetDevice", false, __FILE__, __LINE__)) return -1;
 
 
 	/*if star file is specified, check validity of values and set num_stars, m_lower, m_upper,
-	mean_mass, mean_mass_squared, and kappa_star based on star information*/
+	mean_mass, mean_squared_mass, and kappa_star based on star information*/
 	if (starfile != "")
 	{
 		std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
@@ -369,18 +368,11 @@ int main(int argc, char* argv[])
 	/*average separation between rays in one dimension is 1/sqrt(number density)*/
 	float ray_sep = 1.0f / std::sqrt(num_rays_lens);
 
-	/*theoretical number of stars in a region containing
-	99% of the flux of a macro-image, and the radius of the
-	region if the stars were evenly distributed in a circle*/
-	int num_stars_theory = static_cast<int>(100.0f * kappa_star * kappa_star * std::fabs(mu_ave) * mean_squared_mass / (mean_mass * mean_mass)) + 1;
-	float rad_theory = std::sqrt(num_stars_theory * mean_mass * theta_e * theta_e / kappa_star);
-
 	/*shooting region is greater than outer boundary for macro-mapping by the
 	size of the region of images visible for a macro-image which contain 99%
-	of the flux (where rad_theory has been altered into the major and minor axes
-	of the ellipse a macro-image would appear as)*/
-	float lens_hl_x = (half_length + rad_theory / std::sqrt(std::fabs(mu_ave))) / std::fabs(1.0f - kappa_tot + shear);
-	float lens_hl_y = (half_length + rad_theory / std::sqrt(std::fabs(mu_ave))) / std::fabs(1.0f - kappa_tot - shear);
+	of the flux*/
+	float lens_hl_x = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::fabs(1.0f - kappa_tot + shear);
+	float lens_hl_y = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::fabs(1.0f - kappa_tot - shear);
 
 	/*make shooting region a multiple of the ray separation*/
 	lens_hl_x = ray_sep * (static_cast<int>(lens_hl_x / ray_sep) + 1.0f);
@@ -389,12 +381,12 @@ int main(int argc, char* argv[])
 	/*if stars are not drawn from external file, calculate final number of stars to use
 	number is max of theoretical amount derived from size of shooting region,
 	and amount necessary such that no caustics due to edge effects appear
-	in the recieving source plane area (mainly relevant for cc_finder and ncc)*/
+	in the receiving source plane area (relevant for cc_finder and ncc)*/
 	if (starfile == "")
 	{
 		num_stars = static_cast<int>(std::fmax(
 			1.37f * 1.37f * (lens_hl_x * lens_hl_x + lens_hl_y * lens_hl_y) * kappa_star / (mean_mass * theta_e * theta_e),
-			1.1f * half_length * 1.1f * half_length / (4.0f * (kappa_smooth - 1.0f + shear) * mean_mass * theta_e * theta_e)
+			1.1f * half_length * 1.1f * half_length / (-4.0f * (1.0f - kappa_smooth - shear) * mean_mass * theta_e * theta_e)
 		)) + 1;
 	}
 
@@ -415,15 +407,15 @@ int main(int argc, char* argv[])
 
 	/*allocate memory for stars*/
 	cudaMallocManaged(&stars, num_stars * sizeof(star<float>));
-	if (CUDAError("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
+	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
 
 	/*allocate memory for pixels*/
 	cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(int));
-	if (CUDAError("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return -1;
+	if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&pixels_saddles, num_pixels * num_pixels * sizeof(int));
-	if (CUDAError("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return -1;
+	if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
-	if (CUDAError("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
+	if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
 
 	/********************
 	END memory allocation
@@ -485,22 +477,26 @@ int main(int argc, char* argv[])
 	}
 
 	/*number of threads per block, and number of blocks per grid
-	uses 32 for number of threads in x and y dimensions, as
-	32*32=1024 is the maximum allowable number of threads per block*/
-	int numThreads_x = 32;
-	int numThreads_y = 32;
-	int numBlocks_x = static_cast<int>((2.0f * lens_hl_x / ray_sep - 1) / numThreads_x) + 1;
-	if (numBlocks_x > 32768 || numBlocks_x < 1)
+	uses 16 for number of threads in x and y dimensions, as
+	32*32=1024 is the maximum allowable number of threads per block
+	but is too large for some memory allocation, and 16 is
+	next power of 2 smaller*/
+
+	int num_threads_y = 16;
+	int num_threads_x = 16;
+
+	int num_blocks_y = static_cast<int>((2.0f * lens_hl_y / ray_sep - 1) / num_threads_y) + 1;
+	if (num_blocks_y > 32768 || num_blocks_y < 1)
 	{
-		numBlocks_x = 32768;
+		num_blocks_y = 32768;
 	}
-	int numBlocks_y = static_cast<int>((2.0f * lens_hl_y / ray_sep - 1) / numThreads_y) + 1;
-	if (numBlocks_y > 32768 || numBlocks_y < 1)
+	int num_blocks_x = static_cast<int>((2.0f * lens_hl_x / ray_sep - 1) / num_threads_x) + 1;
+	if (num_blocks_x > 32768 || num_blocks_x < 1)
 	{
-		numBlocks_y = 32768;
+		num_blocks_x = 32768;
 	}
-	dim3 blocks(numBlocks_x, numBlocks_y);
-	dim3 threads(numThreads_x, numThreads_y);
+	dim3 blocks(num_blocks_x, num_blocks_y);
+	dim3 threads(num_threads_x, num_threads_y);
 
 
 	/*start and end time for timing purposes*/
@@ -511,7 +507,7 @@ int main(int argc, char* argv[])
 	/*get current time at start*/
 	starttime = std::chrono::high_resolution_clock::now();
 	shoot_rays_kernel << <blocks, threads >> > (stars, num_stars, kappa_smooth, shear, theta_e, lens_hl_x, lens_hl_y, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
-	if (CUDAError("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
+	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	/*get current time at end of loop, and calculate duration in milliseconds*/
 	endtime = std::chrono::high_resolution_clock::now();
 	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(endtime - starttime).count() / 1000.0;
@@ -561,9 +557,7 @@ int main(int argc, char* argv[])
 	outfile << "lower_mass_cutoff " << m_lower << "\n";
 	outfile << "upper_mass_cutoff " << m_upper << "\n";
 	outfile << "mean_mass " << mean_mass << "\n";
-	outfile << "mean_mass_squared " << mean_squared_mass << "\n";
-	outfile << "num_stars_theory " << num_stars_theory << "\n";
-	outfile << "rad_theory " << rad_theory << "\n";
+	outfile << "mean_squared_mass " << mean_squared_mass << "\n";
 	outfile << "num_stars " << num_stars << "\n";
 	outfile << "rad " << rad << "\n";
 	outfile << "half_length " << half_length << "\n";
@@ -578,12 +572,12 @@ int main(int argc, char* argv[])
 	std::cout << "Done writing parameter info to file " << outfile_prefix << "irs_parameter_info.txt.\n";
 
 	std::cout << "\nWriting star info...\n";
-	if (!write_star_file<float>(stars, num_stars, outfile_prefix + "irs_star_info" + outfile_type))
+	if (!write_star_file<float>(stars, num_stars, outfile_prefix + "irs_stars" + outfile_type))
 	{
-		std::cerr << "Error. Unable to write star info to file " << outfile_prefix << "irs_star_info" + outfile_type << "\n";
+		std::cerr << "Error. Unable to write star info to file " << outfile_prefix << "irs_stars" + outfile_type << "\n";
 		return -1;
 	}
-	std::cout << "Done writing star info to file " << outfile_prefix << "irs_star_info" + outfile_type << "\n";
+	std::cout << "Done writing star info to file " << outfile_prefix << "irs_stars" + outfile_type << "\n";
 
 
 	/*histogram of magnification map*/
@@ -635,7 +629,7 @@ int main(int argc, char* argv[])
 	std::cout << "\nDone.\n";
 
 	cudaDeviceReset();
-	if (CUDAError("cudaDeviceReset", false, __FILE__, __LINE__)) return -1;
+	if (cuda_error("cudaDeviceReset", false, __FILE__, __LINE__)) return -1;
 
 	return 0;
 }
@@ -700,16 +694,16 @@ void display_usage(char* name)
 		<< "                                                     of rays in each pixel\n";
 }
 
-void print_progress(int icurr, int imax, int num_bars) 
+void print_progress(int icurr, int imax, int num_bars)
 {
 	std::cout << "\r[";
-	for (int i = 0; i < num_bars; i++) 
+	for (int i = 0; i < num_bars; i++)
 	{
-		if (i <= icurr * num_bars / imax) 
+		if (i <= icurr * num_bars / imax)
 		{
 			std::cout << "=";
 		}
-		else 
+		else
 		{
 			std::cout << " ";
 		}
@@ -717,7 +711,7 @@ void print_progress(int icurr, int imax, int num_bars)
 	std::cout << "] " << icurr * 100 / imax << " %";
 }
 
-bool CUDAError(const char* name, bool sync, const char* file, const int line)
+bool cuda_error(const char* name, bool sync, const char* file, const int line)
 {
 	cudaError_t err = cudaGetLastError();
 	/*if the last error message is not a success, print the error code and msg

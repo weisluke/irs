@@ -29,11 +29,11 @@ public:
 	__host__ __device__ T abs()
 	{
 		/*use device or host square root function*/
-#ifdef CUDA_ARCH
-		return sqrt(re * re + im * im);
-#else
-		return std::sqrt(re * re + im * im);
-#endif
+		#ifdef CUDA_ARCH
+			return sqrt(re * re + im * im);
+		#else
+			return std::sqrt(re * re + im * im);
+		#endif
 	}
 
 	__host__ __device__ Complex operator+()

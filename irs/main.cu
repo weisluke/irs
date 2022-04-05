@@ -683,15 +683,21 @@ void display_usage(char* name)
 		<< "                          Lines of .txt output files are whitespace delimited.\n"
 		<< "                          Filenames are:\n"
 		<< "                             irs_parameter_info      various parameter values\n"
-		<< "                                                     used in calculations\n"
-		<< "                             irs_star_info           each line contains a\n"
-		<< "                                                     star's x coordinate, y \n"
-		<< "                                                     coordinate, and mass\n"
-		<< "                             irs_numrays_numpixels\n"
-		<< "                             irs_magnifications      each of the num_pixels\n"
-		<< "                                                     lines contains num_pixels\n"
-		<< "                                                     values giving the number\n"
-		<< "                                                     of rays in each pixel\n";
+		<< "                                                        used in calculations\n"
+		<< "                             irs_stars               the first item is\n"
+		<< "                                                        num_stars followed by\n"
+		<< "                                                        binary representations\n"
+		<< "                                                        of the star structures\n"
+		<< "                             irs_numrays_numpixels   each line contains a\n"
+		<< "                                                        number of rays and the\n"
+		<< "                                                        number of pixels with\n"
+		<< "                                                        that many rays"
+		<< "                             irs_magnifications      the first item is\n"
+		<< "                                                        num_pixels and the\n"
+		<< "                                                        second item is\n"
+		<< "                                                        num_pixels followed by\n"
+		<< "                                                        the number of rays in\n"
+		<< "                                                        each pixel\n";
 }
 
 void print_progress(int icurr, int imax, int num_bars)

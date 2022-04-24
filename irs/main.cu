@@ -691,7 +691,7 @@ void display_usage(char* name)
 		<< "                             irs_numrays_numpixels   each line contains a\n"
 		<< "                                                        number of rays and the\n"
 		<< "                                                        number of pixels with\n"
-		<< "                                                        that many rays"
+		<< "                                                        that many rays\n"
 		<< "                             irs_magnifications      the first item is\n"
 		<< "                                                        num_pixels and the\n"
 		<< "                                                        second item is\n"

@@ -663,7 +663,7 @@ void display_usage(char* name)
 		<< "   -rs,--random_seed      Specify the random seed for the star field\n"
 		<< "                          generation. A value of 0 is reserved for star input\n"
 		<< "                          files. Default value: " << random_seed << "\n"
-		<< "   -wp,--write_maps       Specify whether to write magnification maps.\n"
+		<< "   -wm,--write_maps       Specify whether to write magnification maps.\n"
 		<< "                          Default value: " << write_maps << "\n"
 		<< "   -wp,--write_parities   Specify whether to write parity specific\n"
 		<< "                          magnification maps. Default value: " << write_parities << "\n"

@@ -8,42 +8,37 @@
 #include <random>
 
 
-/**************************************************
+/**********************************************************
 generate random star field
 
 \param stars -- pointer to array of stars
 \param nstars -- number of stars to generate
-\param rad -- radius within which to generate stars
+\param hlx1 -- side length 1 within which to generate stars
+\param hlx2 -- side length 2 within which to generate stars
 \param mass -- mass for each star
 \param seed -- random seed to use. defaults to seed
 			   generated based on current time
 
 \return seed -- the random seed used
-**************************************************/
+**********************************************************/
 template <typename T>
-int generate_star_field(star<T>* stars, int nstars, T rad, T mass, int seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()))
+int generate_star_field(star<T>* stars, int nstars, T hlx1, T hlx2, T mass, int seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()))
 {
-	const T PI = 3.1415926535898;
-
 	/*random number generator seeded according to the provided seed*/
 	std::mt19937 gen(seed);
 
 	/*uniform distribution to pick real values between 0 and 1*/
 	std::uniform_real_distribution<T> dis(0, 1);
 
-	/*variables to hold randomly chosen angle and radius*/
-	T a, r;
+	/*variables to hold randomly chosen x1 and x2*/
+	T x1, x2;
 
 	for (int i = 0; i < nstars; i++)
 	{
-		/*random angle and radius*/
-		a = dis(gen) * 2.0 * PI;
-		/*radius uses square root of random number
-		as numbers need to be evenly dispersed in 2-D space*/
-		r = std::sqrt(dis(gen)) * rad;
+		x1 = dis(gen) * 2.0 * hlx1 - hlx1;
+		x2 = dis(gen) * 2.0 * hlx2 - hlx2;
 
-		/*transform to Cartesian coordinates*/
-		stars[i].position = Complex<T>(r * std::cos(a), r * std::sin(a));
+		stars[i].position = Complex<T>(x1, x2);
 		stars[i].mass = mass;
 	}
 

@@ -26,14 +26,15 @@ Email: weisluke@alum.mit.edu
 
 
 /*constants to be used*/
+const float PI = 3.1415926535898f;
 constexpr int OPTS_SIZE = 2 * 14;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
 	"-k", "--kappa_tot",
-	"-ks", "--kappa_smooth",
 	"-s", "--shear",
 	"-t", "--theta_e",
+	"-ks", "--kappa_star",
 	"-hl", "--half_length",
 	"-px", "--pixels",
 	"-nr", "--num_rays",
@@ -48,9 +49,9 @@ const std::string OPTS[OPTS_SIZE] =
 
 /*default input option values*/
 float kappa_tot = 0.3f;
-float kappa_smooth = 0.03f;
 float shear = 0.3f;
 float theta_e = 1.0f;
+float kappa_star = 0.27f;
 float half_length = 5.0f;
 int num_pixels = 1000;
 int num_rays = 100;
@@ -170,15 +171,15 @@ int main(int argc, char* argv[])
 				return -1;
 			}
 		}
-		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_smooth"))
+		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_star"))
 		{
 			if (valid_float(cmdinput))
 			{
-				kappa_smooth = strtof(cmdinput, nullptr);
+				kappa_star = strtof(cmdinput, nullptr);
 			}
 			else
 			{
-				std::cerr << "Error. Invalid kappa_smooth input.\n";
+				std::cerr << "Error. Invalid kappa_star input.\n";
 				return -1;
 			}
 		}
@@ -352,10 +353,6 @@ int main(int argc, char* argv[])
 		std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n";
 	}
 
-
-	/*variable to hold kappa_star*/
-	float kappa_star = kappa_tot - kappa_smooth;
-
 	/*average magnification of the system*/
 	float mu_ave = 1.0f / ((1.0f - kappa_tot) * (1.0f - kappa_tot) - shear * shear);
 
@@ -378,20 +375,9 @@ int main(int argc, char* argv[])
 	lens_hl_x = ray_sep * (static_cast<int>(lens_hl_x / ray_sep) + 1.0f);
 	lens_hl_y = ray_sep * (static_cast<int>(lens_hl_y / ray_sep) + 1.0f);
 
-	/*if stars are not drawn from external file, calculate final number of stars to use
-	number is max of theoretical amount derived from size of shooting region,
-	and amount necessary such that no caustics due to edge effects appear
-	in the receiving source plane area (relevant for cc_finder and ncc)*/
-	if (starfile == "")
-	{
-		num_stars = static_cast<int>(std::fmax(
-			1.37f * 1.37f * (lens_hl_x * lens_hl_x + lens_hl_y * lens_hl_y) * kappa_star / (mean_mass * theta_e * theta_e),
-			1.1f * half_length * 1.1f * half_length / (-4.0f * (1.0f - kappa_smooth - shear) * mean_mass * theta_e * theta_e)
-		)) + 1;
-	}
-
-	/*radius needed for number of stars*/
-	float rad = std::sqrt(num_stars * mean_mass * theta_e * theta_e / kappa_star);
+	//float shear_smooth = kappa_star - 4.0f * kappa_star / PI * std::atan(std::fabs(1.0f - kappa_tot + shear) / std::fabs(1.0f - kappa_tot - shear));
+	Complex<float> c = Complex<float>(1.37f * lens_hl_x, 1.37f * lens_hl_y);
+	num_stars = static_cast<int>(1.37f * 2.0f * lens_hl_x * 1.37f * 2.0f * lens_hl_y * kappa_star / (mean_mass * PI * theta_e * theta_e)) + 1;
 
 	std::cout << "Number of stars used: " << num_stars << "\n";
 
@@ -437,11 +423,11 @@ int main(int argc, char* argv[])
 		uses default star mass of 1.0*/
 		if (random_seed != 0)
 		{
-			generate_star_field<float>(stars, num_stars, rad, 1.0f, random_seed);
+			generate_star_field<float>(stars, num_stars, 1.37f * lens_hl_x, 1.37f * lens_hl_y, 1.0f, random_seed);
 		}
 		else
 		{
-			random_seed = generate_star_field<float>(stars, num_stars, rad, 1.0f);
+			random_seed = generate_star_field<float>(stars, num_stars, 1.37f * lens_hl_x, 1.37f * lens_hl_y, 1.0f);
 		}
 
 		std::cout << "Done generating star field.\n";
@@ -506,7 +492,7 @@ int main(int argc, char* argv[])
 	std::cout << "\nShooting rays...\n";
 	/*get current time at start*/
 	starttime = std::chrono::high_resolution_clock::now();
-	shoot_rays_kernel << <blocks, threads >> > (stars, num_stars, kappa_smooth, shear, theta_e, lens_hl_x, lens_hl_y, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+	shoot_rays_kernel << <blocks, threads >> > (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x, lens_hl_y, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	/*get current time at end of loop, and calculate duration in milliseconds*/
 	endtime = std::chrono::high_resolution_clock::now();
@@ -549,17 +535,16 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	outfile << "kappa_tot " << kappa_tot << "\n";
-	outfile << "kappa_star " << kappa_star << "\n";
-	outfile << "kappa_smooth " << kappa_smooth << "\n";
 	outfile << "shear " << shear << "\n";
 	outfile << "theta_e " << theta_e << "\n";
+	outfile << "kappa_star " << kappa_star << "\n";
+	//outfile << "shear_smooth " << shear_smooth << "\n";
 	outfile << "mu_ave " << mu_ave << "\n";
 	outfile << "lower_mass_cutoff " << m_lower << "\n";
 	outfile << "upper_mass_cutoff " << m_upper << "\n";
 	outfile << "mean_mass " << mean_mass << "\n";
 	outfile << "mean_squared_mass " << mean_squared_mass << "\n";
 	outfile << "num_stars " << num_stars << "\n";
-	outfile << "rad " << rad << "\n";
 	outfile << "half_length " << half_length << "\n";
 	outfile << "num_pixels " << num_pixels << "\n";
 	outfile << "mean_rays_per_pixel " << num_rays << "\n";
@@ -649,10 +634,11 @@ void display_usage(char* name)
 	std::cout << "Options:\n"
 		<< "   -h,--help              Show this help message\n"
 		<< "   -k,--kappa_tot         Specify the total convergence. Default value: " << kappa_tot << "\n"
-		<< "   -ks,--kappa_smooth     Specify the smooth convergence. Default value: " << kappa_smooth << "\n"
 		<< "   -s,--shear             Specify the shear. Default value: " << shear << "\n"
 		<< "   -t,--theta_e           Specify the size of the Einstein radius of a unit\n"
 		<< "                          mass star in arbitrary units. Default value: " << theta_e << "\n"
+		<< "   -ks,--kappa_star       Specify the convergence in compact objects.\n"
+		<< "                          Default value : " << kappa_star << "\n"
 		<< "   -hl,--half_length      Specify the half-length of the square source plane\n"
 		<< "                          region to find the magnification in.\n"
 		<< "                          Default value: " << half_length << "\n"

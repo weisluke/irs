@@ -36,6 +36,38 @@ public:
 		#endif
 	}
 
+	/*argument of number in range [-pi, pi]*/
+	__host__ __device__ T arg()
+	{
+		#ifdef CUDA_ARCH
+			return atan2(im, re);
+		#else
+			return std::atan2(im, re);
+		#endif
+	}
+
+	/*exponential of the complex number*/
+	__host__ __device__ Complex exp()
+	{
+		#ifdef CUDA_ARCH
+			return Complex(exp(re) * cos(im), exp(re) * sin(im));
+		#else
+			return Complex(std::exp(re) * std::cos(im), std::exp(re) * std::sin(im));
+		#endif
+	}
+
+	/*logarithm of the complex number*/
+	__host__ __device__ Complex log()
+	{
+		T abs = (*this).abs();
+		T arg = (*this).arg();
+		#ifdef CUDA_ARCH
+			return Complex(log(abs), arg);
+		#else
+			return Complex(std::log(abs), arg);
+		#endif
+	}
+
 	__host__ __device__ Complex operator+()
 	{
 		return Complex(re, im);

@@ -6,11 +6,6 @@ Email: weisluke@alum.mit.edu
 *****************************************************************/
 
 
-#include "complex.cuh"
-#include "irs_microlensing.cuh"
-#include "star.cuh"
-#include "util.hpp"
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -19,6 +14,11 @@ Email: weisluke@alum.mit.edu
 #include <limits>
 #include <new>
 #include <string>
+
+#include "complex.cuh"
+#include "irs_microlensing.cuh"
+#include "star.cuh"
+#include "util.hpp"
 
 
 

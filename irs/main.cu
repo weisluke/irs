@@ -9,14 +9,12 @@ Email: weisluke@alum.mit.edu
 #include "complex.cuh"
 #include "irs_microlensing.cuh"
 #include "irs_read_write_files.cuh"
-#include "parse.hpp"
-#include "random_star_field.cuh"
 #include "star.cuh"
+#include "util.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -72,27 +70,74 @@ float mean_squared_mass = 1.0f;
 
 
 
-/************************************************************
-BEGIN structure definitions and function forward declarations
-************************************************************/
-
 /************************************
 Print the program usage help message
 
 \param name -- name of the executable
 ************************************/
-void display_usage(char* name);
-
-/****************************************************
-function to print out progress bar of loops
-examples: [====    ] 50%       [=====  ] 62%
-
-\param icurr -- current position in the loop
-\param imax -- maximum position in the loop
-\param num_bars -- number of = symbols inside the bar
-				   default value: 50
-****************************************************/
-void print_progress(int icurr, int imax, int num_bars = 50);
+void display_usage(char* name)
+{
+	if (name)
+	{
+		std::cout << "Usage: " << name << " opt1 val1 opt2 val2 opt3 val3 ...\n";
+	}
+	else
+	{
+		std::cout << "Usage: programname opt1 val1 opt2 val2 opt3 val3 ...\n";
+	}
+	std::cout << "Options:\n"
+		<< "   -h,--help              Show this help message\n"
+		<< "   -k,--kappa_tot         Specify the total convergence. Default value: " << kappa_tot << "\n"
+		<< "   -ks,--kappa_smooth     Specify the smooth convergence. Default value: " << kappa_smooth << "\n"
+		<< "   -s,--shear             Specify the shear. Default value: " << shear << "\n"
+		<< "   -t,--theta_e           Specify the size of the Einstein radius of a unit\n"
+		<< "                          mass star in arbitrary units. Default value: " << theta_e << "\n"
+		<< "   -hl,--half_length      Specify the half-length of the square source plane\n"
+		<< "                          region to find the magnification in.\n"
+		<< "                          Default value: " << half_length << "\n"
+		<< "   -px,--pixels           Specify the number of pixels per source plane side\n"
+		<< "                          length. Default value: " << num_pixels << "\n"
+		<< "   -nr,--num_rays         Specify the average number of rays per pixel.\n"
+		<< "                          Default value: " << num_rays << "\n"
+		<< "   -rs,--random_seed      Specify the random seed for the star field\n"
+		<< "                          generation. A value of 0 is reserved for star input\n"
+		<< "                          files. Default value: " << random_seed << "\n"
+		<< "   -wm,--write_maps       Specify whether to write magnification maps.\n"
+		<< "                          Default value: " << write_maps << "\n"
+		<< "   -wp,--write_parities   Specify whether to write parity specific\n"
+		<< "                          magnification maps. Default value: " << write_parities << "\n"
+		<< "   -sf,--starfile         Specify the location of a star positions and masses\n"
+		<< "                          file. Default value: " << starfile << "\n"
+		<< "                          The file may be either a whitespace delimited text\n"
+		<< "                          file containing valid double precision values for a\n"
+		<< "                          star's x coordinate, y coordinate, and mass, in that\n"
+		<< "                          order, on each line, or a binary file of star\n"
+		<< "                          structures (as defined in this source code). If\n"
+		<< "                          specified, the number of stars is determined through\n"
+		<< "                          this file.\n"
+		<< "   -ot,--outfile_type     Specify the type of file to be output. Valid options\n"
+		<< "                          are binary (.bin) or text (.txt). Default value: " << outfile_type << "\n"
+		<< "   -o,--outfile_prefix    Specify the prefix to be used in output file names.\n"
+		<< "                          Default value: " << outfile_prefix << "\n"
+		<< "                          Lines of .txt output files are whitespace delimited.\n"
+		<< "                          Filenames are:\n"
+		<< "                             irs_parameter_info      various parameter values\n"
+		<< "                                                        used in calculations\n"
+		<< "                             irs_stars               the first item is\n"
+		<< "                                                        num_stars followed by\n"
+		<< "                                                        binary representations\n"
+		<< "                                                        of the star structures\n"
+		<< "                             irs_numrays_numpixels   each line contains a\n"
+		<< "                                                        number of rays and the\n"
+		<< "                                                        number of pixels with\n"
+		<< "                                                        that many rays\n"
+		<< "                             irs_magnifications      the first item is\n"
+		<< "                                                        num_pixels and the\n"
+		<< "                                                        second item is\n"
+		<< "                                                        num_pixels followed by\n"
+		<< "                                                        the number of rays in\n"
+		<< "                                                        each pixel\n";
+}
 
 /*********************************************************************
 CUDA error checking
@@ -104,11 +149,33 @@ CUDA error checking
 
 \return bool -- true for error, false for no error
 *********************************************************************/
-bool cuda_error(const char* name, bool sync, const char* file, const int line);
-
-/**********************************************************
-END structure definitions and function forward declarations
-**********************************************************/
+bool cuda_error(const char* name, bool sync, const char* file, const int line)
+{
+	cudaError_t err = cudaGetLastError();
+	/*if the last error message is not a success, print the error code and msg
+	and return true (i.e., an error occurred)*/
+	if (err != cudaSuccess)
+	{
+		const char* errMsg = cudaGetErrorString(err);
+		std::cerr << "CUDA error check for " << name << " failed at " << file << ":" << line << "\n";
+		std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
+		return true;
+	}
+	/*if a device synchronization is also to be done*/
+	if (sync)
+	{
+		/*perform the same error checking as initially*/
+		err = cudaDeviceSynchronize();
+		if (err != cudaSuccess)
+		{
+			const char* errMsg = cudaGetErrorString(err);
+			std::cerr << "CUDA error check for cudaDeviceSynchronize failed at " << file << ":" << line << "\n";
+			std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
+			return true;
+		}
+	}
+	return false;
+}
 
 
 
@@ -160,11 +227,11 @@ int main(int argc, char* argv[])
 
 		if (argv[i] == std::string("-k") || argv[i] == std::string("--kappa_tot"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				kappa_tot = strtof(cmdinput, nullptr);
+				kappa_tot = std::stof(cmdinput);
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid kappa_tot input.\n";
 				return -1;
@@ -172,11 +239,11 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_smooth"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				kappa_smooth = strtof(cmdinput, nullptr);
+				kappa_smooth = std::stof(cmdinput);
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid kappa_smooth input.\n";
 				return -1;
@@ -184,11 +251,11 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-s") || argv[i] == std::string("--shear"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				shear = strtof(cmdinput, nullptr);
+				shear = std::stof(cmdinput);
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid shear input.\n";
 				return -1;
@@ -196,16 +263,16 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-t") || argv[i] == std::string("--theta_e"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				theta_e = strtof(cmdinput, nullptr);
+				theta_e = std::stof(cmdinput);
 				if (theta_e < std::numeric_limits<float>::min())
 				{
 					std::cerr << "Error. Invalid theta_e input. theta_e must be > " << std::numeric_limits<float>::min() << "\n";
 					return -1;
 				}
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid theta_e input.\n";
 				return -1;
@@ -213,16 +280,16 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-hl") || argv[i] == std::string("--half_length"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				half_length = strtof(cmdinput, nullptr);
+				half_length = std::stof(cmdinput);
 				if (half_length < std::numeric_limits<float>::min())
 				{
 					std::cerr << "Error. Invalid half_length input. half_length must be > " << std::numeric_limits<float>::min() << "\n";
 					return -1;
 				}
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid half_length input.\n";
 				return -1;
@@ -230,16 +297,16 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-px") || argv[i] == std::string("--pixels"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				num_pixels = static_cast<int>(strtof(cmdinput, nullptr));
+				num_pixels = std::stoi(cmdinput);
 				if (num_pixels < 1)
 				{
 					std::cerr << "Error. Invalid num_pixels input. num_pixels must be an integer > 0\n";
 					return -1;
 				}
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid num_pixels input.\n";
 				return -1;
@@ -247,16 +314,16 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-nr") || argv[i] == std::string("--num_rays"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				num_rays = static_cast<int>(strtof(cmdinput, nullptr));
+				num_rays = std::stoi(cmdinput);
 				if (num_rays < 1)
 				{
 					std::cerr << "Error. Invalid num_rays input. num_rays must be an integer > 0\n";
 					return -1;
 				}
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid num_rays input.\n";
 				return -1;
@@ -264,11 +331,11 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-rs") || argv[i] == std::string("--random_seed"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				random_seed = static_cast<int>(std::strtof(cmdinput, nullptr));
+				random_seed = std::stoi(cmdinput);
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid random_seed input.\n";
 				return -1;
@@ -276,16 +343,16 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-wm") || argv[i] == std::string("--write_maps"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				write_maps = static_cast<int>(std::strtof(cmdinput, nullptr));
+				write_maps = std::stoi(cmdinput);
 				if (write_maps != 0 && write_maps != 1)
 				{
 					std::cerr << "Error. Invalid write_maps input. write_maps must be 0 (false) or 1 (true).\n";
 					return -1;
 				}
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid write_maps input.\n";
 				return -1;
@@ -293,16 +360,16 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-wp") || argv[i] == std::string("--write_parities"))
 		{
-			if (valid_float(cmdinput))
+			try
 			{
-				write_parities = static_cast<int>(std::strtof(cmdinput, nullptr));
+				write_parities = std::stoi(cmdinput);
 				if (write_parities != 0 && write_parities != 1)
 				{
 					std::cerr << "Error. Invalid write_parities input. write_parities must be 0 (false) or 1 (true).\n";
 					return -1;
 				}
 			}
-			else
+			catch (...)
 			{
 				std::cerr << "Error. Invalid write_parities input.\n";
 				return -1;
@@ -437,11 +504,11 @@ int main(int argc, char* argv[])
 		uses default star mass of 1.0*/
 		if (random_seed != 0)
 		{
-			generate_star_field<float>(stars, num_stars, rad, 1.0f, random_seed);
+			generate_circular_star_field<float>(stars, num_stars, rad, 1.0f, random_seed);
 		}
 		else
 		{
-			random_seed = generate_star_field<float>(stars, num_stars, rad, 1.0f);
+			random_seed = generate_circular_star_field<float>(stars, num_stars, rad, 1.0f);
 		}
 
 		std::cout << "Done generating star field.\n";
@@ -632,116 +699,5 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaDeviceReset", false, __FILE__, __LINE__)) return -1;
 
 	return 0;
-}
-
-
-
-void display_usage(char* name) 
-{
-	if (name) 
-	{
-		std::cout << "Usage: " << name << " opt1 val1 opt2 val2 opt3 val3 ...\n";
-	}
-	else 
-	{
-		std::cout << "Usage: programname opt1 val1 opt2 val2 opt3 val3 ...\n";
-	}
-	std::cout << "Options:\n"
-		<< "   -h,--help              Show this help message\n"
-		<< "   -k,--kappa_tot         Specify the total convergence. Default value: " << kappa_tot << "\n"
-		<< "   -ks,--kappa_smooth     Specify the smooth convergence. Default value: " << kappa_smooth << "\n"
-		<< "   -s,--shear             Specify the shear. Default value: " << shear << "\n"
-		<< "   -t,--theta_e           Specify the size of the Einstein radius of a unit\n"
-		<< "                          mass star in arbitrary units. Default value: " << theta_e << "\n"
-		<< "   -hl,--half_length      Specify the half-length of the square source plane\n"
-		<< "                          region to find the magnification in.\n"
-		<< "                          Default value: " << half_length << "\n"
-		<< "   -px,--pixels           Specify the number of pixels per source plane side\n"
-		<< "                          length. Default value: " << num_pixels << "\n"
-		<< "   -nr,--num_rays         Specify the average number of rays per pixel.\n"
-		<< "                          Default value: " << num_rays << "\n"
-		<< "   -rs,--random_seed      Specify the random seed for the star field\n"
-		<< "                          generation. A value of 0 is reserved for star input\n"
-		<< "                          files. Default value: " << random_seed << "\n"
-		<< "   -wm,--write_maps       Specify whether to write magnification maps.\n"
-		<< "                          Default value: " << write_maps << "\n"
-		<< "   -wp,--write_parities   Specify whether to write parity specific\n"
-		<< "                          magnification maps. Default value: " << write_parities << "\n"
-		<< "   -sf,--starfile         Specify the location of a star positions and masses\n"
-		<< "                          file. Default value: " << starfile << "\n"
-		<< "                          The file may be either a whitespace delimited text\n"
-		<< "                          file containing valid double precision values for a\n"
-		<< "                          star's x coordinate, y coordinate, and mass, in that\n"
-		<< "                          order, on each line, or a binary file of star\n"
-		<< "                          structures (as defined in this source code). If\n"
-		<< "                          specified, the number of stars is determined through\n"
-		<< "                          this file.\n"
-		<< "   -ot,--outfile_type     Specify the type of file to be output. Valid options\n"
-		<< "                          are binary (.bin) or text (.txt). Default value: " << outfile_type << "\n"
-		<< "   -o,--outfile_prefix    Specify the prefix to be used in output file names.\n"
-		<< "                          Default value: " << outfile_prefix << "\n"
-		<< "                          Lines of .txt output files are whitespace delimited.\n"
-		<< "                          Filenames are:\n"
-		<< "                             irs_parameter_info      various parameter values\n"
-		<< "                                                        used in calculations\n"
-		<< "                             irs_stars               the first item is\n"
-		<< "                                                        num_stars followed by\n"
-		<< "                                                        binary representations\n"
-		<< "                                                        of the star structures\n"
-		<< "                             irs_numrays_numpixels   each line contains a\n"
-		<< "                                                        number of rays and the\n"
-		<< "                                                        number of pixels with\n"
-		<< "                                                        that many rays\n"
-		<< "                             irs_magnifications      the first item is\n"
-		<< "                                                        num_pixels and the\n"
-		<< "                                                        second item is\n"
-		<< "                                                        num_pixels followed by\n"
-		<< "                                                        the number of rays in\n"
-		<< "                                                        each pixel\n";
-}
-
-void print_progress(int icurr, int imax, int num_bars)
-{
-	std::cout << "\r[";
-	for (int i = 0; i < num_bars; i++)
-	{
-		if (i <= icurr * num_bars / imax)
-		{
-			std::cout << "=";
-		}
-		else
-		{
-			std::cout << " ";
-		}
-	}
-	std::cout << "] " << icurr * 100 / imax << " %";
-}
-
-bool cuda_error(const char* name, bool sync, const char* file, const int line)
-{
-	cudaError_t err = cudaGetLastError();
-	/*if the last error message is not a success, print the error code and msg
-	and return true (i.e., an error occurred)*/
-	if (err != cudaSuccess)
-	{
-		const char* errMsg = cudaGetErrorString(err);
-		std::cerr << "CUDA error check for " << name << " failed at " << file << ":" << line << "\n";
-		std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
-		return true;
-	}
-	/*if a device synchronization is also to be done*/
-	if (sync)
-	{
-		/*perform the same error checking as initially*/
-		err = cudaDeviceSynchronize();
-		if (err != cudaSuccess)
-		{
-			const char* errMsg = cudaGetErrorString(err);
-			std::cerr << "CUDA error check for cudaDeviceSynchronize failed at " << file << ":" << line << "\n";
-			std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
-			return true;
-		}
-	}
-	return false;
 }
 

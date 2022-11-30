@@ -8,7 +8,6 @@ Email: weisluke@alum.mit.edu
 
 #include "complex.cuh"
 #include "irs_microlensing.cuh"
-#include "irs_read_write_files.cuh"
 #include "star.cuh"
 #include "util.hpp"
 

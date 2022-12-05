@@ -647,7 +647,7 @@ int main(int argc, char* argv[])
 
 
 	/*histogram of magnification map*/
-	std::cout << "\nWriting magnification histogram to file " << outfile_prefix << "irs_numrays_numpixels.txt\n";
+	std::cout << "\nWriting magnification histogram...\n";
 	outfile.open(outfile_prefix + "irs_numrays_numpixels.txt");
 	if (!outfile.is_open())
 	{

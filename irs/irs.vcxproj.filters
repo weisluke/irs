@@ -9,11 +9,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="parse.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
     <CudaCompile Include="main.cu">
       <Filter>src</Filter>
     </CudaCompile>
@@ -23,19 +18,13 @@
     <CudaCompile Include="irs_microlensing.cuh">
       <Filter>include</Filter>
     </CudaCompile>
-    <CudaCompile Include="irs_read_write_files.cuh">
-      <Filter>include</Filter>
-    </CudaCompile>
-    <CudaCompile Include="random_star_field.cuh">
-      <Filter>include</Filter>
-    </CudaCompile>
     <CudaCompile Include="star.cuh">
       <Filter>include</Filter>
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="parse.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
+    <ClInclude Include="util.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

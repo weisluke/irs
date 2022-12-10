@@ -13,16 +13,11 @@
   <ItemGroup>
     <CudaCompile Include="complex.cuh" />
     <CudaCompile Include="irs_microlensing.cuh" />
-    <CudaCompile Include="irs_read_write_files.cuh" />
-    <ClInclude Include="parse.hpp" />
-    <CudaCompile Include="random_star_field.cuh" />
+    <ClInclude Include="util.hpp" />
     <CudaCompile Include="star.cuh" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="main.cu" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="parse.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{13C63D9A-92BF-4AEA-A02E-587868B3A5E4}</ProjectGuid>

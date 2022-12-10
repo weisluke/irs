@@ -1,5 +1,10 @@
 ﻿#pragma once
 
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+
 #include "complex.cuh"
 #include "star.cuh"
 
@@ -202,5 +207,65 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			}
 		}
 	}
+}
+
+/**************************************************************
+write array of values to disk
+
+\param vals -- pointer to array of values
+\param nrows -- number of rows in array
+\param ncols -- number of columns in array
+\param fname -- location of the file to write to
+
+\return bool -- true if file successfully written, false if not
+**************************************************************/
+template <typename T>
+bool write_array(T* vals, int nrows, int ncols, const std::string& fname)
+{
+	std::filesystem::path fpath = fname;
+
+	std::ofstream outfile;
+
+	if (fpath.extension() == ".txt")
+	{
+		outfile.precision(9);
+		outfile.open(fname);
+
+		if (!outfile.is_open())
+		{
+			std::cerr << "Error. Failed to open file " << fname << "\n";
+			return false;
+		}
+		for (int i = 0; i < nrows; i++)
+		{
+			for (int j = 0; j < ncols; j++)
+			{
+				outfile << vals[i * ncols + j] << " ";
+			}
+			outfile << "\n";
+		}
+	}
+	else if (fpath.extension() == ".bin")
+	{
+		outfile.open(fname, std::ios_base::binary);
+
+		if (!outfile.is_open())
+		{
+			std::cerr << "Error. Failed to open file " << fname << "\n";
+			return false;
+		}
+
+		outfile.write((char*)(&nrows), sizeof(int));
+		outfile.write((char*)(&ncols), sizeof(int));
+		outfile.write((char*)vals, nrows * ncols * sizeof(T));
+		outfile.close();
+	}
+	else
+	{
+		std::cerr << "Error. File " << fname << " is not a .bin or .txt file.\n";
+		return false;
+	}
+
+	return true;
 }
 

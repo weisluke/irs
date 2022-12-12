@@ -68,6 +68,7 @@ public:
 		#endif
 	}
 
+	/*positive and negative operators*/
 	__host__ __device__ Complex operator+()
 	{
 		return Complex(re, im);

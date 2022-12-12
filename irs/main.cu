@@ -6,6 +6,11 @@ Email: weisluke@alum.mit.edu
 *****************************************************************/
 
 
+#include "complex.cuh"
+#include "irs_microlensing.cuh"
+#include "star.cuh"
+#include "util.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -14,11 +19,6 @@ Email: weisluke@alum.mit.edu
 #include <limits>
 #include <new>
 #include <string>
-
-#include "complex.cuh"
-#include "irs_microlensing.cuh"
-#include "star.cuh"
-#include "util.hpp"
 
 
 
@@ -88,15 +88,17 @@ void display_usage(char* name)
 	std::cout << "Options:\n"
 		<< "   -h,--help              Show this help message\n"
 		<< "   -k,--kappa_tot         Specify the total convergence. Default value: " << kappa_tot << "\n"
-		<< "   -ks,--kappa_smooth     Specify the smooth convergence. Default value: " << kappa_smooth << "\n"
-		<< "   -s,--shear             Specify the shear. Default value: " << shear << "\n"
+		<< "   -s,--shear             Specify the external shear. Default value: " << shear << "\n"
 		<< "   -t,--theta_e           Specify the size of the Einstein radius of a unit\n"
-		<< "                          mass star in arbitrary units. Default value: " << theta_e << "\n"
+		<< "                          mass point lens in arbitrary units.\n"
+		<< "                          Default value : " << theta_e << "\n"
+		<< "   -ks,--kappa_star       Specify the convergence in point masses.\n"
+		<< "                          Default value : " << kappa_star << "\n"
 		<< "   -hl,--half_length      Specify the half-length of the square source plane\n"
 		<< "                          region to find the magnification in.\n"
 		<< "                          Default value: " << half_length << "\n"
-		<< "   -px,--pixels           Specify the number of pixels per source plane side\n"
-		<< "                          length. Default value: " << num_pixels << "\n"
+		<< "   -px,--pixels           Specify the number of pixels per side for the\n"
+		<< "                          magnification map. Default value: " << num_pixels << "\n"
 		<< "   -nr,--num_rays         Specify the average number of rays per pixel.\n"
 		<< "                          Default value: " << num_rays << "\n"
 		<< "   -rs,--random_seed      Specify the random seed for the star field\n"
@@ -237,18 +239,6 @@ int main(int argc, char* argv[])
 				return -1;
 			}
 		}
-		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_smooth"))
-		{
-			try
-			{
-				kappa_smooth = std::stof(cmdinput);
-			}
-			catch (...)
-			{
-				std::cerr << "Error. Invalid kappa_smooth input.\n";
-				return -1;
-			}
-		}
 		else if (argv[i] == std::string("-s") || argv[i] == std::string("--shear"))
 		{
 			try
@@ -275,6 +265,23 @@ int main(int argc, char* argv[])
 			catch (...)
 			{
 				std::cerr << "Error. Invalid theta_e input.\n";
+				return -1;
+			}
+		}
+		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_star"))
+		{
+			try
+			{
+				kappa_star = std::stof(cmdinput);
+				if (kappa_star < std::numeric_limits<float>::min())
+				{
+					std::cerr << "Error. Invalid kappa_star input. kappa_star must be > " << std::numeric_limits<float>::min() << "\n";
+					return -1;
+				}
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid kappa_star input.\n";
 				return -1;
 			}
 		}
@@ -443,8 +450,12 @@ int main(int argc, char* argv[])
 
 	//float shear_smooth = kappa_star - 4.0f * kappa_star / PI * std::atan(std::fabs(1.0f - kappa_tot + shear) / std::fabs(1.0f - kappa_tot - shear));
 	Complex<float> c = Complex<float>(1.37f * lens_hl_x, 1.37f * lens_hl_y);
-	num_stars = static_cast<int>(1.37f * 2.0f * lens_hl_x * 1.37f * 2.0f * lens_hl_y * kappa_star / (mean_mass * PI * theta_e * theta_e)) + 1;
-
+	
+	if (starfile == "")
+	{
+		num_stars = static_cast<int>(1.37f * 2.0f * lens_hl_x * 1.37f * 2.0f * lens_hl_y * kappa_star / (mean_mass * PI * theta_e * theta_e)) + 1;
+	}
+	
 	std::cout << "Number of stars used: " << num_stars << "\n";
 
 
@@ -489,11 +500,11 @@ int main(int argc, char* argv[])
 		uses default star mass of 1.0*/
 		if (random_seed != 0)
 		{
-			generate_circular_star_field<float>(stars, num_stars, rad, 1.0f, random_seed);
+			generate_rectangular_star_field<float>(stars, num_stars, c, 1.0f, random_seed);
 		}
 		else
 		{
-			random_seed = generate_circular_star_field<float>(stars, num_stars, rad, 1.0f);
+			random_seed = generate_rectangular_star_field<float>(stars, num_stars, c, 1.0f);
 		}
 
 		std::cout << "Done generating star field.\n";
@@ -617,6 +628,8 @@ int main(int argc, char* argv[])
 	outfile << "random_seed " << random_seed << "\n";
 	outfile << "lens_hl_x " << lens_hl_x << "\n";
 	outfile << "lens_hl_y " << lens_hl_y << "\n";
+	outfile << "corner_x " << c.re << "\n";
+	outfile << "corner_y " << c.im << "\n";
 	outfile << "ray_sep " << ray_sep << "\n";
 	outfile << "t_ray_shoot " << t_ray_shoot << "\n";
 	outfile.close();

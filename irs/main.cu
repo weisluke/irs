@@ -621,15 +621,8 @@ int main(int argc, char* argv[])
 	int num_threads_x = 16;
 
 	int num_blocks_y = static_cast<int>((2.0f * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
-	if (num_blocks_y > 32768 || num_blocks_y < 1)
-	{
-		num_blocks_y = 32768;
-	}
 	int num_blocks_x = static_cast<int>((2.0f * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
-	if (num_blocks_x > 32768 || num_blocks_x < 1)
-	{
-		num_blocks_x = 32768;
-	}
+
 	dim3 blocks(num_blocks_x, num_blocks_y);
 	dim3 threads(num_threads_x, num_threads_y);
 
@@ -644,11 +637,11 @@ int main(int argc, char* argv[])
 
 	if (rectangular)
 	{
-		shoot_rays_kernel << <blocks, threads >> > (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		shoot_rays_kernel <<<blocks, threads >>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	}
 	else
 	{
-		shoot_rays_kernel << <blocks, threads >> > (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		shoot_rays_kernel <<<blocks, threads >>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	}
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	/*get current time at end of loop, and calculate duration in milliseconds*/

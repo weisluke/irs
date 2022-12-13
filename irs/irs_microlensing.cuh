@@ -113,8 +113,8 @@ shoot rays from image plane to source plane for a rectangular star field
 \param kappastar -- convergence in point mass lenses
 \param c -- complex number denoting the corner of the rectangular field
 			of point mass lenses
-\param hlx1 -- half length of the image plane shooting region x size
-\param hlx2 -- half length of the image plane shooting region y size
+\param hlx1 -- half length of the image plane shooting region x1 size
+\param hlx2 -- half length of the image plane shooting region x2 size
 \param raysep -- separation between central rays of shooting squares
 \param hly -- half length of the source plane receiving region
 \param pixmin -- pointer to array of positive parity pixels
@@ -260,8 +260,8 @@ shoot rays from image plane to source plane for a circular star field
 \param stars -- pointer to array of point mass lenses
 \param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
-\param hlx1 -- half length of the image plane shooting region x size
-\param hlx2 -- half length of the image plane shooting region y size
+\param hlx1 -- half length of the image plane shooting region x1 size
+\param hlx2 -- half length of the image plane shooting region x2 size
 \param raysep -- separation between central rays of shooting squares
 \param hly -- half length of the source plane receiving region
 \param pixmin -- pointer to array of positive parity pixels

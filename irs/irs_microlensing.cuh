@@ -159,7 +159,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, nstars, kappastar, c);
 			}
 
-			/*calculate Taylor coefficients of the potential
+			/*calculate local Taylor coefficients of the potential
 			relies on symmetries and the fact that there are no higher
 			order macro-derivatives than kappa and gamma to be able to
 			calculate down to the 4th derivatives of the potential

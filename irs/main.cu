@@ -487,23 +487,23 @@ int main(int argc, char* argv[])
 	/*shooting region is greater than outer boundary for macro-mapping by the
 	size of the region of images visible for a macro-image which contain 99%
 	of the flux*/
-	float lens_hl_x = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1.0f - kappa_tot + shear);
-	float lens_hl_y = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1.0f - kappa_tot - shear);
+	float lens_hl_x1 = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1.0f - kappa_tot + shear);
+	float lens_hl_x2 = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1.0f - kappa_tot - shear);
 
 	/*make shooting region a multiple of the ray separation*/
-	lens_hl_x = ray_sep * (static_cast<int>(lens_hl_x / ray_sep) + 1.0f);
-	lens_hl_y = ray_sep * (static_cast<int>(lens_hl_y / ray_sep) + 1.0f);
+	lens_hl_x1 = ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1.0f);
+	lens_hl_x2 = ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1.0f);
 	
 	/*if stars are not drawn from external file, calculate final number of stars to use*/
 	if (starfile == "")
 	{
 		if (rectangular)
 		{
-			num_stars = static_cast<int>((safety_scale * 2.0f * lens_hl_x) * (safety_scale * 2.0f * lens_hl_y) * kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
+			num_stars = static_cast<int>((safety_scale * 2.0f * lens_hl_x1) * (safety_scale * 2.0f * lens_hl_x2) * kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
 		}
 		else
 		{
-			num_stars = static_cast<int>(safety_scale * safety_scale * (lens_hl_x * lens_hl_x + lens_hl_y * lens_hl_y) * kappa_star / (theta_e * theta_e * mean_mass)) + 1;
+			num_stars = static_cast<int>(safety_scale * safety_scale * (lens_hl_x1 * lens_hl_x1 + lens_hl_x2 * lens_hl_x2) * kappa_star / (theta_e * theta_e * mean_mass)) + 1;
 		}
 	}
 	
@@ -620,12 +620,12 @@ int main(int argc, char* argv[])
 	int num_threads_y = 16;
 	int num_threads_x = 16;
 
-	int num_blocks_y = static_cast<int>((2.0f * lens_hl_y / ray_sep - 1) / num_threads_y) + 1;
+	int num_blocks_y = static_cast<int>((2.0f * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
 	if (num_blocks_y > 32768 || num_blocks_y < 1)
 	{
 		num_blocks_y = 32768;
 	}
-	int num_blocks_x = static_cast<int>((2.0f * lens_hl_x / ray_sep - 1) / num_threads_x) + 1;
+	int num_blocks_x = static_cast<int>((2.0f * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
 	if (num_blocks_x > 32768 || num_blocks_x < 1)
 	{
 		num_blocks_x = 32768;
@@ -644,11 +644,11 @@ int main(int argc, char* argv[])
 
 	if (rectangular)
 	{
-		shoot_rays_kernel << <blocks, threads >> > (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x, lens_hl_y, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		shoot_rays_kernel << <blocks, threads >> > (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	}
 	else
 	{
-		shoot_rays_kernel << <blocks, threads >> > (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x, lens_hl_y, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		shoot_rays_kernel << <blocks, threads >> > (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	}
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	/*get current time at end of loop, and calculate duration in milliseconds*/
@@ -714,8 +714,8 @@ int main(int argc, char* argv[])
 	outfile << "num_pixels " << num_pixels << "\n";
 	outfile << "mean_rays_per_pixel " << num_rays << "\n";
 	outfile << "random_seed " << random_seed << "\n";
-	outfile << "lens_hl_x " << lens_hl_x << "\n";
-	outfile << "lens_hl_y " << lens_hl_y << "\n";
+	outfile << "lens_hl_x1 " << lens_hl_x1 << "\n";
+	outfile << "lens_hl_x2 " << lens_hl_x2 << "\n";
 	outfile << "ray_sep " << ray_sep << "\n";
 	outfile << "t_ray_shoot " << t_ray_shoot << "\n";
 	outfile.close();

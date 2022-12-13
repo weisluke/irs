@@ -387,6 +387,11 @@ int main(int argc, char* argv[])
 			try
 			{
 				random_seed = std::stoi(cmdinput);
+				if (random_seed == 0)
+				{
+					std::cerr << "Error. Invalid random_seed input. Seed of 0 is reserved for star input files.\n";
+					return -1;
+				}
 			}
 			catch (...)
 			{

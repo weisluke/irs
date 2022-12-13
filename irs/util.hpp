@@ -56,7 +56,7 @@ char* cmd_option_value(char** begin, char** end, const std::string& option)
 
 /****************************************************
 function to print out progress bar of loops
-examples: [====    ] 50%       [=====  ] 62%
+examples: [====    ] 50%       [=====  ] 73%
 
 \param icurr -- current position in the loop
 \param imax -- maximum position in the loop

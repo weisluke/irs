@@ -13,19 +13,20 @@ public:
 	T re;
 	T im;
 
-	/*default constructor initializes complex number to zero*/
+	/*default constructor initializes the complex number to zero*/
 	__host__ __device__ Complex(T real = 0, T imag = 0)
 	{
 		re = real;
 		im = imag;
 	}
 
+	/*complex conjugate of the complex number*/
 	__host__ __device__ Complex conj()
 	{
 		return Complex(re, -im);
 	}
 
-	/*sqrt(re*re + im*im)*/
+	/*norm of the complex number = sqrt(re*re + im*im)*/
 	__host__ __device__ T abs()
 	{
 		/*use device or host square root function*/
@@ -36,7 +37,7 @@ public:
 		#endif
 	}
 
-	/*argument of number in range [-pi, pi]*/
+	/*argument of the complex number in the range [-pi, pi]*/
 	__host__ __device__ T arg()
 	{
 		#ifdef CUDA_ARCH

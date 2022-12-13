@@ -704,8 +704,8 @@ int main(int argc, char* argv[])
 	outfile << "num_stars " << num_stars << "\n";
 	if (rectangular)
 	{
-		outfile << "corner_x " << c.re << "\n";
-		outfile << "corner_y " << c.im << "\n";
+		outfile << "corner_x1 " << c.re << "\n";
+		outfile << "corner_x2 " << c.im << "\n";
 	}
 	else
 	{

@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "complex.cuh"
+
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -12,8 +14,6 @@
 #include <string>
 #include <system_error>
 
-#include "complex.cuh"
-
 
 /*structure to hold position and mass of a star*/
 template <typename T>
@@ -25,11 +25,49 @@ struct star
 
 
 /**************************************************
-generate random star field
+generate random rectangular star field
 
 \param stars -- pointer to array of stars
 \param nstars -- number of stars to generate
-\param rad -- radius within which to generate stars
+\param corner -- corner of the rectangular region
+				 within which to generate stars
+\param mass -- mass for each star
+\param seed -- random seed to use. defaults to seed
+			   generated based on current time
+
+\return seed -- the random seed used
+**************************************************/
+template <typename T>
+int generate_rectangular_star_field(star<T>* stars, int nstars, Complex<T> corner, T mass, int seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()))
+{
+	/*random number generator seeded according to the provided seed*/
+	std::mt19937 gen(seed);
+
+	/*uniform distribution to pick real values between 0 and 1*/
+	std::uniform_real_distribution<T> dis(0, 1);
+
+	/*variables to hold randomly chosen x1 and x2*/
+	T x1, x2;
+
+	for (int i = 0; i < nstars; i++)
+	{
+		x1 = dis(gen) * 2.0 * corner.re - corner.re;
+		x2 = dis(gen) * 2.0 * corner.im - corner.im;
+
+		stars[i].position = Complex<T>(x1, x2);
+		stars[i].mass = mass;
+	}
+
+	return seed;
+}
+
+/**************************************************
+generate random circular star field
+
+\param stars -- pointer to array of stars
+\param nstars -- number of stars to generate
+\param rad -- radius of the circular region
+			  within which to generate stars
 \param mass -- mass for each star
 \param seed -- random seed to use. defaults to seed
 			   generated based on current time

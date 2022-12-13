@@ -13,19 +13,20 @@ public:
 	T re;
 	T im;
 
-	/*default constructor initializes complex number to zero*/
+	/*default constructor initializes the complex number to zero*/
 	__host__ __device__ Complex(T real = 0, T imag = 0)
 	{
 		re = real;
 		im = imag;
 	}
 
+	/*complex conjugate of the complex number*/
 	__host__ __device__ Complex conj()
 	{
 		return Complex(re, -im);
 	}
 
-	/*sqrt(re*re + im*im)*/
+	/*norm of the complex number = sqrt(re*re + im*im)*/
 	__host__ __device__ T abs()
 	{
 		/*use device or host square root function*/
@@ -36,6 +37,39 @@ public:
 		#endif
 	}
 
+	/*argument of the complex number in the range [-pi, pi]*/
+	__host__ __device__ T arg()
+	{
+		#ifdef CUDA_ARCH
+			return atan2(im, re);
+		#else
+			return std::atan2(im, re);
+		#endif
+	}
+
+	/*exponential of the complex number*/
+	__host__ __device__ Complex exp()
+	{
+		#ifdef CUDA_ARCH
+			return Complex(exp(re) * cos(im), exp(re) * sin(im));
+		#else
+			return Complex(std::exp(re) * std::cos(im), std::exp(re) * std::sin(im));
+		#endif
+	}
+
+	/*logarithm of the complex number*/
+	__host__ __device__ Complex log()
+	{
+		T abs = (*this).abs();
+		T arg = (*this).arg();
+		#ifdef CUDA_ARCH
+			return Complex(log(abs), arg);
+		#else
+			return Complex(std::log(abs), arg);
+		#endif
+	}
+
+	/*positive and negative operators*/
 	__host__ __device__ Complex operator+()
 	{
 		return Complex(re, im);

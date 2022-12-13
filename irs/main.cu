@@ -571,11 +571,11 @@ int main(int argc, char* argv[])
 		{
 			if (rectangular)
 			{
-				generate_rectangular_star_field<float>(stars, num_stars, c, 1.0f);
+				random_seed = generate_rectangular_star_field<float>(stars, num_stars, c, 1.0f);
 			}
 			else
 			{
-				generate_circular_star_field<float>(stars, num_stars, rad, 1.0f);
+				random_seed = generate_circular_star_field<float>(stars, num_stars, rad, 1.0f);
 			}
 		}
 

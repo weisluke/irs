@@ -14,7 +14,7 @@ public:
 	T im;
 
 	/*default constructor initializes the complex number to zero*/
-	__host__ __device__ Complex(T real = 0, T imag = 0)
+	__host__ __device__ Complex(T real = static_cast<T>(0), T imag = static_cast<T>(0))
 	{
 		re = real;
 		im = imag;

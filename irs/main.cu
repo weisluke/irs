@@ -21,9 +21,10 @@ Email: weisluke@alum.mit.edu
 #include <string>
 
 
+using dtype = float;
 
 /*constants to be used*/
-const float PI = 3.1415926535898f;
+const dtype PI = static_cast<dtype>(3.1415926535898);
 constexpr int OPTS_SIZE = 2 * 16;
 const std::string OPTS[OPTS_SIZE] =
 {
@@ -47,14 +48,14 @@ const std::string OPTS[OPTS_SIZE] =
 
 
 /*default input option values*/
-float kappa_tot = 0.3f;
-float shear = 0.3f;
-float theta_e = 1.0f;
-float kappa_star = 0.27f;
+dtype kappa_tot = static_cast<dtype>(0.3);
+dtype shear = static_cast<dtype>(0.3);
+dtype theta_e = static_cast<dtype>(1);
+dtype kappa_star = static_cast<dtype>(0.27);
 int rectangular = 1;
-float safety_scale = 1.37f;
+dtype safety_scale = static_cast<dtype>(1.37);
 std::string starfile = "";
-float half_length = 5.0f;
+dtype half_length = static_cast<dtype>(5);
 int num_pixels = 1000;
 int num_rays = 100;
 int random_seed = 0;
@@ -67,10 +68,10 @@ std::string outfile_prefix = "./";
 number of stars, upper and lower mass cutoffs,
 <m>, and <m^2>*/
 int num_stars = 0;
-float m_lower = 1.0f;
-float m_upper = 1.0f;
-float mean_mass = 1.0f;
-float mean_squared_mass = 1.0f;
+dtype m_lower = static_cast<dtype>(1);
+dtype m_upper = static_cast<dtype>(1);
+dtype mean_mass = static_cast<dtype>(1);
+dtype mean_squared_mass = static_cast<dtype>(1);
 
 
 
@@ -238,7 +239,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				kappa_tot = std::stof(cmdinput);
+				kappa_tot = static_cast<dtype>(std::stod(cmdinput));
 			}
 			catch (...)
 			{
@@ -250,7 +251,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				shear = std::stof(cmdinput);
+				shear = static_cast<dtype>(std::stod(cmdinput));;
 			}
 			catch (...)
 			{
@@ -262,10 +263,10 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				theta_e = std::stof(cmdinput);
-				if (theta_e < std::numeric_limits<float>::min())
+				theta_e = static_cast<dtype>(std::stod(cmdinput));;
+				if (theta_e < std::numeric_limits<dtype>::min())
 				{
-					std::cerr << "Error. Invalid theta_e input. theta_e must be > " << std::numeric_limits<float>::min() << "\n";
+					std::cerr << "Error. Invalid theta_e input. theta_e must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
 				}
 			}
@@ -279,10 +280,10 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				kappa_star = std::stof(cmdinput);
-				if (kappa_star < std::numeric_limits<float>::min())
+				kappa_star = static_cast<dtype>(std::stod(cmdinput));;
+				if (kappa_star < std::numeric_limits<dtype>::min())
 				{
-					std::cerr << "Error. Invalid kappa_star input. kappa_star must be > " << std::numeric_limits<float>::min() << "\n";
+					std::cerr << "Error. Invalid kappa_star input. kappa_star must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
 				}
 			}
@@ -313,7 +314,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				safety_scale = std::stof(cmdinput);
+				safety_scale = static_cast<dtype>(std::stod(cmdinput));;
 				if (safety_scale < 1)
 				{
 					std::cerr << "Error. Invalid safety_scale input. safety_scale must be > 1\n";
@@ -334,10 +335,10 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				half_length = std::stof(cmdinput);
-				if (half_length < std::numeric_limits<float>::min())
+				half_length = static_cast<dtype>(std::stod(cmdinput));;
+				if (half_length < std::numeric_limits<dtype>::min())
 				{
-					std::cerr << "Error. Invalid half_length input. half_length must be > " << std::numeric_limits<float>::min() << "\n";
+					std::cerr << "Error. Invalid half_length input. half_length must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
 				}
 			}
@@ -463,7 +464,7 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
 
-		if (!read_star_params<float>(num_stars, m_lower, m_upper, mean_mass, mean_squared_mass, starfile))
+		if (!read_star_params<dtype>(num_stars, m_lower, m_upper, mean_mass, mean_squared_mass, starfile))
 		{
 			std::cerr << "Error. Unable to read star field parameters from file " << starfile << "\n";
 			return -1;
@@ -473,33 +474,33 @@ int main(int argc, char* argv[])
 	}
 
 	/*average magnification of the system*/
-	float mu_ave = 1.0f / ((1.0f - kappa_tot) * (1.0f - kappa_tot) - shear * shear);
+	dtype mu_ave = 1 / ((1 - kappa_tot) * (1 - kappa_tot) - shear * shear);
 
 	/*number density of rays in the lens plane
 	uses the fact that for a given user specified number density of rays
 	in the source plane, further subdivisions are made that multiply the
 	effective number of rays in the image plane by 27^2*/
-	float num_rays_lens = 1.0f / (27.0f * 27.0f) * num_rays / std::abs(mu_ave) * (num_pixels * num_pixels) / (2.0f * half_length * 2.0f * half_length);
+	dtype num_rays_lens = num_rays / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length * 2 * half_length) * 1 / (27 * 27);
 
 	/*average separation between rays in one dimension is 1/sqrt(number density)*/
-	float ray_sep = 1.0f / std::sqrt(num_rays_lens);
+	dtype ray_sep = 1 / std::sqrt(num_rays_lens);
 
 	/*shooting region is greater than outer boundary for macro-mapping by the
 	size of the region of images visible for a macro-image which contain 99%
 	of the flux*/
-	float lens_hl_x1 = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1.0f - kappa_tot + shear);
-	float lens_hl_x2 = (half_length + 10.0f * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1.0f - kappa_tot - shear);
+	dtype lens_hl_x1 = (half_length + 10 * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1 - kappa_tot + shear);
+	dtype lens_hl_x2 = (half_length + 10 * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1 - kappa_tot - shear);
 
 	/*make shooting region a multiple of the ray separation*/
-	lens_hl_x1 = ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1.0f);
-	lens_hl_x2 = ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1.0f);
+	lens_hl_x1 = ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1);
+	lens_hl_x2 = ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1);
 	
 	/*if stars are not drawn from external file, calculate final number of stars to use*/
 	if (starfile == "")
 	{
 		if (rectangular)
 		{
-			num_stars = static_cast<int>((safety_scale * 2.0f * lens_hl_x1) * (safety_scale * 2.0f * lens_hl_x2) * kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
+			num_stars = static_cast<int>((safety_scale * 2 * lens_hl_x1) * (safety_scale * 2 * lens_hl_x2) * kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
 		}
 		else
 		{
@@ -509,25 +510,25 @@ int main(int argc, char* argv[])
 	
 	std::cout << "Number of stars used: " << num_stars << "\n";
 
-	Complex<float> c = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4.0f * kappa_star)) 
-		* Complex<float>(
-			std::sqrt(std::abs((1.0f - kappa_tot - shear) / (1.0f - kappa_tot + shear))), 
-			std::sqrt(std::abs((1.0f - kappa_tot + shear) / (1.0f - kappa_tot - shear)))
+	Complex<dtype> c = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
+		* Complex<dtype>(
+			std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))), 
+			std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
 			);
-	float rad = std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
+	dtype rad = std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
 
 
 	/**********************
 	BEGIN memory allocation
 	**********************/
 
-	star<float>* stars = nullptr;
+	star<dtype>* stars = nullptr;
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
 	int* pixels = nullptr;
 
 	/*allocate memory for stars*/
-	cudaMallocManaged(&stars, num_stars * sizeof(star<float>));
+	cudaMallocManaged(&stars, num_stars * sizeof(star<dtype>));
 	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
 
 	/*allocate memory for pixels*/
@@ -560,22 +561,22 @@ int main(int argc, char* argv[])
 		{
 			if (rectangular)
 			{
-				generate_rectangular_star_field<float>(stars, num_stars, c, 1.0f, random_seed);
+				generate_rectangular_star_field<dtype>(stars, num_stars, c, static_cast<dtype>(1), random_seed);
 			}
 			else
 			{
-				generate_circular_star_field<float>(stars, num_stars, rad, 1.0f, random_seed);
+				generate_circular_star_field<dtype>(stars, num_stars, rad, static_cast<dtype>(1), random_seed);
 			}
 		}
 		else
 		{
 			if (rectangular)
 			{
-				random_seed = generate_rectangular_star_field<float>(stars, num_stars, c, 1.0f);
+				random_seed = generate_rectangular_star_field<dtype>(stars, num_stars, c, static_cast<dtype>(1));
 			}
 			else
 			{
-				random_seed = generate_circular_star_field<float>(stars, num_stars, rad, 1.0f);
+				random_seed = generate_circular_star_field<dtype>(stars, num_stars, rad, static_cast<dtype>(1));
 			}
 		}
 
@@ -589,7 +590,7 @@ int main(int argc, char* argv[])
 		std::cout << "Reading star field from file " << starfile << "\n";
 
 		/*reading star field from external file*/
-		if (!read_star_file<float>(stars, num_stars, starfile))
+		if (!read_star_file<dtype>(stars, num_stars, starfile))
 		{
 			std::cerr << "Error. Unable to read star field from file " << starfile << "\n";
 			return -1;
@@ -620,8 +621,8 @@ int main(int argc, char* argv[])
 	int num_threads_y = 16;
 	int num_threads_x = 16;
 
-	int num_blocks_y = static_cast<int>((2.0f * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
-	int num_blocks_x = static_cast<int>((2.0f * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
+	int num_blocks_y = static_cast<int>((2 * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
+	int num_blocks_x = static_cast<int>((2 * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
 
 	dim3 blocks(num_blocks_x, num_blocks_y);
 	dim3 threads(num_threads_x, num_threads_y);
@@ -715,7 +716,7 @@ int main(int argc, char* argv[])
 	std::cout << "Done writing parameter info to file " << outfile_prefix << "irs_parameter_info.txt.\n";
 
 	std::cout << "\nWriting star info...\n";
-	if (!write_star_file<float>(stars, num_stars, outfile_prefix + "irs_stars" + outfile_type))
+	if (!write_star_file<dtype>(stars, num_stars, outfile_prefix + "irs_stars" + outfile_type))
 	{
 		std::cerr << "Error. Unable to write star info to file " << outfile_prefix << "irs_stars" + outfile_type << "\n";
 		return -1;

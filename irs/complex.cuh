@@ -20,6 +20,37 @@ public:
 		im = imag;
 	}
 
+	/*copy constructors*/
+	template <typename U> __host__ __device__ Complex(const Complex<U>& c1)
+	{
+		re = static_cast<T>(c1.re);
+		im = static_cast<T>(c1.im);
+	}
+	template <typename U> __host__ __device__ Complex(const U& num)
+	{
+		re = static_cast<T>(num);
+		im = static_cast<T>(0);
+	}
+
+	/*assignment operators*/
+	template <typename U> __host__ __device__ Complex& operator=(const Complex<U>& c1)
+	{
+		if (this == &c1)
+		{
+			return *this;
+		}
+
+		re = static_cast<T>(c1.re);
+		im = static_cast<T>(c1.im);
+		return *this;
+	}
+	template <typename U> __host__ __device__ Complex& operator=(U num)
+	{
+		re = static_cast<T>(num);
+		im = static_cast<T>(0);
+		return *this;
+	}
+
 	/*complex conjugate of the complex number*/
 	__host__ __device__ Complex conj()
 	{

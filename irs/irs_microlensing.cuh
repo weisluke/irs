@@ -17,7 +17,7 @@ Heaviside Step Function
 \return 1 if x > 0, 0 if x <= 0
 ******************************/
 template <typename T>
-__device__ T heaviside_step(T x)
+__device__ T heaviside(T x)
 {
 	if (x > 0)
 	{
@@ -90,7 +90,7 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 
 	Complex<T> alpha_smooth = Complex<T>(0, -kappastar / PI) * (-c1 * c1.log() + c2 * c2.log() + c3 * c3.log() - c4 * c4.log())
 		- kappastar * (2 * c.re + 2 * z.re) * boxcar(z, c)
-		- kappastar * 4 * c.re * heaviside_step(c.im + z.im) * heaviside_step(c.im - z.im) * heaviside_step(z.re - c.re);
+		- kappastar * 4 * c.re * heaviside(c.im + z.im) * heaviside(c.im - z.im) * heaviside(z.re - c.re);
 
 	/*(1-kappa)*z+gamma*z_bar-starsum_bar-alpha_smooth*/
 	return (1 - kappa) * z + gamma * z.conj() - starsum.conj() - alpha_smooth;

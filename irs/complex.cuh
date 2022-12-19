@@ -35,11 +35,6 @@ public:
 	/*assignment operators*/
 	template <typename U> __host__ __device__ Complex& operator=(const Complex<U>& c1)
 	{
-		if (this == &c1)
-		{
-			return *this;
-		}
-
 		re = static_cast<T>(c1.re);
 		im = static_cast<T>(c1.im);
 		return *this;

@@ -228,14 +228,13 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			Taylor coefficients rather than being directly shot*/
 			dx = dx / 9;
 
-			T ptx;
-			T pty;
+			T y1;
+			T y2;
 			T invmag11;
 			T invmag12;
 			T invmag;
-			Complex<T> pt;
-			int xpix;
-			int ypix;
+			Complex<T> ypos;
+			Complex<int> ypix;
 			for (int k = -13; k <= 13; k++)
 			{
 				for (int l = -13; l <= 13; l++)
@@ -243,24 +242,22 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 					T dx1 = dx * k;
 					T dx2 = dx * l;
 
-					ptx = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
+					y1 = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
 						- (l_p111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p112 * dx1 * dx2) / 2
 						- l_p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
 						- l_p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
 
-					pty = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar * boxcar(z, corner)) - l_p11) * dx2)
+					y2 = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar * boxcar(z, corner)) - l_p11) * dx2)
 						- (l_p112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p111 * dx1 * dx2) / 2
 						- l_p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
 						- l_p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
 
-					pt = Complex<T>(ptx, pty);
-					pt = point_to_pixel(pt, hly, npixels);
-					xpix = static_cast<int>(pt.re);
-					ypix = static_cast<int>(pt.im);
+					ypos = Complex<T>(y1, y2);
+					ypix = point_to_pixel(ypos, hly, npixels);
 
 					/*reverse y coordinate so array forms image in correct orientation*/
-					ypix = npixels - 1 - ypix;
-					if (xpix < 0 || xpix > npixels - 1 || ypix < 0 || ypix > npixels - 1)
+					ypix.im = npixels - 1 - ypix.im;
+					if (ypix.re < 0 || ypix.re > npixels - 1 || ypix.im < 0 || ypix.im > npixels - 1)
 					{
 						continue;
 					}
@@ -273,19 +270,19 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 
 					if (invmag > 0)
 					{
-						atomicAdd(&(pixmin[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixels[ypix * npixels + xpix]), 1);
+						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else if (invmag < -0)
 					{
-						atomicAdd(&(pixsad[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixels[ypix * npixels + xpix]), 1);
+						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else
 					{
-						atomicAdd(&(pixmin[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixsad[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixels[ypix * npixels + xpix]), 2);
+						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 2);
 					}
 				}
 			}
@@ -373,14 +370,13 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			Taylor coefficients rather than being directly shot*/
 			dx = dx / 9;
 
-			T ptx;
-			T pty;
+			T y1;
+			T y2;
 			T invmag11;
 			T invmag12;
 			T invmag;
-			Complex<T> pt;
-			int xpix;
-			int ypix;
+			Complex<T> ypos;
+			Complex<int> ypix;
 			for (int k = -13; k <= 13; k++)
 			{
 				for (int l = -13; l <= 13; l++)
@@ -388,24 +384,22 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 					T dx1 = dx * k;
 					T dx2 = dx * l;
 
-					ptx = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
+					y1 = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
 						- (l_p111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p112 * dx1 * dx2) / 2
 						- l_p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
 						- l_p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
 
-					pty = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar) - l_p11) * dx2)
+					y2 = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar * boxcar(z, corner)) - l_p11) * dx2)
 						- (l_p112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p111 * dx1 * dx2) / 2
 						- l_p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
 						- l_p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
 
-					pt = Complex<T>(ptx, pty);
-					pt = point_to_pixel(pt, hly, npixels);
-					xpix = static_cast<int>(pt.re);
-					ypix = static_cast<int>(pt.im);
+					ypos = Complex<T>(y1, y2);
+					ypix = point_to_pixel(ypos, hly, npixels);
 
 					/*reverse y coordinate so array forms image in correct orientation*/
-					ypix = npixels - 1 - ypix;
-					if (xpix < 0 || xpix > npixels - 1 || ypix < 0 || ypix > npixels - 1)
+					ypix.im = npixels - 1 - ypix.im;
+					if (ypix.re < 0 || ypix.re > npixels - 1 || ypix.im < 0 || ypix.im > npixels - 1)
 					{
 						continue;
 					}
@@ -414,23 +408,23 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 						- (l_p1111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p1112 * dx1 * dx2) / 2;
 					invmag12 = -l_p12 - (l_p112 * dx1 - l_p111 * dx2)
 						- (l_p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p1111 * dx1 * dx2) / 2;
-					invmag = invmag11 * (2 * (1 - kappa + kappastar) - invmag11) - invmag12 * invmag12;
+					invmag = invmag11 * (2 * (1 - kappa + kappastar * boxcar(z, corner)) - invmag11) - invmag12 * invmag12;
 
 					if (invmag > 0)
 					{
-						atomicAdd(&(pixmin[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixels[ypix * npixels + xpix]), 1);
+						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else if (invmag < -0)
 					{
-						atomicAdd(&(pixsad[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixels[ypix * npixels + xpix]), 1);
+						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else
 					{
-						atomicAdd(&(pixmin[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixsad[ypix * npixels + xpix]), 1);
-						atomicAdd(&(pixels[ypix * npixels + xpix]), 2);
+						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 2);
 					}
 				}
 			}

@@ -36,7 +36,7 @@ __device__ T heaviside(T x)
 \param corner -- corner of the rectangular region
 
 \return 1 if z lies within the rectangle
-		defined by c, 0 if it is on the
+		defined by corner, 0 if it is on the
 		border or outside
 ************************************************/
 template <typename T>
@@ -62,8 +62,8 @@ lens equation for a rectangular star field
 \param stars -- pointer to array of point mass lenses
 \param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
-\param corner -- complex number denoting the corner of
-			the rectangular field of point mass lenses
+\param corner -- complex number denoting the corner of the
+			     rectangular field of point mass lenses
 
 \return w = (1-kappa)*z + gamma*z_bar
 			- theta^2 * sum(m_i/(z-z_i)_bar) - alpha_smooth
@@ -125,7 +125,7 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 	starsum *= (theta * theta);
 
 	/*(1-(kappa-kappastar))*z+gamma*z_bar-starsum_bar*/
-	return (1 - (kappa - kappastar)) * z + gamma * z.conj() - starsum.conj();
+	return (1 - kappa + kappastar) * z + gamma * z.conj() - starsum.conj();
 }
 
 /*************************************************************
@@ -147,16 +147,14 @@ __device__ Complex<T> point_to_pixel(Complex<T> w, T hly, int npixels)
 /***********************************************************************
 shoot rays from image plane to source plane for a rectangular star field
 
-
-
 \param kappa -- total convergence
 \param gamma -- external shear
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
 \param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
-\param c -- complex number denoting the corner of the rectangular field
-			of point mass lenses
+\param corner -- complex number denoting the corner of the
+			     rectangular field of point mass lenses
 \param hlx1 -- half length of the image plane shooting region x1 size
 \param hlx2 -- half length of the image plane shooting region x2 size
 \param raysep -- separation between central rays of shooting squares
@@ -167,7 +165,7 @@ shoot rays from image plane to source plane for a rectangular star field
 \param npixels -- number of pixels for one side of the receiving square
 ***********************************************************************/
 template <typename T>
-__global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> c, T hlx1, T hlx2, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
+__global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner, T hlx1, T hlx2, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -200,7 +198,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			#pragma unroll
 			for (int k = 0; k < 4; k++)
 			{
-				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, nstars, kappastar, c);
+				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, nstars, kappastar, corner);
 			}
 
 			/*calculate local Taylor coefficients of the potential
@@ -209,17 +207,17 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			calculate down to the 4th derivatives of the potential
 			with our 4 rays shot*/
 
-			T p1 = (y[0].re + y[1].re + y[2].re + y[3].re) / -4;
-			T p2 = (y[0].im + y[1].im + y[2].im + y[3].im) / -4;
+			T l_p1 = (y[0].re + y[1].re + y[2].re + y[3].re) / -4;
+			T l_p2 = (y[0].im + y[1].im + y[2].im + y[3].im) / -4;
 
-			T p11 = (kappa - kappastar) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
-			T p12 = (-y[0].re - y[1].re + y[2].re + y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx);
+			T l_p11 = (kappa - kappastar) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
+			T l_p12 = (-y[0].re - y[1].re + y[2].re + y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx);
 
-			T p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
-			T p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
+			T l_p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
+			T l_p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
 
-			T p1111 = 3 * (8 * dx * ((kappa - kappastar) - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
-			T p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
+			T l_p1111 = 3 * (8 * dx * ((kappa - kappastar) - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
+			T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
 
 			/*divide distance between rays again, by 9
 			this gives us an increase in ray density of 27 (our
@@ -243,15 +241,15 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 					T dx1 = dx * k;
 					T dx2 = dx * l;
 
-					ptx = dx1 - p1 - (p11 * dx1 + p12 * dx2)
-						- (p111 * (dx1 * dx1 - dx2 * dx2) + 2 * p112 * dx1 * dx2) / 2
-						- p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
-						- p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
+					ptx = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
+						- (l_p111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p112 * dx1 * dx2) / 2
+						- l_p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
+						- l_p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
 
-					pty = dx2 - p2 - (p12 * dx1 + (2 * (kappa - kappastar) - p11) * dx2)
-						- (p112 * (dx1 * dx1 - dx2 * dx2) - 2 * p111 * dx1 * dx2) / 2
-						- p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
-						- p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
+					pty = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar) - l_p11) * dx2)
+						- (l_p112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p111 * dx1 * dx2) / 2
+						- l_p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
+						- l_p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
 
 					pt = Complex<T>(ptx, pty);
 					pt = point_to_pixel(pt, hly, npixels);
@@ -265,11 +263,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 						continue;
 					}
 
-					invmag11 = 1 - p11 - (p111 * dx1 + p112 * dx2)
-						- (p1111 * (dx1 * dx1- dx2 * dx2) + 2 * p1112 * dx1 * dx2) / 2;
-					invmag12 = -p12 - (p112 * dx1 - p111 * dx2)
-						- (p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * p1111 * dx1 * dx2) / 2;
-					invmag = invmag11 * (2 * (1 - (kappa - kappastar)) - invmag11) - invmag12 * invmag12;
+					invmag11 = 1 - l_p11 - (l_p111 * dx1 + l_p112 * dx2)
+						- (l_p1111 * (dx1 * dx1- dx2 * dx2) + 2 * l_p1112 * dx1 * dx2) / 2;
+					invmag12 = -l_p12 - (l_p112 * dx1 - l_p111 * dx2)
+						- (l_p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p1111 * dx1 * dx2) / 2;
+					invmag = invmag11 * (2 * (1 - kappa + kappastar) - invmag11) - invmag12 * invmag12;
 
 					if (invmag > 0)
 					{
@@ -295,8 +293,6 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 
 /**********************************************************************
 shoot rays from image plane to source plane for a circular star field
-
-
 
 \param kappa -- total convergence
 \param gamma -- external shear
@@ -356,17 +352,17 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			calculate down to the 4th derivatives of the potential
 			with our 4 rays shot*/
 
-			T p1 = (y[0].re + y[1].re + y[2].re + y[3].re) / -4;
-			T p2 = (y[0].im + y[1].im + y[2].im + y[3].im) / -4;
+			T l_p1 = (y[0].re + y[1].re + y[2].re + y[3].re) / -4;
+			T l_p2 = (y[0].im + y[1].im + y[2].im + y[3].im) / -4;
 
-			T p11 = (kappa - kappastar) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
-			T p12 = (-y[0].re - y[1].re + y[2].re + y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx);
+			T l_p11 = (kappa - kappastar) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
+			T l_p12 = (-y[0].re - y[1].re + y[2].re + y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx);
 
-			T p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
-			T p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
+			T l_p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
+			T l_p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
 
-			T p1111 = 3 * (8 * dx * ((kappa - kappastar) - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
-			T p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
+			T l_p1111 = 3 * (8 * dx * ((kappa - kappastar) - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
+			T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
 
 			/*divide distance between rays again, by 9
 			this gives us an increase in ray density of 27 (our
@@ -390,15 +386,15 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 					T dx1 = dx * k;
 					T dx2 = dx * l;
 
-					ptx = dx1 - p1 - (p11 * dx1 + p12 * dx2)
-						- (p111 * (dx1 * dx1 - dx2 * dx2) + 2 * p112 * dx1 * dx2) / 2
-						- p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
-						- p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
+					ptx = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
+						- (l_p111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p112 * dx1 * dx2) / 2
+						- l_p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
+						- l_p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
 
-					pty = dx2 - p2 - (p12 * dx1 + (2 * (kappa - kappastar) - p11) * dx2)
-						- (p112 * (dx1 * dx1 - dx2 * dx2) - 2 * p111 * dx1 * dx2) / 2
-						- p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
-						- p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
+					pty = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar) - l_p11) * dx2)
+						- (l_p112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p111 * dx1 * dx2) / 2
+						- l_p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
+						- l_p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
 
 					pt = Complex<T>(ptx, pty);
 					pt = point_to_pixel(pt, hly, npixels);
@@ -412,11 +408,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 						continue;
 					}
 
-					invmag11 = 1 - p11 - (p111 * dx1 + p112 * dx2)
-						- (p1111 * (dx1 * dx1 - dx2 * dx2) + 2 * p1112 * dx1 * dx2) / 2;
-					invmag12 = -p12 - (p112 * dx1 - p111 * dx2)
-						- (p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * p1111 * dx1 * dx2) / 2;
-					invmag = invmag11 * (2 * (1 - (kappa - kappastar)) - invmag11) - invmag12 * invmag12;
+					invmag11 = 1 - l_p11 - (l_p111 * dx1 + l_p112 * dx2)
+						- (l_p1111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p1112 * dx1 * dx2) / 2;
+					invmag12 = -l_p12 - (l_p112 * dx1 - l_p111 * dx2)
+						- (l_p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p1111 * dx1 * dx2) / 2;
+					invmag = invmag11 * (2 * (1 - kappa + kappastar) - invmag11) - invmag12 * invmag12;
 
 					if (invmag > 0)
 					{

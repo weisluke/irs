@@ -210,13 +210,13 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			T l_p1 = (y[0].re + y[1].re + y[2].re + y[3].re) / -4;
 			T l_p2 = (y[0].im + y[1].im + y[2].im + y[3].im) / -4;
 
-			T l_p11 = (kappa - kappastar) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
+			T l_p11 = (kappa - kappastar * boxcar(z, corner)) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
 			T l_p12 = (-y[0].re - y[1].re + y[2].re + y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx);
 
 			T l_p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
 			T l_p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
 
-			T l_p1111 = 3 * (8 * dx * ((kappa - kappastar) - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
+			T l_p1111 = 3 * (8 * dx * (kappa - kappastar * boxcar(z, corner) - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
 			T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
 
 			/*divide distance between rays again, by 9
@@ -246,7 +246,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 						- l_p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
 						- l_p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
 
-					pty = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar) - l_p11) * dx2)
+					pty = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar * boxcar(z, corner)) - l_p11) * dx2)
 						- (l_p112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p111 * dx1 * dx2) / 2
 						- l_p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
 						- l_p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
@@ -267,7 +267,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 						- (l_p1111 * (dx1 * dx1- dx2 * dx2) + 2 * l_p1112 * dx1 * dx2) / 2;
 					invmag12 = -l_p12 - (l_p112 * dx1 - l_p111 * dx2)
 						- (l_p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p1111 * dx1 * dx2) / 2;
-					invmag = invmag11 * (2 * (1 - kappa + kappastar) - invmag11) - invmag12 * invmag12;
+					invmag = invmag11 * (2 * (1 - kappa + kappastar * boxcar(z, corner)) - invmag11) - invmag12 * invmag12;
 
 					if (invmag > 0)
 					{

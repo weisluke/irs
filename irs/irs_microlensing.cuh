@@ -29,20 +29,20 @@ __device__ T heaviside(T x)
 	}
 }
 
-/*******************************************
+/************************************************
 2-Dimensional Boxcar Function
 
 \param z -- complex number to evalulate
-\param c -- corner of the rectangular region
+\param corner -- corner of the rectangular region
 
-\return 1 if z lies within the rectangle 
-        defined by c, 0 if it is on the
+\return 1 if z lies within the rectangle
+		defined by c, 0 if it is on the
 		border or outside
-*******************************************/
+************************************************/
 template <typename T>
-__device__ T boxcar(Complex<T> z, Complex<T> c)
+__device__ T boxcar(Complex<T> z, Complex<T> corner)
 {
-	if (-c.re < z.re && z.re < c.re && -c.im < z.im && z.im < c.im)
+	if (-corner.re < z.re && z.re < corner.re && -corner.im < z.im && z.im < corner.im)
 	{
 		return static_cast<T> (1);
 	}
@@ -62,14 +62,14 @@ lens equation for a rectangular star field
 \param stars -- pointer to array of point mass lenses
 \param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
-\param c -- complex number denoting the corner of
-            the rectangular field of point mass lenses
+\param corner -- complex number denoting the corner of
+			the rectangular field of point mass lenses
 
 \return w = (1-kappa)*z + gamma*z_bar
-            - theta^2 * sum(m_i/(z-z_i)_bar) - alpha_smooth
+			- theta^2 * sum(m_i/(z-z_i)_bar) - alpha_smooth
 ********************************************************************/
 template <typename T>
-__device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> c)
+__device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner)
 {
 	T PI = static_cast<T> (3.1415926535898);
 	Complex<T> starsum;
@@ -83,14 +83,14 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 	/*theta_e^2 * starsum*/
 	starsum *= (theta * theta);
 
-	Complex<T> c1 = c.conj() - z.conj();
-	Complex<T> c2 = c - z.conj();
-	Complex<T> c3 = -c - z.conj();
-	Complex<T> c4 = -c.conj() - z.conj();
+	Complex<T> c1 = corner.conj() - z.conj();
+	Complex<T> c2 = corner - z.conj();
+	Complex<T> c3 = -corner - z.conj();
+	Complex<T> c4 = -corner.conj() - z.conj();
 
 	Complex<T> alpha_smooth = Complex<T>(0, -kappastar / PI) * (-c1 * c1.log() + c2 * c2.log() + c3 * c3.log() - c4 * c4.log())
-		- kappastar * 2 * (c.re + z.re) * boxcar(z, c)
-		- kappastar * 4 * c.re * heaviside(c.im + z.im) * heaviside(c.im - z.im) * heaviside(z.re - c.re);
+		- kappastar * 2 * (corner.re + z.re) * boxcar(z, corner)
+		- kappastar * 4 * corner.re * heaviside(corner.im + z.im) * heaviside(corner.im - z.im) * heaviside(z.re - corner.re);
 
 	/*(1-kappa)*z+gamma*z_bar-starsum_bar-alpha_smooth*/
 	return (1 - kappa) * z + gamma * z.conj() - starsum.conj() - alpha_smooth;
@@ -108,7 +108,7 @@ lens equation for a circular star field
 \param kappastar -- convergence in point mass lenses
 
 \return w = (1-(kappa-kappastar))*z + gamma*z_bar
-            - theta^2 * sum(m_i/(z-z_i)_bar)
+			- theta^2 * sum(m_i/(z-z_i)_bar)
 ********************************************************************/
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar)

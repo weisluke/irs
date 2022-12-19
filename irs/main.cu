@@ -638,11 +638,11 @@ int main(int argc, char* argv[])
 
 	if (rectangular)
 	{
-		shoot_rays_kernel <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	}
 	else
 	{
-		shoot_rays_kernel <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	}
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	/*get current time at end of loop, and calculate duration in milliseconds*/

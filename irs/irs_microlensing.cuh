@@ -65,8 +65,8 @@ lens equation for a rectangular star field
 \param corner -- complex number denoting the corner of the
 			     rectangular field of point mass lenses
 
-\return w = (1-kappa)*z + gamma*z_bar
-            - theta^2 * sum(m_i/(z-z_i)_bar) - alpha_smooth
+\return w = (1 - kappa) * z + gamma * z_bar
+            - theta^2 * sum( m_i / (z-z_i)_bar ) - alpha_smooth
 ********************************************************************/
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner)
@@ -107,8 +107,8 @@ lens equation for a circular star field
 \param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
 
-\return w = (1-(kappa-kappastar))*z + gamma*z_bar
-            - theta^2 * sum(m_i/(z-z_i)_bar)
+\return w = (1 - kappa + kappastar) * z + gamma * z_bar
+            - theta^2 * sum( m_i / (z-z_i)_bar )
 ********************************************************************/
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar)
@@ -136,7 +136,7 @@ complex point in the source plane converted to pixel position
 \param npixels -- number of pixels per side for the source
                   plane receiving region
 
-\return (w + hly(1 + i)) * npixels / (2 * hly)
+\return (w + hly * (1 + i)) * npixels / (2 * hly)
 *************************************************************/
 template <typename T>
 __device__ Complex<T> point_to_pixel(Complex<T> w, T hly, int npixels)

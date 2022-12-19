@@ -185,6 +185,8 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			T x1 = -hlx1 + raysep / 2 + raysep * i;
 			T x2 = -hlx2 + raysep / 2 + raysep * j;
 
+			Complex<T> z = Complex<T>(x1, x2);
+
 			/*shooting more rays in image plane at center +/- 1/3 * distance
 			to next central ray in x1 and x2 direction*/
 			T dx = raysep / 3;

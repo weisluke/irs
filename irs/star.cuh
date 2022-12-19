@@ -77,7 +77,7 @@ generate random circular star field
 template <typename T>
 int generate_circular_star_field(star<T>* stars, int nstars, T rad, T mass, int seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()))
 {
-	const T PI = static_cast<T> (3.1415926535898);
+	const T PI = static_cast<T>(3.1415926535898);
 
 	/*random number generator seeded according to the provided seed*/
 	std::mt19937 gen(seed);

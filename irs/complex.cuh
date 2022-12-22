@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <cmath>
+#include <stdexcept>
 
 
 /****************************************************************************
@@ -14,7 +15,7 @@ public:
 	T im;
 
 	/*default constructor initializes the complex number to zero*/
-	__host__ __device__ Complex(T real = static_cast<T>(0), T imag = static_cast<T>(0))
+	__host__ __device__ Complex(T real = 0, T imag = 0)
 	{
 		re = real;
 		im = imag;
@@ -56,31 +57,31 @@ public:
 	__host__ __device__ T abs()
 	{
 		/*use device or host square root function*/
-		#ifdef CUDA_ARCH
-			return sqrt(re * re + im * im);
-		#else
-			return std::sqrt(re * re + im * im);
-		#endif
+#ifdef CUDA_ARCH
+		return sqrt(re * re + im * im);
+#else
+		return std::sqrt(re * re + im * im);
+#endif
 	}
 
 	/*argument of the complex number in the range [-pi, pi]*/
 	__host__ __device__ T arg()
 	{
-		#ifdef CUDA_ARCH
-			return atan2(im, re);
-		#else
-			return std::atan2(im, re);
-		#endif
+#ifdef CUDA_ARCH
+		return atan2(im, re);
+#else
+		return std::atan2(im, re);
+#endif
 	}
 
 	/*exponential of the complex number*/
 	__host__ __device__ Complex exp()
 	{
-		#ifdef CUDA_ARCH
-			return Complex(exp(re) * cos(im), exp(re) * sin(im));
-		#else
-			return Complex(std::exp(re) * std::cos(im), std::exp(re) * std::sin(im));
-		#endif
+#ifdef CUDA_ARCH
+		return Complex(exp(re) * cos(im), exp(re) * sin(im));
+#else
+		return Complex(std::exp(re) * std::cos(im), std::exp(re) * std::sin(im));
+#endif
 	}
 
 	/*logarithm of the complex number*/
@@ -88,11 +89,11 @@ public:
 	{
 		T abs = (*this).abs();
 		T arg = (*this).arg();
-		#ifdef CUDA_ARCH
-			return Complex(log(abs), arg);
-		#else
-			return Complex(std::log(abs), arg);
-		#endif
+#ifdef CUDA_ARCH
+		return Complex(log(abs), arg);
+#else
+		return Complex(std::log(abs), arg);
+#endif
 	}
 
 	/*positive and negative operators*/
@@ -158,8 +159,10 @@ public:
 	/*multiplication*/
 	template <typename U> __host__ __device__ Complex& operator*=(Complex<U> c1)
 	{
-		re = re * c1.re - im * c1.im;
-		im = re * c1.im + im * c1.re;
+		T new_re = re * c1.re - im * c1.im;
+		T new_im = re * c1.im + im * c1.re;
+		re = new_re;
+		im = new_im;
 		return *this;
 	}
 	template <typename U> __host__ __device__ Complex& operator*=(U num)
@@ -185,8 +188,10 @@ public:
 	template <typename U> __host__ __device__ Complex& operator/=(Complex<U> c1)
 	{
 		T norm2 = c1.re * c1.re + c1.im * c1.im;
-		re = (re * c1.re + im * c1.im) / norm2;
-		im = (im * c1.re - re * c1.im) / norm2;
+		T new_re = (re * c1.re + im * c1.im) / norm2;
+		T new_im = (im * c1.re - re * c1.im) / norm2;
+		re = new_re;
+		im = new_im;
 		return *this;
 	}
 	template <typename U> __host__ __device__ Complex& operator/=(U num)
@@ -208,6 +213,37 @@ public:
 	{
 		T norm2 = c1.re * c1.re + c1.im * c1.im;
 		return Complex(num * c1.re / norm2, -num * c1.im / norm2);
+	}
+
+	/*exponentiation*/
+	__host__ __device__ Complex pow(int num)
+	{
+		Complex res = Complex(1, 0);
+
+		if (num > 0)
+		{
+			for (int i = 0; i < num; i++)
+			{
+				res *= *this;
+			}
+		}
+		else if (num < 0)
+		{
+			for (int i = 0; i > num; i--)
+			{
+				res /= *this;
+			}
+		}
+
+		return res;
+	}
+	template <typename U> __host__ __device__ Complex pow(Complex<U> num)
+	{
+		throw std::logic_error("Complex pow(Complex<U> num) not implemented.");
+	}
+	template <typename U> __host__ __device__ Complex pow(U num)
+	{
+		throw std::logic_error("Complex pow(U num) not implemented.");
 	}
 
 };

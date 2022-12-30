@@ -83,12 +83,12 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 	/*theta_e^2 * starsum*/
 	starsum *= (theta * theta);
 
-	Complex<T> c1 = corner.conj() - z.conj();
-	Complex<T> c2 = corner - z.conj();
+	Complex<T> c1 = corner - z.conj();
+	Complex<T> c2 = corner.conj() - z.conj();
 	Complex<T> c3 = -corner - z.conj();
 	Complex<T> c4 = -corner.conj() - z.conj();
 
-	Complex<T> alpha_smooth = Complex<T>(0, -kappastar / PI) * (-c1 * c1.log() + c2 * c2.log() + c3 * c3.log() - c4 * c4.log())
+	Complex<T> alpha_smooth = Complex<T>(0, -kappastar / PI) * (c1 * c1.log() - c2 * c2.log() + c3 * c3.log() - c4 * c4.log())
 		- kappastar * 2 * (corner.re + z.re) * boxcar(z, corner)
 		- kappastar * 4 * corner.re * heaviside(corner.im + z.im) * heaviside(corner.im - z.im) * heaviside(z.re - corner.re);
 
@@ -108,6 +108,7 @@ approximate lens equation for a rectangular star field
 \param kappastar -- convergence in point mass lenses
 \param corner -- complex number denoting the corner of the
 				 rectangular field of point mass lenses
+\param taylor -- degree of the taylor series for alpha_smooth
 
 \return w = (1 - kappa) * z + gamma * z_bar
 			- theta^2 * sum(m_i / (z - z_i)_bar) - alpha_smooth
@@ -134,13 +135,13 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 
 	for (int i = 1; i <= taylor; i++)
 	{
-		s1 += (z.conj() / corner.conj()).pow(i) / i;
-		s2 += (z.conj() / corner).pow(i) / i;
+		s1 += (z.conj() / corner).pow(i) / i;
+		s2 += (z.conj() / corner.conj()).pow(i) / i;
 		s3 += (z.conj() / -corner).pow(i) / i;
 		s4 += (z.conj() / -corner.conj()).pow(i) / i;
 	}
 
-	Complex<T> alpha_smooth = (-(corner.conj() - z.conj()) * (corner.conj().log() - s1) + (corner - z.conj()) * (corner.log() - s2)
+	Complex<T> alpha_smooth = ((corner - z.conj()) * (corner.log() - s1) - (corner.conj() - z.conj()) * (corner.conj().log() - s2)
 		+ (-corner - z.conj()) * ((-corner).log() - s3) - (-corner.conj() - z.conj()) * ((-corner).conj().log() - s4));
 	alpha_smooth *= Complex<T>(0, -kappastar / PI);
 	alpha_smooth -= kappastar * 2 * (corner.re + z.re);
@@ -355,6 +356,7 @@ with approximations
 \param kappastar -- convergence in point mass lenses
 \param corner -- complex number denoting the corner of the
 				 rectangular field of point mass lenses
+\param taylor -- degree of the taylor series for alpha_smooth
 \param hlx1 -- half length of the image plane shooting region x1 size
 \param hlx2 -- half length of the image plane shooting region x2 size
 \param raysep -- separation between central rays of shooting squares

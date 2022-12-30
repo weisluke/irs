@@ -538,10 +538,10 @@ int main(int argc, char* argv[])
 			);
 	dtype rad = std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
 
-	int taylor = static_cast<int>(std::log(4 * kappa_star * c.abs() / (2 * half_length / num_pixels * PI)) / std::log(safety_scale));
-	if (taylor % 2 != 0)
+	int taylor = static_cast<int>(std::log(2 * kappa_star * c.abs() / (2 * half_length / num_pixels * PI)) / std::log(safety_scale));
+	if (taylor < 1)
 	{
-		taylor++;
+		taylor = 1;
 	}
 
 	/**********************

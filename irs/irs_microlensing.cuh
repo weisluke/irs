@@ -97,7 +97,7 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 }
 
 /********************************************************************
-approximate lens equation for a rectangular star field
+lens equation for a rectangular star field with approximations
 
 \param z -- complex image plane position
 \param kappa -- total convergence
@@ -178,7 +178,7 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 	/*theta_e^2 * starsum*/
 	starsum *= (theta * theta);
 
-	/*(1-(kappa-kappastar))*z+gamma*z_bar-starsum_bar*/
+	/*(1-kappa+kappastar)*z+gamma*z_bar-starsum_bar*/
 	return (1 - kappa + kappastar) * z + gamma * z.conj() - starsum.conj();
 }
 
@@ -251,7 +251,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			x[3] = Complex<T>(x1 + dx, x2 - dx);
 
 			/*map rays from image plane to source plane*/
-			#pragma unroll
+#pragma unroll
 			for (int k = 0; k < 4; k++)
 			{
 				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, nstars, kappastar, corner);
@@ -541,7 +541,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			x[3] = Complex<T>(x1 + dx, x2 - dx);
 
 			/*map rays from image plane to source plane*/
-			#pragma unroll
+#pragma unroll
 			for (int k = 0; k < 4; k++)
 			{
 				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, nstars, kappastar);
@@ -562,7 +562,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			T l_p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
 			T l_p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
 
-			T l_p1111 = 3 * (8 * dx * ((kappa - kappastar) - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
+			T l_p1111 = 3 * (8 * dx * (kappa - kappastar - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
 			T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
 
 			/*divide distance between rays again, by 9

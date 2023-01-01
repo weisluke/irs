@@ -62,7 +62,7 @@ int num_pixels = 1000;
 int num_rays = 100;
 int random_seed = 0;
 int write_maps = 1;
-int write_parities = 1;
+int write_parities = 0;
 std::string outfile_type = ".bin";
 std::string outfile_prefix = "./";
 
@@ -125,10 +125,10 @@ void display_usage(char* name)
 		<< "                          Default value: " << num_rays << "\n"
 		<< "   -rs,--random_seed      Specify the random seed for star field generation.\n"
 		<< "                          A value of 0 is reserved for star input files.\n"
-		<< "   -wm,--write_maps       Specify whether to write magnification maps.\n"
-		<< "                          Default value: " << write_maps << "\n"
+		<< "   -wm,--write_maps       Specify whether to write magnification maps (1) or\n"
+		<< "                          not (0). Default value: " << write_maps << "\n"
 		<< "   -wp,--write_parities   Specify whether to write parity specific\n"
-		<< "                          magnification maps. Default value: " << write_parities << "\n"
+		<< "                          magnification maps (1) or not (0). Default value: " << write_parities << "\n"
 		<< "   -ot,--outfile_type     Specify the type of file to be output. Valid options\n"
 		<< "                          are binary (.bin) or text (.txt). Default value: " << outfile_type << "\n"
 		<< "   -o,--outfile_prefix    Specify the prefix to be used in output file names.\n"
@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
 	{
 		if (!cmd_option_valid(OPTS, OPTS + OPTS_SIZE, argv[i]))
 		{
-			std::cerr << "Error. Invalid input syntax.\n";
+			std::cerr << "Error. Invalid input syntax. Unknown option " << argv[i] << "\n";
 			display_usage(argv[0]);
 			return -1;
 		}

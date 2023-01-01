@@ -25,7 +25,7 @@ using dtype = float;
 
 /*constants to be used*/
 const dtype PI = static_cast<dtype>(3.1415926535898);
-constexpr int OPTS_SIZE = 2 * 16;
+constexpr int OPTS_SIZE = 2 * 17;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -34,6 +34,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-t", "--theta_e",
 	"-ks", "--kappa_star",
 	"-r", "--rectangular",
+	"-a", "--approx",
 	"-ss", "--safety_scale",
 	"-sf", "--starfile",
 	"-hl", "--half_length",
@@ -53,6 +54,7 @@ dtype shear = static_cast<dtype>(0.3);
 dtype theta_e = static_cast<dtype>(1);
 dtype kappa_star = static_cast<dtype>(0.27);
 int rectangular = 1;
+int approx = 1;
 dtype safety_scale = static_cast<dtype>(1.37);
 std::string starfile = "";
 dtype half_length = static_cast<dtype>(5);
@@ -60,7 +62,7 @@ int num_pixels = 1000;
 int num_rays = 100;
 int random_seed = 0;
 int write_maps = 1;
-int write_parities = 1;
+int write_parities = 0;
 std::string outfile_type = ".bin";
 std::string outfile_prefix = "./";
 
@@ -101,6 +103,8 @@ void display_usage(char* name)
 		<< "                          Default value: " << kappa_star << "\n"
 		<< "   -r,--rectangular       Specify whether the star field should be\n"
 		<< "                          rectangular (1) or circular (0). Default value: " << rectangular << "\n"
+		<< "   -a,--approx            Specify whether terms for alpha_smooth should be\n"
+		<< "                          approximated (1) or exact (0). Default value: " << approx << "\n"
 		<< "   -ss,--safety_scale     Specify the multiplicative safety factor over the\n"
 		<< "                          shooting region to be used when generating the star\n"
 		<< "                          field. Default value: " << safety_scale << "\n"
@@ -121,10 +125,10 @@ void display_usage(char* name)
 		<< "                          Default value: " << num_rays << "\n"
 		<< "   -rs,--random_seed      Specify the random seed for star field generation.\n"
 		<< "                          A value of 0 is reserved for star input files.\n"
-		<< "   -wm,--write_maps       Specify whether to write magnification maps.\n"
-		<< "                          Default value: " << write_maps << "\n"
+		<< "   -wm,--write_maps       Specify whether to write magnification maps (1) or\n"
+		<< "                          not (0). Default value: " << write_maps << "\n"
 		<< "   -wp,--write_parities   Specify whether to write parity specific\n"
-		<< "                          magnification maps. Default value: " << write_parities << "\n"
+		<< "                          magnification maps (1) or not (0). Default value: " << write_parities << "\n"
 		<< "   -ot,--outfile_type     Specify the type of file to be output. Valid options\n"
 		<< "                          are binary (.bin) or text (.txt). Default value: " << outfile_type << "\n"
 		<< "   -o,--outfile_prefix    Specify the prefix to be used in output file names.\n"
@@ -218,7 +222,7 @@ int main(int argc, char* argv[])
 	{
 		if (!cmd_option_valid(OPTS, OPTS + OPTS_SIZE, argv[i]))
 		{
-			std::cerr << "Error. Invalid input syntax.\n";
+			std::cerr << "Error. Invalid input syntax. Unknown option " << argv[i] << "\n";
 			display_usage(argv[0]);
 			return -1;
 		}
@@ -307,6 +311,23 @@ int main(int argc, char* argv[])
 			catch (...)
 			{
 				std::cerr << "Error. Invalid rectangular input.\n";
+				return -1;
+			}
+		}
+		else if (argv[i] == std::string("-a") || argv[i] == std::string("--approx"))
+		{
+			try
+			{
+				approx = std::stoi(cmdinput);
+				if (approx != 0 && approx != 1)
+				{
+					std::cerr << "Error. Invalid approx input. approx must be 1 (approximate) or 0 (exact).\n";
+					return -1;
+				}
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid approx input.\n";
 				return -1;
 			}
 		}
@@ -517,6 +538,11 @@ int main(int argc, char* argv[])
 			);
 	dtype rad = std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
 
+	int taylor = static_cast<int>(std::log(2 * kappa_star * c.abs() / (2 * half_length / num_pixels * PI)) / std::log(safety_scale));
+	if (taylor < 1)
+	{
+		taylor = 1;
+	}
 
 	/**********************
 	BEGIN memory allocation
@@ -638,7 +664,14 @@ int main(int argc, char* argv[])
 
 	if (rectangular)
 	{
-		shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		if (approx)
+		{
+			shoot_rays_kernel<dtype> <<<blocks, threads >>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		}
+		else
+		{
+			shoot_rays_kernel<dtype> <<<blocks, threads >>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+		}
 	}
 	else
 	{
@@ -699,6 +732,10 @@ int main(int argc, char* argv[])
 	{
 		outfile << "corner_x1 " << c.re << "\n";
 		outfile << "corner_x2 " << c.im << "\n";
+		if (approx)
+		{
+			outfile << "taylor " << taylor << "\n";
+		}
 	}
 	else
 	{

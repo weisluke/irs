@@ -66,7 +66,7 @@ lens equation for a rectangular star field
 				 rectangular field of point mass lenses
 
 \return w = (1 - kappa) * z + gamma * z_bar
-            - theta^2 * sum(m_i / (z - z_i)_bar) - alpha_smooth
+			- theta^2 * sum(m_i / (z - z_i)_bar) - alpha_smooth
 ********************************************************************/
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner)
@@ -162,7 +162,7 @@ lens equation for a circular star field
 \param kappastar -- convergence in point mass lenses
 
 \return w = (1 - kappa + kappastar) * z + gamma * z_bar
-            - theta^2 * sum(m_i / (z - z_i)_bar)
+			- theta^2 * sum(m_i / (z - z_i)_bar)
 ********************************************************************/
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar)

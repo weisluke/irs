@@ -408,7 +408,7 @@ int main(int argc, char* argv[])
 			try
 			{
 				random_seed = std::stoi(cmdinput);
-				if (random_seed == 0)
+				if (random_seed == 0 && !(cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file")))
 				{
 					std::cerr << "Error. Invalid random_seed input. Seed of 0 is reserved for star input files.\n";
 					return -1;

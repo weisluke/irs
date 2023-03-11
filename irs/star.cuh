@@ -62,8 +62,8 @@ __global__ void generate_rectangular_star_field_kernel(curandState* states, star
 
 	for (int i = x_index; i < nstars; i += x_stride)
 	{
-		T x1 = static_cast<T>(curand_uniform_double(&states[i])) * 2 * corner.re - corner.re;
-		T x2 = static_cast<T>(curand_uniform_double(&states[i])) * 2 * corner.im - corner.im;
+		T x1 = static_cast<T>(curand_uniform_double(&states[i]) * 2 * corner.re - corner.re);
+		T x2 = static_cast<T>(curand_uniform_double(&states[i]) * 2 * corner.im - corner.im);
 
 		stars[i].position = Complex<T>(x1, x2);
 		stars[i].mass = mass;
@@ -94,10 +94,10 @@ __global__ void generate_circular_star_field_kernel(curandState* states, star<T>
 		const T PI = static_cast<T>(3.1415926535898);
 
 		/*random angle*/
-		T a = static_cast<T>(curand_uniform(&states[i])) * 2 * PI;
+		T a = static_cast<T>(curand_uniform(&states[i]) * 2 * PI);
 		/*random radius uses square root of random number
 		as numbers need to be evenly dispersed in 2-D space*/
-		T r = sqrt(static_cast<T>(curand_uniform(&states[i]))) * rad;
+		T r = static_cast<T>(sqrt(curand_uniform(&states[i])) * rad);
 
 		/*transform to Cartesian coordinates*/
 		stars[i].position = Complex<T>(r * cos(a), r * sin(a));

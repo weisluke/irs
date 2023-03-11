@@ -582,19 +582,20 @@ int main(int argc, char* argv[])
 
 
 	/*number of threads per block, and number of blocks per grid
-	uses 16 for number of threads in x and y dimensions, as
-	32*32=1024 is the maximum allowable number of threads per block
-	but is too large for some memory allocation, and 16 is
-	next power of 2 smaller*/
+	uses 512 for number of threads in x dimension, as 1024 is the
+	maximum allowable number of threads per block but is too large
+	for some memory allocation, and 512 is next power of 2 smaller*/
 
-	int num_threads_y = 16;
-	int num_threads_x = 16;
+	int num_threads_z = 1;
+	int num_threads_y = 1;
+	int num_threads_x = 512;
 
-	int num_blocks_y = static_cast<int>((2 * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
-	int num_blocks_x = static_cast<int>((2 * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
+	int num_blocks_z = 1;
+	int num_blocks_y = 1;
+	int num_blocks_x = static_cast<int>((num_stars - 1) / num_threads_x) + 1;
 
-	dim3 blocks(num_blocks_x, num_blocks_y);
-	dim3 threads(num_threads_x, num_threads_y);
+	dim3 blocks(num_blocks_x, num_blocks_y, num_blocks_z);
+	dim3 threads(num_threads_x, num_threads_y, num_threads_z);
 
 
 	/**************************
@@ -616,6 +617,7 @@ int main(int argc, char* argv[])
 		/*generate random star field if no star file has been given
 		uses default star mass of 1.0*/
 		initialize_curand_states_kernel<dtype> <<<blocks, threads>>> (states, num_stars, random_seed);
+		if (cuda_error("initialize_curand_states_kernel", true, __FILE__, __LINE__)) return -1;
 		if (rectangular)
 		{
 			generate_rectangular_star_field_kernel<dtype> <<<blocks, threads>>> (states, stars, num_stars, c, static_cast<dtype>(1));
@@ -648,6 +650,19 @@ int main(int argc, char* argv[])
 	/************************
 	END populating star array
 	************************/
+
+
+	/*redefine thread and block size to maximize parallelization*/
+	num_threads_y = 16;
+	num_threads_x = 16;
+
+	num_blocks_y = static_cast<int>((2 * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
+	num_blocks_x = static_cast<int>((2 * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
+
+	blocks.x = num_blocks_x;
+	blocks.y = num_blocks_y;
+	threads.x = num_threads_x;
+	threads.y = num_threads_y;
 
 
 	/*initialize pixel values*/

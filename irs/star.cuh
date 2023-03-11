@@ -2,7 +2,8 @@
 
 #include "complex.cuh"
 
-#include <chrono>
+#include <curand_kernel.h>
+
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -10,7 +11,6 @@
 #include <iostream>
 #include <limits>
 #include <new>
-#include <random>
 #include <string>
 #include <system_error>
 
@@ -24,6 +24,25 @@ struct star
 };
 
 
+/******************************************************
+initialize curand states for random star field
+
+\param states -- pointer to array of curand states
+\param nstars -- number of states (stars) to initialize
+\param seed -- random seed to use
+******************************************************/
+template<typename T>
+__global__ void initialize_curand_states_kernel(curandState* states, int nstars, int seed)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	for (int i = x_index; i < nstars; i += x_stride)
+	{
+		curand_init(seed, i, 0, &states[i]);
+	}
+}
+
 /**************************************************
 generate random rectangular star field
 
@@ -34,31 +53,21 @@ generate random rectangular star field
 \param mass -- mass for each star
 \param seed -- random seed to use. defaults to seed
 			   generated based on current time
-
-\return seed -- the random seed used
 **************************************************/
 template <typename T>
-int generate_rectangular_star_field(star<T>* stars, int nstars, Complex<T> corner, T mass, int seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()))
+__global__ void generate_rectangular_star_field_kernel(curandState* states, star<T>* stars, int nstars, Complex<T> corner, T mass)
 {
-	/*random number generator seeded according to the provided seed*/
-	std::mt19937 gen(seed);
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
 
-	/*uniform distribution to pick real values between 0 and 1*/
-	std::uniform_real_distribution<T> dis(0, 1);
-
-	/*variables to hold randomly chosen x1 and x2*/
-	T x1, x2;
-
-	for (int i = 0; i < nstars; i++)
+	for (int i = x_index; i < nstars; i += x_stride)
 	{
-		x1 = dis(gen) * 2 * corner.re - corner.re;
-		x2 = dis(gen) * 2 * corner.im - corner.im;
+		T x1 = static_cast<T>(curand_uniform_double(&states[i]) * 2 * corner.re - corner.re);
+		T x2 = static_cast<T>(curand_uniform_double(&states[i]) * 2 * corner.im - corner.im);
 
 		stars[i].position = Complex<T>(x1, x2);
 		stars[i].mass = mass;
 	}
-
-	return seed;
 }
 
 /**************************************************
@@ -75,33 +84,25 @@ generate random circular star field
 \return seed -- the random seed used
 **************************************************/
 template <typename T>
-int generate_circular_star_field(star<T>* stars, int nstars, T rad, T mass, int seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()))
+__global__ void generate_circular_star_field_kernel(curandState* states, star<T>* stars, int nstars, T rad, T mass)
 {
-	const T PI = static_cast<T>(3.1415926535898);
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
 
-	/*random number generator seeded according to the provided seed*/
-	std::mt19937 gen(seed);
-
-	/*uniform distribution to pick real values between 0 and 1*/
-	std::uniform_real_distribution<T> dis(0, 1);
-
-	/*variables to hold randomly chosen angle and radius*/
-	T a, r;
-
-	for (int i = 0; i < nstars; i++)
+	for (int i = x_index; i < nstars; i += x_stride)
 	{
+		const T PI = static_cast<T>(3.1415926535898);
+
 		/*random angle*/
-		a = dis(gen) * 2 * PI;
+		T a = static_cast<T>(curand_uniform_double(&states[i]) * 2 * PI);
 		/*random radius uses square root of random number
 		as numbers need to be evenly dispersed in 2-D space*/
-		r = std::sqrt(dis(gen)) * rad;
+		T r = static_cast<T>(sqrt(curand_uniform_double(&states[i])) * rad);
 
 		/*transform to Cartesian coordinates*/
-		stars[i].position = Complex<T>(r * std::cos(a), r * std::sin(a));
+		stars[i].position = Complex<T>(r * cos(a), r * sin(a));
 		stars[i].mass = mass;
 	}
-
-	return seed;
 }
 
 /******************************************************************

@@ -548,6 +548,8 @@ int main(int argc, char* argv[])
 	BEGIN memory allocation
 	**********************/
 
+	std::cout << "Beginning memory allocation...\n";
+
 	star<dtype>* stars = nullptr;
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
@@ -558,12 +560,16 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
 
 	/*allocate memory for pixels*/
-	cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(int));
-	if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return -1;
-	cudaMallocManaged(&pixels_saddles, num_pixels * num_pixels * sizeof(int));
-	if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return -1;
+	if (write_parities) {
+		cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(int));
+		if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return -1;
+		cudaMallocManaged(&pixels_saddles, num_pixels * num_pixels * sizeof(int));
+		if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return -1;
+	}
 	cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
 	if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
+
+	std::cout << "Done allocating memory.\n";
 
 	/********************
 	END memory allocation
@@ -630,14 +636,6 @@ int main(int argc, char* argv[])
 	************************/
 
 
-	/*initialize pixel values*/
-	for (int i = 0; i < num_pixels * num_pixels; i++)
-	{
-		pixels_minima[i] = 0;
-		pixels_saddles[i] = 0;
-		pixels[i] = 0;
-	}
-
 	/*number of threads per block, and number of blocks per grid
 	uses 16 for number of threads in x and y dimensions, as
 	32*32=1024 is the maximum allowable number of threads per block
@@ -652,6 +650,15 @@ int main(int argc, char* argv[])
 
 	dim3 blocks(num_blocks_x, num_blocks_y);
 	dim3 threads(num_threads_x, num_threads_y);
+
+
+	/*initialize pixel values*/
+	if (write_parities) {
+		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_minima, num_pixels);
+		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels);
+	}
+	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
+	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 
 
 	/*start and end time for timing purposes*/

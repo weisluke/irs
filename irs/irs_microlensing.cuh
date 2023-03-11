@@ -324,18 +324,30 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 
 					if (invmag > 0)
 					{
-						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						if (pixmin) 
+						{
+							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else if (invmag < -0)
 					{
-						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						if (pixsad) 
+						{
+							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else
 					{
-						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
-						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						if (pixmin) 
+						{
+							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						}
+						if (pixsad) 
+						{
+							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 2);
 					}
 				}
@@ -472,18 +484,30 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 
 					if (invmag > 0)
 					{
-						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						if (pixmin) 
+						{
+							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else if (invmag < -0)
 					{
-						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						if (pixsad) 
+						{
+							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else
 					{
-						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
-						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						if (pixmin) 
+						{
+							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						}
+						if (pixsad) 
+						{
+							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 2);
 					}
 				}
@@ -614,22 +638,58 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 
 					if (invmag > 0)
 					{
-						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						if (pixmin) 
+						{
+							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else if (invmag < -0)
 					{
-						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						if (pixsad) 
+						{
+							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
 					}
 					else
 					{
-						atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
-						atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						if (pixmin) 
+						{
+							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+						}
+						if (pixsad) 
+						{
+							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+						}
 						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 2);
 					}
 				}
 			}
+		}
+	}
+}
+
+/**********************************************************************
+initialize array of pixels to 0
+
+\param pixels -- pointer to array of pixels
+\param npixels -- number of pixels for one side of the receiving square
+**********************************************************************/
+template <typename T>
+__global__ void initialize_pixels_kernel(int* pixels, int npixels)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int y_stride = blockDim.y * gridDim.y;
+
+	for (int i = x_index; i < npixels; i += x_stride)
+	{
+		for (int j = y_index; j < npixels; j += y_stride)
+		{
+			pixels[j * npixels + i] = 0;
 		}
 	}
 }

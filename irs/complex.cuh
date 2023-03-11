@@ -231,8 +231,9 @@ public:
 		{
 			for (int i = 0; i > num; i--)
 			{
-				res /= *this;
+				res *= *this;
 			}
+			res = 1 / res;
 		}
 
 		return res;

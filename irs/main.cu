@@ -27,7 +27,7 @@ using dtype = float;
 
 /*constants to be used*/
 const dtype PI = static_cast<dtype>(3.1415926535898);
-constexpr int OPTS_SIZE = 2 * 17;
+constexpr int OPTS_SIZE = 2 * 18;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -45,6 +45,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-rs", "--random_seed",
 	"-wm", "--write_maps",
 	"-wp", "--write_parities",
+	"-wh", "--write_histograms",
 	"-ot", "--outfile_type",
 	"-o", "--outfile_prefix"
 };
@@ -65,6 +66,7 @@ int num_rays = 100;
 int random_seed = 0;
 int write_maps = 1;
 int write_parities = 0;
+int write_histograms = 1;
 std::string outfile_type = ".bin";
 std::string outfile_prefix = "./";
 
@@ -95,22 +97,23 @@ void display_usage(char* name)
 		std::cout << "Usage: programname opt1 val1 opt2 val2 opt3 val3 ...\n";
 	}
 	std::cout 
+		<< "                                                                               \n"
 		<< "Options:\n"
-		<< "   -h,--help              Show this help message.\n"
-		<< "   -k,--kappa_tot         Specify the total convergence. Default value: " << kappa_tot << "\n"
-		<< "   -s,--shear             Specify the external shear. Default value: " << shear << "\n"
-		<< "   -t,--theta_e           Specify the size of the Einstein radius of a unit\n"
+		<< "  -h,--help               Show this help message.\n"
+		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << kappa_tot << "\n"
+		<< "  -s,--shear              Specify the external shear. Default value: " << shear << "\n"
+		<< "  -t,--theta_e            Specify the size of the Einstein radius of a unit\n"
 		<< "                          mass point lens in arbitrary units. Default value: " << theta_e << "\n"
-		<< "   -ks,--kappa_star       Specify the convergence in point mass lenses.\n"
+		<< "  -ks,--kappa_star        Specify the convergence in point mass lenses.\n"
 		<< "                          Default value: " << kappa_star << "\n"
-		<< "   -r,--rectangular       Specify whether the star field should be\n"
+		<< "  -r,--rectangular        Specify whether the star field should be\n"
 		<< "                          rectangular (1) or circular (0). Default value: " << rectangular << "\n"
-		<< "   -a,--approx            Specify whether terms for alpha_smooth should be\n"
+		<< "  -a,--approx             Specify whether terms for alpha_smooth should be\n"
 		<< "                          approximated (1) or exact (0). Default value: " << approx << "\n"
-		<< "   -ss,--safety_scale     Specify the multiplicative safety factor over the\n"
+		<< "  -ss,--safety_scale      Specify the multiplicative safety factor over the\n"
 		<< "                          shooting region to be used when generating the star\n"
 		<< "                          field. Default value: " << safety_scale << "\n"
-		<< "   -sf,--starfile         Specify the location of a star positions and masses\n"
+		<< "  -sf,--starfile          Specify the location of a star positions and masses\n"
 		<< "                          file. The file may be either a whitespace delimited\n"
 		<< "                          text file containing valid double precision values\n"
 		<< "                          for a star's x coordinate, y coordinate, and mass, in\n"
@@ -118,41 +121,41 @@ void display_usage(char* name)
 		<< "                          structures (as defined in this source code). If\n"
 		<< "                          specified, the number of stars is determined through\n"
 		<< "                          this file.\n"
-		<< "   -hl,--half_length      Specify the half-length of the square source plane\n"
+		<< "  -hl,--half_length       Specify the half-length of the square source plane\n"
 		<< "                          region to find the magnification in.\n"
 		<< "                          Default value: " << half_length << "\n"
-		<< "   -px,--pixels           Specify the number of pixels per side for the\n"
+		<< "  -px,--pixels            Specify the number of pixels per side for the\n"
 		<< "                          magnification map. Default value: " << num_pixels << "\n"
-		<< "   -nr,--num_rays         Specify the average number of rays per pixel.\n"
+		<< "  -nr,--num_rays          Specify the average number of rays per pixel.\n"
 		<< "                          Default value: " << num_rays << "\n"
-		<< "   -rs,--random_seed      Specify the random seed for star field generation.\n"
+		<< "  -rs,--random_seed       Specify the random seed for star field generation.\n"
 		<< "                          A value of 0 is reserved for star input files.\n"
-		<< "   -wm,--write_maps       Specify whether to write magnification maps (1) or\n"
+		<< "  -wm,--write_maps        Specify whether to write magnification maps (1) or\n"
 		<< "                          not (0). Default value: " << write_maps << "\n"
-		<< "   -wp,--write_parities   Specify whether to write parity specific\n"
+		<< "  -wp,--write_parities    Specify whether to write parity specific\n"
 		<< "                          magnification maps (1) or not (0). Default value: " << write_parities << "\n"
-		<< "   -ot,--outfile_type     Specify the type of file to be output. Valid options\n"
+		<< "  -wh,--write_histograms  Specify whether to write histograms (1) or not (0).\n"
+		<< "                          Default value: " << write_histograms << "\n"
+		<< "  -ot,--outfile_type      Specify the type of file to be output. Valid options\n"
 		<< "                          are binary (.bin) or text (.txt). Default value: " << outfile_type << "\n"
-		<< "   -o,--outfile_prefix    Specify the prefix to be used in output file names.\n"
+		<< "  -o,--outfile_prefix     Specify the prefix to be used in output file names.\n"
 		<< "                          Default value: " << outfile_prefix << "\n"
 		<< "                          Lines of .txt output files are whitespace delimited.\n"
 		<< "                          Filenames are:\n"
-		<< "                             irs_parameter_info      various parameter values\n"
-		<< "                                                        used in calculations\n"
-		<< "                             irs_stars               the first item is\n"
-		<< "                                                        num_stars followed by\n"
-		<< "                                                        binary representations\n"
-		<< "                                                        of the star structures\n"
-		<< "                             irs_numrays_numpixels   each line contains a\n"
-		<< "                                                        number of rays and the\n"
-		<< "                                                        number of pixels with\n"
-		<< "                                                        that many rays\n"
-		<< "                             irs_magnifications      the first item is\n"
-		<< "                                                        num_pixels and the\n"
-		<< "                                                        second item is\n"
-		<< "                                                        num_pixels followed by\n"
-		<< "                                                        the number of rays in\n"
-		<< "                                                        each pixel\n";
+		<< "                            irs_parameter_info     various parameter values\n"
+		<< "                                                     used in calculations\n"
+		<< "                            irs_stars              the first item is num_stars\n"
+		<< "                                                     followed by binary\n"
+		<< "                                                     representations of the\n"
+		<< "                                                     star structures\n"
+		<< "                            irs_numrays_numpixels  each line contains a number\n"
+		<< "                                                     of rays and the number of\n"
+		<< "                                                     pixels with that many rays\n"
+		<< "                            irs_magnifications     the first item is num_pixels\n"
+		<< "                                                     and the second item is\n"
+		<< "                                                     num_pixels followed by the\n"
+		<< "                                                     number of rays in each\n"
+		<< "                                                     pixel\n";
 }
 
 /*********************************************************************
@@ -429,7 +432,7 @@ int main(int argc, char* argv[])
 				write_maps = std::stoi(cmdinput);
 				if (write_maps != 0 && write_maps != 1)
 				{
-					std::cerr << "Error. Invalid write_maps input. write_maps must be 0 (false) or 1 (true).\n";
+					std::cerr << "Error. Invalid write_maps input. write_maps must be 1 (true) or 0 (false).\n";
 					return -1;
 				}
 			}
@@ -446,7 +449,7 @@ int main(int argc, char* argv[])
 				write_parities = std::stoi(cmdinput);
 				if (write_parities != 0 && write_parities != 1)
 				{
-					std::cerr << "Error. Invalid write_parities input. write_parities must be 0 (false) or 1 (true).\n";
+					std::cerr << "Error. Invalid write_parities input. write_parities must be 1 (true) or 0 (false).\n";
 					return -1;
 				}
 			}
@@ -455,6 +458,23 @@ int main(int argc, char* argv[])
 				std::cerr << "Error. Invalid write_parities input.\n";
 				return -1;
 			}
+		}
+		else if (argv[i] == std::string("-wh") || argv[i] == std::string("--write_histograms"))
+		{
+		try
+		{
+			write_histograms = std::stoi(cmdinput);
+			if (write_histograms != 0 && write_histograms != 1)
+			{
+				std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
+				return -1;
+			}
+		}
+		catch (...)
+		{
+			std::cerr << "Error. Invalid write_histograms input.\n";
+			return -1;
+		}
 		}
 		else if (argv[i] == std::string("-ot") || argv[i] == std::string("--outfile_type"))
 		{
@@ -554,9 +574,9 @@ int main(int argc, char* argv[])
 
 	curandState* states = nullptr;
 	star<dtype>* stars = nullptr;
+	int* pixels = nullptr;
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
-	int* pixels = nullptr;
 
 	/*allocate memory for stars*/
 	cudaMallocManaged(&states, num_stars * sizeof(curandState));
@@ -565,14 +585,15 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
 
 	/*allocate memory for pixels*/
-	if (write_parities) {
+	cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
+	if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
+	if (write_parities) 
+	{
 		cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return -1;
 		cudaMallocManaged(&pixels_saddles, num_pixels * num_pixels * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return -1;
 	}
-	cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
-	if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
 
 	std::cout << "Done allocating memory.\n";
 
@@ -666,12 +687,13 @@ int main(int argc, char* argv[])
 
 
 	/*initialize pixel values*/
-	if (write_parities) {
+	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
+	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
+	if (write_parities) 
+	{
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_minima, num_pixels);
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels);
 	}
-	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
-	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 
 
 	/*start and end time for timing purposes*/
@@ -704,38 +726,129 @@ int main(int argc, char* argv[])
 	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n";
 
 	
-	/*create histogram of pixel values*/
+	/********************************
+	create histograms of pixel values
+	********************************/
 
-	const int min_rays = *std::min_element(pixels, pixels + num_pixels * num_pixels);
-	const int max_rays = *std::max_element(pixels, pixels + num_pixels * num_pixels);
+	int* min_rays = nullptr;
+	int* max_rays = nullptr;
 
-	int* histogram = new (std::nothrow) int[max_rays - min_rays + 1];
-	if (!histogram)
-	{
-		std::cerr << "Error. Memory allocation for *histogram failed.\n";
-		return -1;
-	}
-	for (int i = 0; i <= max_rays - min_rays; i++)
-	{
-		histogram[i] = 0;
-	}
-	for (int i = 0; i < num_pixels * num_pixels; i++)
-	{
-		histogram[pixels[i] - min_rays]++;
-	}
+	int* histogram = nullptr;
+	int* histogram_minima = nullptr;
+	int* histogram_saddles = nullptr;
 
+	int histogram_length = 0;
+
+	if (write_histograms)
+	{
+		std::cout << "\nCreating histograms...\n";
+
+		cudaMallocManaged(&min_rays, sizeof(int));
+		if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return -1;
+		cudaMallocManaged(&max_rays, sizeof(int));
+		if (cuda_error("cudaMallocManaged(*max_rays)", false, __FILE__, __LINE__)) return -1;
+
+		*min_rays = std::numeric_limits<int>::max();
+		*max_rays = 0;
+
+		/*redefine thread and block size to maximize parallelization*/
+		num_threads_y = 16;
+		num_threads_x = 16;
+
+		num_blocks_y = static_cast<int>((num_pixels - 1) / num_threads_y) + 1;
+		num_blocks_x = static_cast<int>((num_pixels - 1) / num_threads_x) + 1;
+
+		blocks.x = num_blocks_x;
+		blocks.y = num_blocks_y;
+		threads.x = num_threads_x;
+		threads.y = num_threads_y;
+
+		histogram_min_max_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels, min_rays, max_rays);
+		if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return -1;
+		if (write_parities)
+		{
+			histogram_min_max_kernel<dtype> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, max_rays);
+			if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return -1;
+			histogram_min_max_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, max_rays);
+			if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return -1;
+		}
+
+		histogram_length = *max_rays - *min_rays + 1;
+
+		cudaMallocManaged(&histogram, histogram_length * sizeof(int));
+		if (cuda_error("cudaMallocManaged(*histogram)", false, __FILE__, __LINE__)) return -1;
+		if (write_parities)
+		{
+			cudaMallocManaged(&histogram_minima, histogram_length * sizeof(int));
+			if (cuda_error("cudaMallocManaged(*histogram_minima)", false, __FILE__, __LINE__)) return -1;
+			cudaMallocManaged(&histogram_saddles, histogram_length * sizeof(int));
+			if (cuda_error("cudaMallocManaged(*histogram_saddles)", false, __FILE__, __LINE__)) return -1;
+		}
+
+		/*redefine thread and block size to maximize parallelization*/
+		num_threads_y = 1;
+		num_threads_x = 512;
+
+		num_blocks_y = 1;
+		num_blocks_x = static_cast<int>((histogram_length - 1) / num_threads_x) + 1;
+
+		blocks.x = num_blocks_x;
+		blocks.y = num_blocks_y;
+		threads.x = num_threads_x;
+		threads.y = num_threads_y;
+		
+		initialize_histogram_kernel<dtype> <<<blocks, threads>>> (histogram, histogram_length);
+		if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return -1;
+		if (write_parities)
+		{
+			initialize_histogram_kernel<dtype> <<<blocks, threads>>> (histogram_minima, histogram_length);
+			if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return -1;
+			initialize_histogram_kernel<dtype> <<<blocks, threads>>> (histogram_saddles, histogram_length);
+			if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return -1;
+		}
+
+		/*redefine thread and block size to maximize parallelization*/
+		num_threads_y = 16;
+		num_threads_x = 16;
+
+		num_blocks_y = static_cast<int>((num_pixels - 1) / num_threads_y) + 1;
+		num_blocks_x = static_cast<int>((num_pixels - 1) / num_threads_x) + 1;
+
+		blocks.x = num_blocks_x;
+		blocks.y = num_blocks_y;
+		threads.x = num_threads_x;
+		threads.y = num_threads_y;
+		
+		histogram_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels, *min_rays, histogram);
+		if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
+		if (write_parities)
+		{
+			histogram_kernel<dtype> <<<blocks, threads>>> (pixels_minima, num_pixels, *min_rays, histogram_minima);
+			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
+			histogram_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels, *min_rays, histogram_saddles);
+			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
+		}
+
+		std::cout << "Done creating histograms.\n";
+	}
+	/***************************************
+	done creating histograms of pixel values
+	***************************************/
 	
 
 	/*stream for writing output files
 	set precision to 9 digits*/
 	std::ofstream outfile;
 	outfile.precision(9);
+	std::string fname;
+	
 
+	fname = outfile_prefix + "irs_parameter_info.txt";
 	std::cout << "\nWriting parameter info...\n";
-	outfile.open(outfile_prefix + "irs_parameter_info.txt");
+	outfile.open(fname);
 	if (!outfile.is_open())
 	{
-		std::cerr << "Error. Failed to open file " << (outfile_prefix + "irs_parameter_info.txt") << "\n";
+		std::cerr << "Error. Failed to open file " << fname << "\n";
 		return -1;
 	}
 	outfile << "kappa_tot " << kappa_tot << "\n";
@@ -761,6 +874,7 @@ int main(int argc, char* argv[])
 	{
 		outfile << "rad " << rad << "\n";
 	}
+	outfile << "safety_scale " << safety_scale << "\n";
 	outfile << "half_length " << half_length << "\n";
 	outfile << "num_pixels " << num_pixels << "\n";
 	outfile << "mean_rays_per_pixel " << num_rays << "\n";
@@ -770,60 +884,81 @@ int main(int argc, char* argv[])
 	outfile << "ray_sep " << ray_sep << "\n";
 	outfile << "t_ray_shoot " << t_ray_shoot << "\n";
 	outfile.close();
-	std::cout << "Done writing parameter info to file " << outfile_prefix << "irs_parameter_info.txt.\n";
+	std::cout << "Done writing parameter info to file " << fname << "\n";
 
+
+	fname = outfile_prefix + "irs_stars" + outfile_type;
 	std::cout << "\nWriting star info...\n";
-	if (!write_star_file<dtype>(stars, num_stars, outfile_prefix + "irs_stars" + outfile_type))
+	if (!write_star_file<dtype>(stars, num_stars, fname))
 	{
-		std::cerr << "Error. Unable to write star info to file " << outfile_prefix << "irs_stars" + outfile_type << "\n";
+		std::cerr << "Error. Unable to write star info to file " << fname << "\n";
 		return -1;
 	}
-	std::cout << "Done writing star info to file " << outfile_prefix << "irs_stars" + outfile_type << "\n";
+	std::cout << "Done writing star info to file " << fname << "\n";
 
 
-	/*histogram of magnification map*/
-	std::cout << "\nWriting magnification histogram...\n";
-	outfile.open(outfile_prefix + "irs_numrays_numpixels.txt");
-	if (!outfile.is_open())
+	/*histograms of magnification maps*/
+	if (write_histograms)
 	{
-		std::cerr << "Error. Failed to open file " << outfile_prefix << "irs_numrays_numpixels.txt\n";
-		return -1;
-	}
-	for (int i = 0; i <= max_rays - min_rays; i++)
-	{
-		if (histogram[i] != 0)
+		std::cout << "\nWriting magnification histograms...\n";
+
+		fname = outfile_prefix + "irs_numrays_numpixels.txt";
+		if (!write_histogram<dtype>(histogram, histogram_length, *min_rays, fname))
 		{
-			outfile << i + min_rays << " " << histogram[i] << "\n";
+			std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
+			return -1;
+		}
+		std::cout << "Done writing magnification histogram to file " << fname << "\n";
+		if (write_parities)
+		{
+			fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
+			if (!write_histogram<dtype>(histogram_minima, histogram_length, *min_rays, fname))
+			{
+				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
+				return -1;
+			}
+			std::cout << "Done writing magnification histogram to file " << fname << "\n";
+
+			fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
+			if (!write_histogram<dtype>(histogram_saddles, histogram_length, *min_rays, fname))
+			{
+				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
+				return -1;
+			}
+			std::cout << "Done writing magnification histogram to file " << fname << "\n";
 		}
 	}
-	outfile.close();
-	std::cout << "Done writing magnification histogram to file " << outfile_prefix << "irs_numrays_numpixels.txt\n";
 
 
 	/*write magnifications for minima, saddle, and combined maps*/
 	if (write_maps)
 	{
 		std::cout << "\nWriting magnifications...\n";
-		if (!write_array<int>(pixels, num_pixels, num_pixels, outfile_prefix + "irs_magnifications" + outfile_type))
+		
+		fname = outfile_prefix + "irs_magnifications" + outfile_type;
+		if (!write_array<int>(pixels, num_pixels, num_pixels, fname))
 		{
-			std::cerr << "Error. Unable to write magnifications to file " << outfile_prefix << "irs_magnifications" + outfile_type << "\n";
+			std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 			return -1;
 		}
-		std::cout << "Done writing magnifications to file " << outfile_prefix << "irs_magnifications" + outfile_type << "\n";
+		std::cout << "Done writing magnifications to file " << fname << "\n";
 		if (write_parities)
 		{
-			if (!write_array<int>(pixels_minima, num_pixels, num_pixels, outfile_prefix + "irs_magnifications_minima" + outfile_type))
+			fname = outfile_prefix + "irs_magnifications_minima" + outfile_type;
+			if (!write_array<int>(pixels_minima, num_pixels, num_pixels, fname))
 			{
-				std::cerr << "Error. Unable to write magnifications to file " << outfile_prefix << "irs_magnifications_minima" + outfile_type << "\n";
+				std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 				return -1;
 			}
-			std::cout << "Done writing magnifications to file " << outfile_prefix << "irs_magnifications_minima" + outfile_type << "\n";
-			if (!write_array<int>(pixels_saddles, num_pixels, num_pixels, outfile_prefix + "irs_magnifications_saddles" + outfile_type))
+			std::cout << "Done writing magnifications to file " << fname << "\n";
+
+			fname = outfile_prefix + "irs_magnifications_saddles" + outfile_type;
+			if (!write_array<int>(pixels_saddles, num_pixels, num_pixels, fname))
 			{
-				std::cerr << "Error. Unable to write magnifications to file " << outfile_prefix << "irs_magnifications_saddles" + outfile_type << "\n";
+				std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 				return -1;
 			}
-			std::cout << "Done writing magnifications to file " << outfile_prefix << "irs_magnifications_saddles" + outfile_type << "\n";
+			std::cout << "Done writing magnifications to file " << fname << "\n";
 		}
 	}
 

@@ -697,6 +697,77 @@ __global__ void initialize_pixels_kernel(int* pixels, int npixels)
 	}
 }
 
+/**********************************************************************
+calculate the minimum and maximum number of rays in the pixel array
+
+\param pixels -- pointer to array of pixels
+\param npixels -- number of pixels for one side of the receiving square
+\param minrays -- pointer to minimum number of rays
+\param maxrays -- pointer to maximum number of rays
+**********************************************************************/
+template <typename T>
+__global__ void histogram_min_max_kernel(int* pixels, int npixels, int* minrays, int* maxrays)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int y_stride = blockDim.y * gridDim.y;
+
+	for (int i = x_index; i < npixels; i += x_stride)
+	{
+		for (int j = y_index; j < npixels; j += y_stride)
+		{
+			atomicMin(minrays, pixels[j * npixels + i]);
+			atomicMax(maxrays, pixels[j * npixels + i]);
+		}
+	}
+}
+
+/***************************************
+initialize histogram values to 0
+
+\param histogram -- pointer to histogram
+\param n -- length of histogram
+***************************************/
+template <typename T>
+__global__ void initialize_histogram_kernel(int* histogram, int n)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	for (int i = x_index; i < n; i += x_stride)
+	{
+		histogram[i] = 0;
+	}
+}
+
+/**********************************************************************
+calculate the histogram of rays for the pixel array
+
+\param pixels -- pointer to array of pixels
+\param npixels -- number of pixels for one side of the receiving square
+\param minrays -- minimum number of rays
+\param histogram -- pointer to histogram
+**********************************************************************/
+template <typename T>
+__global__ void histogram_kernel(int* pixels, int npixels, int minrays, int* histogram)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int y_stride = blockDim.y * gridDim.y;
+
+	for (int i = x_index; i < npixels; i += x_stride)
+	{
+		for (int j = y_index; j < npixels; j += y_stride)
+		{
+			atomicAdd(&(histogram[pixels[j * npixels + i] - minrays]), 1);
+		}
+	}
+}
+
 /**************************************************************
 write array of values to disk
 
@@ -732,6 +803,7 @@ bool write_array(T* vals, int nrows, int ncols, const std::string& fname)
 			}
 			outfile << "\n";
 		}
+		outfile.close();
 	}
 	else if (fpath.extension() == ".bin")
 	{
@@ -753,6 +825,49 @@ bool write_array(T* vals, int nrows, int ncols, const std::string& fname)
 		std::cerr << "Error. File " << fname << " is not a .bin or .txt file.\n";
 		return false;
 	}
+
+	return true;
+}
+
+/**************************************************************
+write histogram
+
+\param histogram -- pointer to histogram
+\param n -- length of histogram
+\param minrays -- minimum number of rays
+\param fname -- location of the file to write to
+
+\return bool -- true if file successfully written, false if not
+**************************************************************/
+template <typename T>
+bool write_histogram(int* histogram, int n, int minrays, const std::string& fname)
+{
+	std::filesystem::path fpath = fname;
+
+	if (fpath.extension() != ".txt")
+	{
+		std::cerr << "Error. File " << fname << " is not a .txt file.\n";
+		return false;
+	}
+
+	std::ofstream outfile;
+
+	outfile.precision(9);
+	outfile.open(fname);
+
+	if (!outfile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << fname << "\n";
+		return false;
+	}
+	for (int i = 0; i < n; i++)
+	{
+		if (histogram[i] != 0)
+		{
+			outfile << i + minrays << " " << histogram[i] << "\n";
+		}
+	}
+	outfile.close();
 
 	return true;
 }

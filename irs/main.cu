@@ -754,8 +754,8 @@ int main(int argc, char* argv[])
 	std::string fname;
 
 
-	fname = outfile_prefix + "irs_parameter_info.txt";
 	std::cout << "Writing parameter info...\n";
+	fname = outfile_prefix + "irs_parameter_info.txt";
 	outfile.open(fname);
 	if (!outfile.is_open())
 	{
@@ -798,8 +798,8 @@ int main(int argc, char* argv[])
 	std::cout << "Done writing parameter info to file " << fname << "\n\n";
 
 
-	fname = outfile_prefix + "irs_stars" + outfile_type;
 	std::cout << "Writing star info...\n";
+	fname = outfile_prefix + "irs_stars" + outfile_type;
 	if (!write_star_file<dtype>(stars, num_stars, fname))
 	{
 		std::cerr << "Error. Unable to write star info to file " << fname << "\n";

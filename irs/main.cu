@@ -566,27 +566,21 @@ int main(int argc, char* argv[])
 	********************/
 
 
+	/*variables for kernel threads and blocks*/
+	dim3 threads;
+	dim3 blocks;
+
 	/*number of threads per block, and number of blocks per grid
 	uses 512 for number of threads in x dimension, as 1024 is the
 	maximum allowable number of threads per block but is too large
 	for some memory allocation, and 512 is next power of 2 smaller*/
-
-	int num_threads_z = 1;
-	int num_threads_y = 1;
-	int num_threads_x = 512;
-
-	int num_blocks_z = 1;
-	int num_blocks_y = 1;
-	int num_blocks_x = static_cast<int>((num_stars - 1) / num_threads_x) + 1;
-
-	dim3 blocks(num_blocks_x, num_blocks_y, num_blocks_z);
-	dim3 threads(num_threads_x, num_threads_y, num_threads_z);
+	set_threads(threads, 512);
+	set_blocks(threads, blocks, num_stars);
 
 
 	/**************************
 	BEGIN populating star array
 	**************************/
-
 
 	if (starfile == "")
 	{
@@ -637,17 +631,8 @@ int main(int argc, char* argv[])
 
 
 	/*redefine thread and block size to maximize parallelization*/
-	num_threads_y = 16;
-	num_threads_x = 16;
-
-	num_blocks_y = static_cast<int>((2 * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
-	num_blocks_x = static_cast<int>((2 * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
-
-	blocks.x = num_blocks_x;
-	blocks.y = num_blocks_y;
-	threads.x = num_threads_x;
-	threads.y = num_threads_y;
-
+	set_threads(threads, 16, 16);
+	set_blocks(threads, blocks, 2 * lens_hl_x1 / ray_sep, 2 * lens_hl_x2 / ray_sep);
 
 	/*initialize pixel values*/
 	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
@@ -702,16 +687,8 @@ int main(int argc, char* argv[])
 		*max_rays = 0;
 
 		/*redefine thread and block size to maximize parallelization*/
-		num_threads_y = 16;
-		num_threads_x = 16;
-
-		num_blocks_y = static_cast<int>((num_pixels - 1) / num_threads_y) + 1;
-		num_blocks_x = static_cast<int>((num_pixels - 1) / num_threads_x) + 1;
-
-		blocks.x = num_blocks_x;
-		blocks.y = num_blocks_y;
-		threads.x = num_threads_x;
-		threads.y = num_threads_y;
+		set_threads(threads, 16, 16);
+		set_blocks(threads, blocks, num_pixels, num_pixels);
 
 		histogram_min_max_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels, min_rays, max_rays);
 		if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return -1;
@@ -736,16 +713,8 @@ int main(int argc, char* argv[])
 		}
 
 		/*redefine thread and block size to maximize parallelization*/
-		num_threads_y = 1;
-		num_threads_x = 512;
-
-		num_blocks_y = 1;
-		num_blocks_x = static_cast<int>((histogram_length - 1) / num_threads_x) + 1;
-
-		blocks.x = num_blocks_x;
-		blocks.y = num_blocks_y;
-		threads.x = num_threads_x;
-		threads.y = num_threads_y;
+		set_threads(threads, 512);
+		set_blocks(threads, blocks, histogram_length);
 
 		initialize_histogram_kernel<dtype> <<<blocks, threads>>> (histogram, histogram_length);
 		if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return -1;
@@ -758,16 +727,8 @@ int main(int argc, char* argv[])
 		}
 
 		/*redefine thread and block size to maximize parallelization*/
-		num_threads_y = 16;
-		num_threads_x = 16;
-
-		num_blocks_y = static_cast<int>((num_pixels - 1) / num_threads_y) + 1;
-		num_blocks_x = static_cast<int>((num_pixels - 1) / num_threads_x) + 1;
-
-		blocks.x = num_blocks_x;
-		blocks.y = num_blocks_y;
-		threads.x = num_threads_x;
-		threads.y = num_threads_y;
+		set_threads(threads, 16, 16);
+		set_blocks(threads, blocks, num_pixels, num_pixels);
 
 		histogram_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels, *min_rays, histogram);
 		if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;

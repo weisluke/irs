@@ -118,3 +118,34 @@ bool cuda_error(const char* name, bool sync, const char* file, const int line)
 	return false;
 }
 
+/*****************************************************
+set the number of threads per block for the kernel
+
+\param threads -- reference to threads
+\param x -- number of threads per block in x dimension
+\param y -- number of threads per block in y dimension
+\param z -- number of threads per block in z dimension
+*****************************************************/
+void set_threads(dim3& threads, int x = 1, int y = 1, int z = 1)
+{
+	threads.x = x;
+	threads.y = y;
+	threads.z = z;
+}
+
+/*******************************************
+set the number of blocks for the kernel
+
+\param threads -- reference to threads
+\param blocks -- reference to blocks
+\param x -- number of threads in x dimension
+\param y -- number of threads in y dimension
+\param z -- number of threads in z dimension
+*******************************************/
+void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
+{
+	blocks.x = static_cast<int>((x - 1) / threads.x) + 1;
+	blocks.y = static_cast<int>((y - 1) / threads.y) + 1;
+	blocks.z = static_cast<int>((z - 1) / threads.z) + 1;
+}
+

@@ -46,13 +46,12 @@ __global__ void initialize_curand_states_kernel(curandState* states, int nstars,
 /**************************************************
 generate random rectangular star field
 
+\param states -- pointer to array of curand states
 \param stars -- pointer to array of stars
 \param nstars -- number of stars to generate
 \param corner -- corner of the rectangular region
 				 within which to generate stars
 \param mass -- mass for each star
-\param seed -- random seed to use. defaults to seed
-			   generated based on current time
 **************************************************/
 template <typename T>
 __global__ void generate_rectangular_star_field_kernel(curandState* states, star<T>* stars, int nstars, Complex<T> corner, T mass)
@@ -73,15 +72,12 @@ __global__ void generate_rectangular_star_field_kernel(curandState* states, star
 /**************************************************
 generate random circular star field
 
+\param states -- pointer to array of curand states
 \param stars -- pointer to array of stars
 \param nstars -- number of stars to generate
 \param rad -- radius of the circular region
 			  within which to generate stars
 \param mass -- mass for each star
-\param seed -- random seed to use. defaults to seed
-			   generated based on current time
-
-\return seed -- the random seed used
 **************************************************/
 template <typename T>
 __global__ void generate_circular_star_field_kernel(curandState* states, star<T>* stars, int nstars, T rad, T mass)
@@ -120,7 +116,7 @@ determines star field parameters from the given starfile
 				   order, on each line, or a .bin file of star
 				   structures (as defined in this source code).
 
-\return bool -- true if file successfully read, false if not
+\return bool -- true if file is successfully read, false if not
 ******************************************************************/
 template <typename T>
 bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2, const std::string& starfile)
@@ -245,6 +241,7 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 		else
 		{
 			std::cerr << "Error. Binary star file does not contain valid single or double precision stars.\n";
+			infile.close();
 			return false;
 		}
 
@@ -376,6 +373,7 @@ bool read_star_file(star<T>* stars, int nstars, const std::string& starfile)
 		else
 		{
 			std::cerr << "Error. Binary star file does not contain valid single or double precision stars.\n";
+			infile.close();
 			return false;
 		}
 

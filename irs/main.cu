@@ -423,20 +423,20 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-wh") || argv[i] == std::string("--write_histograms"))
 		{
-		try
-		{
-			write_histograms = std::stoi(cmdinput);
-			if (write_histograms != 0 && write_histograms != 1)
+			try
 			{
-				std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
+				write_histograms = std::stoi(cmdinput);
+				if (write_histograms != 0 && write_histograms != 1)
+				{
+					std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
+					return -1;
+				}
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid write_histograms input.\n";
 				return -1;
 			}
-		}
-		catch (...)
-		{
-			std::cerr << "Error. Invalid write_histograms input.\n";
-			return -1;
-		}
 		}
 		else if (argv[i] == std::string("-ot") || argv[i] == std::string("--outfile_type"))
 		{
@@ -475,7 +475,7 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 
-		std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n";
+		std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n\n";
 	}
 
 	/*average magnification of the system*/
@@ -513,7 +513,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	
-	std::cout << "Number of stars used: " << num_stars << "\n";
+	std::cout << "Number of stars used: " << num_stars << "\n\n";
 
 	Complex<dtype> c = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
 		* Complex<dtype>(
@@ -557,7 +557,7 @@ int main(int argc, char* argv[])
 		if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return -1;
 	}
 
-	std::cout << "Done allocating memory.\n";
+	std::cout << "Done allocating memory.\n\n";
 
 	/********************
 	END memory allocation
@@ -585,7 +585,6 @@ int main(int argc, char* argv[])
 	BEGIN populating star array
 	**************************/
 
-	std::cout << "\n";
 
 	if (starfile == "")
 	{
@@ -611,7 +610,7 @@ int main(int argc, char* argv[])
 		}
 		if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return -1;
 
-		std::cout << "Done generating star field.\n";
+		std::cout << "Done generating star field.\n\n";
 	}
 	else
 	{
@@ -627,7 +626,7 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 
-		std::cout << "Done reading star field from file " << starfile << "\n";
+		std::cout << "Done reading star field from file " << starfile << "\n\n";
 	}
 
 	/************************
@@ -654,7 +653,9 @@ int main(int argc, char* argv[])
 	if (write_parities) 
 	{
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_minima, num_pixels);
+		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels);
+		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	}
 
 
@@ -662,7 +663,7 @@ int main(int argc, char* argv[])
 	std::chrono::high_resolution_clock::time_point starttime;
 	std::chrono::high_resolution_clock::time_point endtime;
 
-	std::cout << "\nShooting rays...\n";
+	std::cout << "Shooting rays...\n";
 	/*get current time at start*/
 	starttime = std::chrono::high_resolution_clock::now();
 
@@ -685,7 +686,7 @@ int main(int argc, char* argv[])
 	/*get current time at end of loop, and calculate duration in milliseconds*/
 	endtime = std::chrono::high_resolution_clock::now();
 	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(endtime - starttime).count() / 1000.0;
-	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n";
+	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 	
 	/********************************
@@ -703,7 +704,7 @@ int main(int argc, char* argv[])
 
 	if (write_histograms)
 	{
-		std::cout << "\nCreating histograms...\n";
+		std::cout << "Creating histograms...\n";
 
 		cudaMallocManaged(&min_rays, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return -1;
@@ -791,7 +792,7 @@ int main(int argc, char* argv[])
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		}
 
-		std::cout << "Done creating histograms.\n";
+		std::cout << "Done creating histograms.\n\n";
 	}
 	/***************************************
 	done creating histograms of pixel values
@@ -806,7 +807,7 @@ int main(int argc, char* argv[])
 	
 
 	fname = outfile_prefix + "irs_parameter_info.txt";
-	std::cout << "\nWriting parameter info...\n";
+	std::cout << "Writing parameter info...\n";
 	outfile.open(fname);
 	if (!outfile.is_open())
 	{
@@ -846,23 +847,23 @@ int main(int argc, char* argv[])
 	outfile << "ray_sep " << ray_sep << "\n";
 	outfile << "t_ray_shoot " << t_ray_shoot << "\n";
 	outfile.close();
-	std::cout << "Done writing parameter info to file " << fname << "\n";
+	std::cout << "Done writing parameter info to file " << fname << "\n\n";
 
 
 	fname = outfile_prefix + "irs_stars" + outfile_type;
-	std::cout << "\nWriting star info...\n";
+	std::cout << "Writing star info...\n";
 	if (!write_star_file<dtype>(stars, num_stars, fname))
 	{
 		std::cerr << "Error. Unable to write star info to file " << fname << "\n";
 		return -1;
 	}
-	std::cout << "Done writing star info to file " << fname << "\n";
+	std::cout << "Done writing star info to file " << fname << "\n\n";
 
 
 	/*histograms of magnification maps*/
 	if (write_histograms)
 	{
-		std::cout << "\nWriting magnification histograms...\n";
+		std::cout << "Writing magnification histograms...\n";
 
 		fname = outfile_prefix + "irs_numrays_numpixels.txt";
 		if (!write_histogram<dtype>(histogram, histogram_length, *min_rays, fname))
@@ -889,13 +890,14 @@ int main(int argc, char* argv[])
 			}
 			std::cout << "Done writing magnification histogram to file " << fname << "\n";
 		}
+		std::cout << "\n";
 	}
 
 
 	/*write magnifications for minima, saddle, and combined maps*/
 	if (write_maps)
 	{
-		std::cout << "\nWriting magnifications...\n";
+		std::cout << "Writing magnifications...\n";
 		
 		fname = outfile_prefix + "irs_magnifications" + outfile_type;
 		if (!write_array<int>(pixels, num_pixels, num_pixels, fname))
@@ -922,9 +924,10 @@ int main(int argc, char* argv[])
 			}
 			std::cout << "Done writing magnifications to file " << fname << "\n";
 		}
+		std::cout << "\n";
 	}
 
-	std::cout << "\nDone.\n";
+	std::cout << "Done.\n";
 
 	cudaDeviceReset();
 	if (cuda_error("cudaDeviceReset", false, __FILE__, __LINE__)) return -1;

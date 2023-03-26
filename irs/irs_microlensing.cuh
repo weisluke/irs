@@ -22,18 +22,18 @@ calculate the deflection angle due to a field of stars
 template <typename T>
 __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, int nstars)
 {
-	Complex<T> starsum;
+	Complex<T> alpha_star;
 
 	/*sum m_i/(z-z_i)*/
 	for (int i = 0; i < nstars; i++)
 	{
-		starsum += stars[i].mass / (z - stars[i].position);
+		alpha_star += stars[i].mass / (z - stars[i].position);
 	}
 
 	/*theta_e^2 * starsum*/
-	starsum *= (theta * theta);
+	alpha_star *= (theta * theta);
 
-	return starsum.conj();
+	return alpha_star.conj();
 }
 
 /***************************************************************************
@@ -122,7 +122,7 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 	Complex<T> alpha_star = star_deflection(z, theta, stars, nstars);
 	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, rectangular, corner, approx, taylor);
 
-	/*(1-kappa)*z+gamma*z_bar-starsum_bar-alpha_smooth*/
+	/* (1 - kappa) * z + gamma * z_bar - alpha_star - alpha_smooth */
 	return (1 - kappa) * z + gamma * z.conj() - alpha_star - alpha_smooth;
 }
 

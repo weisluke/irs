@@ -53,6 +53,32 @@ __device__ T boxcar(Complex<T> z, Complex<T> corner)
 }
 
 /********************************************************************
+calculate the deflection angle due to a field of stars
+
+\param z -- complex image plane position
+\param theta -- size of the Einstein radius of a unit mass point lens
+\param stars -- pointer to array of point mass lenses
+\param nstars -- number of point mass lenses in array
+********************************************************************/
+template <typename T>
+__device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, int nstars)
+{
+	Complex<T> starsum;
+
+	/*sum m_i/(z-z_i)*/
+	for (int i = 0; i < nstars; i++)
+	{
+		starsum += stars[i].mass / (z - stars[i].position);
+	}
+
+	/*theta_e^2 * starsum*/
+	starsum *= (theta * theta);
+
+	return starsum;
+}
+
+
+/********************************************************************
 lens equation for a rectangular star field
 
 \param z -- complex image plane position
@@ -72,16 +98,7 @@ template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner)
 {
 	T PI = static_cast<T>(3.1415926535898);
-	Complex<T> starsum;
-
-	/*sum m_i/(z-z_i)*/
-	for (int i = 0; i < nstars; i++)
-	{
-		starsum += stars[i].mass / (z - stars[i].position);
-	}
-
-	/*theta_e^2 * starsum*/
-	starsum *= (theta * theta);
+	Complex<T> starsum = star_deflection(z, theta, stars, nstars);
 
 	Complex<T> c1 = corner - z.conj();
 	Complex<T> c2 = corner.conj() - z.conj();
@@ -117,16 +134,7 @@ template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner, int taylor)
 {
 	T PI = static_cast<T>(3.1415926535898);
-	Complex<T> starsum;
-
-	/*sum m_i/(z-z_i)*/
-	for (int i = 0; i < nstars; i++)
-	{
-		starsum += stars[i].mass / (z - stars[i].position);
-	}
-
-	/*theta_e^2 * starsum*/
-	starsum *= (theta * theta);
+	Complex<T> starsum = star_deflection(z, theta, stars, nstars);
 
 	Complex<T> s1;
 	Complex<T> s2;
@@ -167,16 +175,7 @@ lens equation for a circular star field
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar)
 {
-	Complex<T> starsum;
-
-	/*sum m_i/(z-z_i)*/
-	for (int i = 0; i < nstars; i++)
-	{
-		starsum += stars[i].mass / (z - stars[i].position);
-	}
-
-	/*theta_e^2 * starsum*/
-	starsum *= (theta * theta);
+	Complex<T> starsum = star_deflection(z, theta, stars, nstars);
 
 	/*(1-kappa+kappastar)*z+gamma*z_bar-starsum_bar*/
 	return (1 - kappa + kappastar) * z + gamma * z.conj() - starsum.conj();

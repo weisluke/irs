@@ -30,7 +30,7 @@ __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, int
 		alpha_star += stars[i].mass / (z - stars[i].position);
 	}
 
-	/*theta_e^2 * starsum*/
+	/*theta_e^2 * alpha_star*/
 	alpha_star *= (theta * theta);
 
 	return alpha_star.conj();

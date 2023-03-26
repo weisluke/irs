@@ -96,7 +96,7 @@ void display_usage(char* name)
 	{
 		std::cout << "Usage: programname opt1 val1 opt2 val2 opt3 val3 ...\n";
 	}
-	std::cout 
+	std::cout
 		<< "                                                                               \n"
 		<< "Options:\n"
 		<< "  -h,--help               Show this help message.\n"
@@ -499,25 +499,27 @@ int main(int argc, char* argv[])
 	/*make shooting region a multiple of the ray separation*/
 	lens_hl_x1 = ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1);
 	lens_hl_x2 = ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1);
-	
+
 	/*if stars are not drawn from external file, calculate final number of stars to use*/
 	if (starfile == "")
 	{
 		if (rectangular)
 		{
-			num_stars = static_cast<int>((safety_scale * 2 * lens_hl_x1) * (safety_scale * 2 * lens_hl_x2) * kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
+			num_stars = static_cast<int>((safety_scale * 2 * lens_hl_x1) * (safety_scale * 2 * lens_hl_x2) 
+				* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
 		}
 		else
 		{
-			num_stars = static_cast<int>(safety_scale * safety_scale * (lens_hl_x1 * lens_hl_x1 + lens_hl_x2 * lens_hl_x2) * kappa_star / (theta_e * theta_e * mean_mass)) + 1;
+			num_stars = static_cast<int>(safety_scale * safety_scale * (lens_hl_x1 * lens_hl_x1 + lens_hl_x2 * lens_hl_x2) 
+				* kappa_star / (theta_e * theta_e * mean_mass)) + 1;
 		}
 	}
-	
+
 	std::cout << "Number of stars used: " << num_stars << "\n\n";
 
 	Complex<dtype> c = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
 		* Complex<dtype>(
-			std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))), 
+			std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))),
 			std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
 			);
 	dtype rad = std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
@@ -549,7 +551,7 @@ int main(int argc, char* argv[])
 	/*allocate memory for pixels*/
 	cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
 	if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
-	if (write_parities) 
+	if (write_parities)
 	{
 		cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return -1;
@@ -650,7 +652,7 @@ int main(int argc, char* argv[])
 	/*initialize pixel values*/
 	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
 	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
-	if (write_parities) 
+	if (write_parities)
 	{
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_minima, num_pixels);
 		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
@@ -666,29 +668,14 @@ int main(int argc, char* argv[])
 	std::cout << "Shooting rays...\n";
 	/*get current time at start*/
 	starttime = std::chrono::high_resolution_clock::now();
-
-	if (rectangular)
-	{
-		if (approx)
-		{
-			shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
-		}
-		else
-		{
-			shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
-		}
-	}
-	else
-	{
-		shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
-	}
+	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	/*get current time at end of loop, and calculate duration in milliseconds*/
 	endtime = std::chrono::high_resolution_clock::now();
 	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(endtime - starttime).count() / 1000.0;
 	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
-	
+
 	/********************************
 	create histograms of pixel values
 	********************************/
@@ -759,7 +746,7 @@ int main(int argc, char* argv[])
 		blocks.y = num_blocks_y;
 		threads.x = num_threads_x;
 		threads.y = num_threads_y;
-		
+
 		initialize_histogram_kernel<dtype> <<<blocks, threads>>> (histogram, histogram_length);
 		if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		if (write_parities)
@@ -781,7 +768,7 @@ int main(int argc, char* argv[])
 		blocks.y = num_blocks_y;
 		threads.x = num_threads_x;
 		threads.y = num_threads_y;
-		
+
 		histogram_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels, *min_rays, histogram);
 		if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		if (write_parities)
@@ -797,14 +784,14 @@ int main(int argc, char* argv[])
 	/***************************************
 	done creating histograms of pixel values
 	***************************************/
-	
+
 
 	/*stream for writing output files
 	set precision to 9 digits*/
 	std::ofstream outfile;
 	outfile.precision(9);
 	std::string fname;
-	
+
 
 	fname = outfile_prefix + "irs_parameter_info.txt";
 	std::cout << "Writing parameter info...\n";
@@ -898,7 +885,7 @@ int main(int argc, char* argv[])
 	if (write_maps)
 	{
 		std::cout << "Writing magnifications...\n";
-		
+
 		fname = outfile_prefix + "irs_magnifications" + outfile_type;
 		if (!write_array<int>(pixels, num_pixels, num_pixels, fname))
 		{

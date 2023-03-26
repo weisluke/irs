@@ -22,18 +22,18 @@ calculate the deflection angle due to a field of stars
 template <typename T>
 __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, int nstars)
 {
-	Complex<T> alpha_star;
+	Complex<T> alpha_star_bar;
 
 	/*sum m_i/(z-z_i)*/
 	for (int i = 0; i < nstars; i++)
 	{
-		alpha_star += stars[i].mass / (z - stars[i].position);
+		alpha_star_bar += stars[i].mass / (z - stars[i].position);
 	}
 
-	/*theta_e^2 * alpha_star*/
-	alpha_star *= (theta * theta);
+	/*theta_e^2 * alpha_star_bar*/
+	alpha_star_bar *= (theta * theta);
 
-	return alpha_star.conj();
+	return alpha_star_bar.conj();
 }
 
 /***************************************************************************

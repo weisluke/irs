@@ -96,7 +96,7 @@ void display_usage(char* name)
 	{
 		std::cout << "Usage: programname opt1 val1 opt2 val2 opt3 val3 ...\n";
 	}
-	std::cout 
+	std::cout
 		<< "                                                                               \n"
 		<< "Options:\n"
 		<< "  -h,--help               Show this help message.\n"
@@ -156,44 +156,6 @@ void display_usage(char* name)
 		<< "                                                     num_pixels followed by the\n"
 		<< "                                                     number of rays in each\n"
 		<< "                                                     pixel\n";
-}
-
-/*********************************************************************
-CUDA error checking
-
-\param name -- to print in error msg
-\param sync -- boolean of whether device needs synchronized or not
-\param name -- the file being run
-\param line -- line number of the source code where the error is given
-
-\return bool -- true for error, false for no error
-*********************************************************************/
-bool cuda_error(const char* name, bool sync, const char* file, const int line)
-{
-	cudaError_t err = cudaGetLastError();
-	/*if the last error message is not a success, print the error code and msg
-	and return true (i.e., an error occurred)*/
-	if (err != cudaSuccess)
-	{
-		const char* errMsg = cudaGetErrorString(err);
-		std::cerr << "CUDA error check for " << name << " failed at " << file << ":" << line << "\n";
-		std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
-		return true;
-	}
-	/*if a device synchronization is also to be done*/
-	if (sync)
-	{
-		/*perform the same error checking as initially*/
-		err = cudaDeviceSynchronize();
-		if (err != cudaSuccess)
-		{
-			const char* errMsg = cudaGetErrorString(err);
-			std::cerr << "CUDA error check for cudaDeviceSynchronize failed at " << file << ":" << line << "\n";
-			std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
-			return true;
-		}
-	}
-	return false;
 }
 
 
@@ -461,20 +423,20 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-wh") || argv[i] == std::string("--write_histograms"))
 		{
-		try
-		{
-			write_histograms = std::stoi(cmdinput);
-			if (write_histograms != 0 && write_histograms != 1)
+			try
 			{
-				std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
+				write_histograms = std::stoi(cmdinput);
+				if (write_histograms != 0 && write_histograms != 1)
+				{
+					std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
+					return -1;
+				}
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid write_histograms input.\n";
 				return -1;
 			}
-		}
-		catch (...)
-		{
-			std::cerr << "Error. Invalid write_histograms input.\n";
-			return -1;
-		}
 		}
 		else if (argv[i] == std::string("-ot") || argv[i] == std::string("--outfile_type"))
 		{
@@ -513,7 +475,7 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 
-		std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n";
+		std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n\n";
 	}
 
 	/*average magnification of the system*/
@@ -537,25 +499,27 @@ int main(int argc, char* argv[])
 	/*make shooting region a multiple of the ray separation*/
 	lens_hl_x1 = ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1);
 	lens_hl_x2 = ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1);
-	
+
 	/*if stars are not drawn from external file, calculate final number of stars to use*/
 	if (starfile == "")
 	{
 		if (rectangular)
 		{
-			num_stars = static_cast<int>((safety_scale * 2 * lens_hl_x1) * (safety_scale * 2 * lens_hl_x2) * kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
+			num_stars = static_cast<int>((safety_scale * 2 * lens_hl_x1) * (safety_scale * 2 * lens_hl_x2) 
+				* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
 		}
 		else
 		{
-			num_stars = static_cast<int>(safety_scale * safety_scale * (lens_hl_x1 * lens_hl_x1 + lens_hl_x2 * lens_hl_x2) * kappa_star / (theta_e * theta_e * mean_mass)) + 1;
+			num_stars = static_cast<int>(safety_scale * safety_scale * (lens_hl_x1 * lens_hl_x1 + lens_hl_x2 * lens_hl_x2) 
+				* kappa_star / (theta_e * theta_e * mean_mass)) + 1;
 		}
 	}
-	
-	std::cout << "Number of stars used: " << num_stars << "\n";
+
+	std::cout << "Number of stars used: " << num_stars << "\n\n";
 
 	Complex<dtype> c = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
 		* Complex<dtype>(
-			std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))), 
+			std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))),
 			std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
 			);
 	dtype rad = std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
@@ -587,7 +551,7 @@ int main(int argc, char* argv[])
 	/*allocate memory for pixels*/
 	cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
 	if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
-	if (write_parities) 
+	if (write_parities)
 	{
 		cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return -1;
@@ -595,35 +559,28 @@ int main(int argc, char* argv[])
 		if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return -1;
 	}
 
-	std::cout << "Done allocating memory.\n";
+	std::cout << "Done allocating memory.\n\n";
 
 	/********************
 	END memory allocation
 	********************/
 
 
+	/*variables for kernel threads and blocks*/
+	dim3 threads;
+	dim3 blocks;
+
 	/*number of threads per block, and number of blocks per grid
 	uses 512 for number of threads in x dimension, as 1024 is the
 	maximum allowable number of threads per block but is too large
 	for some memory allocation, and 512 is next power of 2 smaller*/
-
-	int num_threads_z = 1;
-	int num_threads_y = 1;
-	int num_threads_x = 512;
-
-	int num_blocks_z = 1;
-	int num_blocks_y = 1;
-	int num_blocks_x = static_cast<int>((num_stars - 1) / num_threads_x) + 1;
-
-	dim3 blocks(num_blocks_x, num_blocks_y, num_blocks_z);
-	dim3 threads(num_threads_x, num_threads_y, num_threads_z);
+	set_threads(threads, 512);
+	set_blocks(threads, blocks, num_stars);
 
 
 	/**************************
 	BEGIN populating star array
 	**************************/
-
-	std::cout << "\n";
 
 	if (starfile == "")
 	{
@@ -649,7 +606,7 @@ int main(int argc, char* argv[])
 		}
 		if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return -1;
 
-		std::cout << "Done generating star field.\n";
+		std::cout << "Done generating star field.\n\n";
 	}
 	else
 	{
@@ -665,7 +622,7 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 
-		std::cout << "Done reading star field from file " << starfile << "\n";
+		std::cout << "Done reading star field from file " << starfile << "\n\n";
 	}
 
 	/************************
@@ -674,25 +631,18 @@ int main(int argc, char* argv[])
 
 
 	/*redefine thread and block size to maximize parallelization*/
-	num_threads_y = 16;
-	num_threads_x = 16;
-
-	num_blocks_y = static_cast<int>((2 * lens_hl_x2 / ray_sep - 1) / num_threads_y) + 1;
-	num_blocks_x = static_cast<int>((2 * lens_hl_x1 / ray_sep - 1) / num_threads_x) + 1;
-
-	blocks.x = num_blocks_x;
-	blocks.y = num_blocks_y;
-	threads.x = num_threads_x;
-	threads.y = num_threads_y;
-
+	set_threads(threads, 16, 16);
+	set_blocks(threads, blocks, 2 * lens_hl_x1 / ray_sep, 2 * lens_hl_x2 / ray_sep);
 
 	/*initialize pixel values*/
 	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
 	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
-	if (write_parities) 
+	if (write_parities)
 	{
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_minima, num_pixels);
+		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels);
+		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	}
 
 
@@ -700,32 +650,17 @@ int main(int argc, char* argv[])
 	std::chrono::high_resolution_clock::time_point starttime;
 	std::chrono::high_resolution_clock::time_point endtime;
 
-	std::cout << "\nShooting rays...\n";
+	std::cout << "Shooting rays...\n";
 	/*get current time at start*/
 	starttime = std::chrono::high_resolution_clock::now();
-
-	if (rectangular)
-	{
-		if (approx)
-		{
-			shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
-		}
-		else
-		{
-			shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, c, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
-		}
-	}
-	else
-	{
-		shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
-	}
+	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	/*get current time at end of loop, and calculate duration in milliseconds*/
 	endtime = std::chrono::high_resolution_clock::now();
 	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(endtime - starttime).count() / 1000.0;
-	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n";
+	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
-	
+
 	/********************************
 	create histograms of pixel values
 	********************************/
@@ -741,7 +676,7 @@ int main(int argc, char* argv[])
 
 	if (write_histograms)
 	{
-		std::cout << "\nCreating histograms...\n";
+		std::cout << "Creating histograms...\n";
 
 		cudaMallocManaged(&min_rays, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return -1;
@@ -752,16 +687,8 @@ int main(int argc, char* argv[])
 		*max_rays = 0;
 
 		/*redefine thread and block size to maximize parallelization*/
-		num_threads_y = 16;
-		num_threads_x = 16;
-
-		num_blocks_y = static_cast<int>((num_pixels - 1) / num_threads_y) + 1;
-		num_blocks_x = static_cast<int>((num_pixels - 1) / num_threads_x) + 1;
-
-		blocks.x = num_blocks_x;
-		blocks.y = num_blocks_y;
-		threads.x = num_threads_x;
-		threads.y = num_threads_y;
+		set_threads(threads, 16, 16);
+		set_blocks(threads, blocks, num_pixels, num_pixels);
 
 		histogram_min_max_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels, min_rays, max_rays);
 		if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return -1;
@@ -786,17 +713,9 @@ int main(int argc, char* argv[])
 		}
 
 		/*redefine thread and block size to maximize parallelization*/
-		num_threads_y = 1;
-		num_threads_x = 512;
+		set_threads(threads, 512);
+		set_blocks(threads, blocks, histogram_length);
 
-		num_blocks_y = 1;
-		num_blocks_x = static_cast<int>((histogram_length - 1) / num_threads_x) + 1;
-
-		blocks.x = num_blocks_x;
-		blocks.y = num_blocks_y;
-		threads.x = num_threads_x;
-		threads.y = num_threads_y;
-		
 		initialize_histogram_kernel<dtype> <<<blocks, threads>>> (histogram, histogram_length);
 		if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		if (write_parities)
@@ -808,17 +727,9 @@ int main(int argc, char* argv[])
 		}
 
 		/*redefine thread and block size to maximize parallelization*/
-		num_threads_y = 16;
-		num_threads_x = 16;
+		set_threads(threads, 16, 16);
+		set_blocks(threads, blocks, num_pixels, num_pixels);
 
-		num_blocks_y = static_cast<int>((num_pixels - 1) / num_threads_y) + 1;
-		num_blocks_x = static_cast<int>((num_pixels - 1) / num_threads_x) + 1;
-
-		blocks.x = num_blocks_x;
-		blocks.y = num_blocks_y;
-		threads.x = num_threads_x;
-		threads.y = num_threads_y;
-		
 		histogram_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels, *min_rays, histogram);
 		if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		if (write_parities)
@@ -829,22 +740,22 @@ int main(int argc, char* argv[])
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		}
 
-		std::cout << "Done creating histograms.\n";
+		std::cout << "Done creating histograms.\n\n";
 	}
 	/***************************************
 	done creating histograms of pixel values
 	***************************************/
-	
+
 
 	/*stream for writing output files
 	set precision to 9 digits*/
 	std::ofstream outfile;
 	outfile.precision(9);
 	std::string fname;
-	
+
 
 	fname = outfile_prefix + "irs_parameter_info.txt";
-	std::cout << "\nWriting parameter info...\n";
+	std::cout << "Writing parameter info...\n";
 	outfile.open(fname);
 	if (!outfile.is_open())
 	{
@@ -884,23 +795,23 @@ int main(int argc, char* argv[])
 	outfile << "ray_sep " << ray_sep << "\n";
 	outfile << "t_ray_shoot " << t_ray_shoot << "\n";
 	outfile.close();
-	std::cout << "Done writing parameter info to file " << fname << "\n";
+	std::cout << "Done writing parameter info to file " << fname << "\n\n";
 
 
 	fname = outfile_prefix + "irs_stars" + outfile_type;
-	std::cout << "\nWriting star info...\n";
+	std::cout << "Writing star info...\n";
 	if (!write_star_file<dtype>(stars, num_stars, fname))
 	{
 		std::cerr << "Error. Unable to write star info to file " << fname << "\n";
 		return -1;
 	}
-	std::cout << "Done writing star info to file " << fname << "\n";
+	std::cout << "Done writing star info to file " << fname << "\n\n";
 
 
 	/*histograms of magnification maps*/
 	if (write_histograms)
 	{
-		std::cout << "\nWriting magnification histograms...\n";
+		std::cout << "Writing magnification histograms...\n";
 
 		fname = outfile_prefix + "irs_numrays_numpixels.txt";
 		if (!write_histogram<dtype>(histogram, histogram_length, *min_rays, fname))
@@ -927,14 +838,15 @@ int main(int argc, char* argv[])
 			}
 			std::cout << "Done writing magnification histogram to file " << fname << "\n";
 		}
+		std::cout << "\n";
 	}
 
 
 	/*write magnifications for minima, saddle, and combined maps*/
 	if (write_maps)
 	{
-		std::cout << "\nWriting magnifications...\n";
-		
+		std::cout << "Writing magnifications...\n";
+
 		fname = outfile_prefix + "irs_magnifications" + outfile_type;
 		if (!write_array<int>(pixels, num_pixels, num_pixels, fname))
 		{
@@ -960,9 +872,10 @@ int main(int argc, char* argv[])
 			}
 			std::cout << "Done writing magnifications to file " << fname << "\n";
 		}
+		std::cout << "\n";
 	}
 
-	std::cout << "\nDone.\n";
+	std::cout << "Done.\n";
 
 	cudaDeviceReset();
 	if (cuda_error("cudaDeviceReset", false, __FILE__, __LINE__)) return -1;

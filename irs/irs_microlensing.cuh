@@ -77,6 +77,64 @@ __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, int
 	return starsum;
 }
 
+/***************************************************************************
+calculate the deflection angle due to smooth matter
+
+\param z -- complex image plane position
+\param kappastar -- convergence in point mass lenses
+\param rectangular -- whether the star field is rectangular or not
+\param corner -- complex number denoting the corner of the
+				 rectangular field of point mass lenses
+\param approx -- whether the smooth matter deflection is approximate or not
+\param taylor -- degree of the taylor series for alpha_smooth if approximate
+***************************************************************************/
+template <typename T>
+__device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor)
+{
+	T PI = static_cast<T>(3.1415926535898);
+	Complex<T> alpha_smooth;
+
+	if (rectangular)
+	{
+		if (approx)
+		{
+			Complex<T> s1;
+			Complex<T> s2;
+			Complex<T> s3;
+			Complex<T> s4;
+
+			for (int i = 1; i <= taylor; i++)
+			{
+				s1 += (z.conj() / corner).pow(i) / i;
+				s2 += (z.conj() / corner.conj()).pow(i) / i;
+				s3 += (z.conj() / -corner).pow(i) / i;
+				s4 += (z.conj() / -corner.conj()).pow(i) / i;
+			}
+
+			alpha_smooth = ((corner - z.conj()) * (corner.log() - s1) - (corner.conj() - z.conj()) * (corner.conj().log() - s2)
+				+ (-corner - z.conj()) * ((-corner).log() - s3) - (-corner.conj() - z.conj()) * ((-corner).conj().log() - s4));
+			alpha_smooth *= Complex<T>(0, -kappastar / PI);
+			alpha_smooth -= kappastar * 2 * (corner.re + z.re);
+		}
+		else
+		{
+			Complex<T> c1 = corner - z.conj();
+			Complex<T> c2 = corner.conj() - z.conj();
+			Complex<T> c3 = -corner - z.conj();
+			Complex<T> c4 = -corner.conj() - z.conj();
+
+			alpha_smooth = Complex<T>(0, -kappastar / PI) * (c1 * c1.log() - c2 * c2.log() + c3 * c3.log() - c4 * c4.log())
+				- kappastar * 2 * (corner.re + z.re) * boxcar(z, corner)
+				- kappastar * 4 * corner.re * heaviside(corner.im + z.im) * heaviside(corner.im - z.im) * heaviside(z.re - corner.re);
+		}
+	}
+	else
+	{
+		alpha_smooth = -kappastar * z;
+	}
+
+	return alpha_smooth;
+}
 
 /********************************************************************
 lens equation for a rectangular star field
@@ -97,17 +155,8 @@ lens equation for a rectangular star field
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner)
 {
-	T PI = static_cast<T>(3.1415926535898);
 	Complex<T> starsum = star_deflection(z, theta, stars, nstars);
-
-	Complex<T> c1 = corner - z.conj();
-	Complex<T> c2 = corner.conj() - z.conj();
-	Complex<T> c3 = -corner - z.conj();
-	Complex<T> c4 = -corner.conj() - z.conj();
-
-	Complex<T> alpha_smooth = Complex<T>(0, -kappastar / PI) * (c1 * c1.log() - c2 * c2.log() + c3 * c3.log() - c4 * c4.log())
-		- kappastar * 2 * (corner.re + z.re) * boxcar(z, corner)
-		- kappastar * 4 * corner.re * heaviside(corner.im + z.im) * heaviside(corner.im - z.im) * heaviside(z.re - corner.re);
+	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, 1, corner, 0, 1);
 
 	/*(1-kappa)*z+gamma*z_bar-starsum_bar-alpha_smooth*/
 	return (1 - kappa) * z + gamma * z.conj() - starsum.conj() - alpha_smooth;
@@ -133,26 +182,8 @@ lens equation for a rectangular star field with approximations
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar, Complex<T> corner, int taylor)
 {
-	T PI = static_cast<T>(3.1415926535898);
 	Complex<T> starsum = star_deflection(z, theta, stars, nstars);
-
-	Complex<T> s1;
-	Complex<T> s2;
-	Complex<T> s3;
-	Complex<T> s4;
-
-	for (int i = 1; i <= taylor; i++)
-	{
-		s1 += (z.conj() / corner).pow(i) / i;
-		s2 += (z.conj() / corner.conj()).pow(i) / i;
-		s3 += (z.conj() / -corner).pow(i) / i;
-		s4 += (z.conj() / -corner.conj()).pow(i) / i;
-	}
-
-	Complex<T> alpha_smooth = ((corner - z.conj()) * (corner.log() - s1) - (corner.conj() - z.conj()) * (corner.conj().log() - s2)
-		+ (-corner - z.conj()) * ((-corner).log() - s3) - (-corner.conj() - z.conj()) * ((-corner).conj().log() - s4));
-	alpha_smooth *= Complex<T>(0, -kappastar / PI);
-	alpha_smooth -= kappastar * 2 * (corner.re + z.re);
+	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, 1, corner, 1, taylor);
 
 	/*(1-kappa)*z+gamma*z_bar-starsum_bar-alpha_smooth*/
 	return (1 - kappa) * z + gamma * z.conj() - starsum.conj() - alpha_smooth;
@@ -176,9 +207,10 @@ template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, int nstars, T kappastar)
 {
 	Complex<T> starsum = star_deflection(z, theta, stars, nstars);
+	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, 0, Complex<T>(1), 0, 1);
 
 	/*(1-kappa+kappastar)*z+gamma*z_bar-starsum_bar*/
-	return (1 - kappa + kappastar) * z + gamma * z.conj() - starsum.conj();
+	return (1 - kappa) * z + gamma * z.conj() - starsum.conj() - alpha_smooth;
 }
 
 /*************************************************************

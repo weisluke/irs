@@ -158,44 +158,6 @@ void display_usage(char* name)
 		<< "                                                     pixel\n";
 }
 
-/*********************************************************************
-CUDA error checking
-
-\param name -- to print in error msg
-\param sync -- boolean of whether device needs synchronized or not
-\param name -- the file being run
-\param line -- line number of the source code where the error is given
-
-\return bool -- true for error, false for no error
-*********************************************************************/
-bool cuda_error(const char* name, bool sync, const char* file, const int line)
-{
-	cudaError_t err = cudaGetLastError();
-	/*if the last error message is not a success, print the error code and msg
-	and return true (i.e., an error occurred)*/
-	if (err != cudaSuccess)
-	{
-		const char* errMsg = cudaGetErrorString(err);
-		std::cerr << "CUDA error check for " << name << " failed at " << file << ":" << line << "\n";
-		std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
-		return true;
-	}
-	/*if a device synchronization is also to be done*/
-	if (sync)
-	{
-		/*perform the same error checking as initially*/
-		err = cudaDeviceSynchronize();
-		if (err != cudaSuccess)
-		{
-			const char* errMsg = cudaGetErrorString(err);
-			std::cerr << "CUDA error check for cudaDeviceSynchronize failed at " << file << ":" << line << "\n";
-			std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
-			return true;
-		}
-	}
-	return false;
-}
-
 
 
 int main(int argc, char* argv[])

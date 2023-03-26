@@ -17,7 +17,7 @@ calculate the deflection angle due to a field of stars
 \param stars -- pointer to array of point mass lenses
 \param nstars -- number of point mass lenses in array
 
-\return alpha_star = ( theta^2 * sum(m_i / (z - z_i)_bar) )_bar
+\return alpha_star = theta^2 * sum(m_i / (z - z_i)_bar)
 ********************************************************************/
 template <typename T>
 __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, int nstars)

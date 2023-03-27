@@ -15,7 +15,9 @@
 #include <system_error>
 
 
-/*structure to hold position and mass of a star*/
+/******************************************************************************
+structure to hold position and mass of a star
+******************************************************************************/
 template <typename T>
 struct star
 {
@@ -24,13 +26,13 @@ struct star
 };
 
 
-/******************************************************
-initialize curand states for random star field
+/******************************************************************************
+initialize curand states for random star field generation
 
 \param states -- pointer to array of curand states
 \param nstars -- number of states (stars) to initialize
 \param seed -- random seed to use
-******************************************************/
+******************************************************************************/
 template<typename T>
 __global__ void initialize_curand_states_kernel(curandState* states, int nstars, int seed)
 {
@@ -43,16 +45,16 @@ __global__ void initialize_curand_states_kernel(curandState* states, int nstars,
 	}
 }
 
-/**************************************************
+/******************************************************************************
 generate random rectangular star field
 
 \param states -- pointer to array of curand states
 \param stars -- pointer to array of stars
 \param nstars -- number of stars to generate
-\param corner -- corner of the rectangular region
-				 within which to generate stars
+\param corner -- corner of the rectangular region within which to generate
+				 stars
 \param mass -- mass for each star
-**************************************************/
+******************************************************************************/
 template <typename T>
 __global__ void generate_rectangular_star_field_kernel(curandState* states, star<T>* stars, int nstars, Complex<T> corner, T mass)
 {
@@ -69,16 +71,15 @@ __global__ void generate_rectangular_star_field_kernel(curandState* states, star
 	}
 }
 
-/**************************************************
+/******************************************************************************
 generate random circular star field
 
 \param states -- pointer to array of curand states
 \param stars -- pointer to array of stars
 \param nstars -- number of stars to generate
-\param rad -- radius of the circular region
-			  within which to generate stars
+\param rad -- radius of the circular region within which to generate stars
 \param mass -- mass for each star
-**************************************************/
+******************************************************************************/
 template <typename T>
 __global__ void generate_circular_star_field_kernel(curandState* states, star<T>* stars, int nstars, T rad, T mass)
 {
@@ -89,19 +90,25 @@ __global__ void generate_circular_star_field_kernel(curandState* states, star<T>
 	{
 		const T PI = static_cast<T>(3.1415926535898);
 
-		/*random angle*/
+		/******************************************************************************
+		random angle
+		******************************************************************************/
 		T a = static_cast<T>(curand_uniform_double(&states[i]) * 2 * PI);
-		/*random radius uses square root of random number
-		as numbers need to be evenly dispersed in 2-D space*/
+		/******************************************************************************
+		random radius uses square root of random number as numbers need to be evenly
+		dispersed in 2-D space
+		******************************************************************************/
 		T r = static_cast<T>(sqrt(curand_uniform_double(&states[i])) * rad);
 
-		/*transform to Cartesian coordinates*/
+		/******************************************************************************
+		transform to Cartesian coordinates
+		******************************************************************************/
 		stars[i].position = Complex<T>(r * cos(a), r * sin(a));
 		stars[i].mass = mass;
 	}
 }
 
-/******************************************************************
+/******************************************************************************
 determines star field parameters from the given starfile
 
 \param nstars -- number of stars
@@ -109,25 +116,28 @@ determines star field parameters from the given starfile
 \param m_up -- upper mass cutoff
 \param meanmass -- mean mass
 \param meanmass2 -- mean squared mass
-\param starfile -- location of the star field file. the file may
-				   be either a whitespace delimited .txt file
-				   containing valid values for a star's x
-				   coordinate, y coordinate, and mass, in that
-				   order, on each line, or a .bin file of star
-				   structures (as defined in this source code).
+\param starfile -- location of the star field file. the file may be either a
+				   whitespace delimited .txt file containing valid values for a
+				   star's x coordinate, y coordinate, and mass, in that order,
+				   on each line, or a .bin file of star structures (as defined
+				   in this source code).
 
 \return bool -- true if file is successfully read, false if not
-******************************************************************/
+******************************************************************************/
 template <typename T>
 bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2, const std::string& starfile)
 {
-	/*set parameters that will be modified based on star input file*/
+	/******************************************************************************
+	set parameters that will be modified based on star input file
+	******************************************************************************/
 	nstars = 0;
 	m_low = std::numeric_limits<T>::max();
 	m_up = std::numeric_limits<T>::min();
 
-	/*set local variables to be used based on star input file
-	total mass, total mass^2*/
+	/******************************************************************************
+	set local variables to be used based on star input file
+	total (mass), total (mass^2)
+	******************************************************************************/
 	T mtot = 0;
 	T m2tot = 0;
 
@@ -269,20 +279,19 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 	return true;
 }
 
-/******************************************************************
+/******************************************************************************
 read star field file
 
 \param stars -- pointer to array of stars
 \param nstars -- number of stars
-\param starfile -- location of the star field file. the file may
-				   be either a whitespace delimited .txt file
-				   containing valid values for a star's x
-				   coordinate, y coordinate, and mass, in that
-				   order, on each line, or a .bin file of star
-				   structures (as defined in this source code).
+\param starfile -- location of the star field file. the file may be either a
+				   whitespace delimited .txt file containing valid values for a
+				   star's x coordinate, y coordinate, and mass, in that order,
+				   on each line, or a .bin file of star structures (as defined
+				   in this source code).
 
-\return bool -- true if file successfully read, false if not
-******************************************************************/
+\return bool -- true if file is successfully read, false if not
+******************************************************************************/
 template <typename T>
 bool read_star_file(star<T>* stars, int nstars, const std::string& starfile)
 {
@@ -388,20 +397,19 @@ bool read_star_file(star<T>* stars, int nstars, const std::string& starfile)
 	return true;
 }
 
-/******************************************************************
+/******************************************************************************
 write star field file
 
 \param stars -- pointer to array of stars
 \param nstars -- number of stars
-\param starfile -- location of the star field file. the file may
-				   be either a whitespace delimited .txt file which
-				   will contain valid values for a star's x
-				   coordinate, y coordinate, and mass, in that
-				   order, on each line, or a .bin file of star
-				   structures (as defined in this source code).
+\param starfile -- location of the star field file. the file may be either a
+				   whitespace delimited .txt file containing valid values for a
+				   star's x coordinate, y coordinate, and mass, in that order,
+				   on each line, or a .bin file of star structures (as defined
+				   in this source code).
 
-\return bool -- true if file successfully written, false if not
-******************************************************************/
+\return bool -- true if file is successfully written, false if not
+******************************************************************************/
 template <typename T>
 bool write_star_file(star<T>* stars, int nstars, const std::string& starfile)
 {

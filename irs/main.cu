@@ -25,7 +25,9 @@ Email: weisluke@alum.mit.edu
 
 using dtype = float;
 
-/*constants to be used*/
+/******************************************************************************
+constants to be used
+******************************************************************************/
 const dtype PI = static_cast<dtype>(3.1415926535898);
 constexpr int OPTS_SIZE = 2 * 18;
 const std::string OPTS[OPTS_SIZE] =
@@ -51,7 +53,9 @@ const std::string OPTS[OPTS_SIZE] =
 };
 
 
-/*default input option values*/
+/******************************************************************************
+default input option values
+******************************************************************************/
 dtype kappa_tot = static_cast<dtype>(0.3);
 dtype shear = static_cast<dtype>(0.3);
 dtype theta_e = static_cast<dtype>(1);
@@ -70,9 +74,10 @@ int write_histograms = 1;
 std::string outfile_type = ".bin";
 std::string outfile_prefix = "./";
 
-/*default derived parameter values
-number of stars, upper and lower mass cutoffs,
-<m>, and <m^2>*/
+/******************************************************************************
+default derived parameter values
+number of stars, upper and lower mass cutoffs, <m>, and <m^2>
+******************************************************************************/
 int num_stars = 0;
 dtype m_lower = static_cast<dtype>(1);
 dtype m_upper = static_cast<dtype>(1);
@@ -81,11 +86,11 @@ dtype mean_squared_mass = static_cast<dtype>(1);
 
 
 
-/************************************
+/******************************************************************************
 Print the program usage help message
 
 \param name -- name of the executable
-************************************/
+******************************************************************************/
 void display_usage(char* name)
 {
 	if (name)
@@ -162,19 +167,25 @@ void display_usage(char* name)
 
 int main(int argc, char* argv[])
 {
-	/*set precision for printing numbers to screen*/
+	/******************************************************************************
+	set precision for printing numbers to screen
+	******************************************************************************/
 	std::cout.precision(7);
 
-	/*if help option has been input, display usage message*/
+	/******************************************************************************
+	if help option has been input, display usage message
+	******************************************************************************/
 	if (cmd_option_exists(argv, argv + argc, "-h") || cmd_option_exists(argv, argv + argc, "--help"))
 	{
 		display_usage(argv[0]);
 		return -1;
 	}
 
-	/*if there are input options, but not an even number (since all options
-	take a parameter), display usage message and exit
-	subtract 1 to take into account that first argument array value is program name*/
+	/******************************************************************************
+	if there are input options, but not an even number (since all options take a
+	parameter), display usage message and exit
+	subtract 1 to take into account that first argument array value is program name
+	******************************************************************************/
 	if ((argc - 1) % 2 != 0)
 	{
 		std::cerr << "Error. Invalid input syntax.\n";
@@ -182,9 +193,11 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	/*check that all options given are valid. use step of 2 since all input
-	options take parameters (assumed to be given immediately after the option)
-	start at 1, since first array element, argv[0], is program name*/
+	/******************************************************************************
+	check that all options given are valid. use step of 2 since all input options
+	take parameters (assumed to be given immediately after the option). start at 1,
+	since first array element, argv[0], is program name
+	******************************************************************************/
 	for (int i = 1; i < argc; i += 2)
 	{
 		if (!cmd_option_valid(OPTS, OPTS + OPTS_SIZE, argv[i]))
@@ -453,18 +466,41 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	/****************************************************************************
+	/******************************************************************************
 	END read in options and values, checking correctness and exiting if necessary
-	****************************************************************************/
+	******************************************************************************/
 
 
-	/*check that a CUDA capable device is present*/
+	/******************************************************************************
+	check that a CUDA capable device is present
+	******************************************************************************/
+	int n_devices = 0;
+
+	cudaGetDeviceCount(&n_devices);
+	if (cuda_error("cudaGetDeviceCount", false, __FILE__, __LINE__)) return -1;
+
+	for (int i = 0; i < n_devices; i++)
+	{
+		cudaDeviceProp prop;
+		cudaGetDeviceProperties(&prop, i);
+		if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return -1;
+
+		show_device_info(i, prop);
+		std::cout << "\n";
+	}
+
+	if (n_devices > 1)
+	{
+		std::cout << "More than one CUDA capable device detected. Defaulting to first device.\n\n";
+	}
 	cudaSetDevice(0);
 	if (cuda_error("cudaSetDevice", false, __FILE__, __LINE__)) return -1;
 
 
-	/*if star file is specified, check validity of values and set num_stars, m_lower, m_upper,
-	mean_mass, mean_squared_mass, and kappa_star based on star information*/
+	/******************************************************************************
+	if star file is specified, check validity of values and set num_stars, m_lower,
+	m_upper, mean_mass, and mean_squared_mass based on star information
+	******************************************************************************/
 	if (starfile != "")
 	{
 		std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
@@ -478,29 +514,41 @@ int main(int argc, char* argv[])
 		std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n\n";
 	}
 
-	/*average magnification of the system*/
+	/******************************************************************************
+	average magnification of the system
+	******************************************************************************/
 	dtype mu_ave = 1 / ((1 - kappa_tot) * (1 - kappa_tot) - shear * shear);
 
-	/*number density of rays in the lens plane
-	uses the fact that for a given user specified number density of rays
-	in the source plane, further subdivisions are made that multiply the
-	effective number of rays in the image plane by 27^2*/
+	/******************************************************************************
+	number density of rays in the lens plane
+	uses the fact that for a given user specified number density of rays in the
+	source plane, further subdivisions are made that multiply the effective number
+	of rays in the image plane by 27^2
+	******************************************************************************/
 	dtype num_rays_lens = num_rays / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length * 2 * half_length) * 1 / (27 * 27);
 
-	/*average separation between rays in one dimension is 1/sqrt(number density)*/
+	/******************************************************************************
+	average separation between rays in one dimension is 1/sqrt(number density)
+	******************************************************************************/
 	dtype ray_sep = 1 / std::sqrt(num_rays_lens);
 
-	/*shooting region is greater than outer boundary for macro-mapping by the
-	size of the region of images visible for a macro-image which contain 99%
-	of the flux*/
+	/******************************************************************************
+	shooting region is greater than outer boundary for macro-mapping by the size of
+	the region of images visible for a macro-image which contain 99% of the flux
+	******************************************************************************/
 	dtype lens_hl_x1 = (half_length + 10 * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1 - kappa_tot + shear);
 	dtype lens_hl_x2 = (half_length + 10 * theta_e * std::sqrt(kappa_star * mean_squared_mass / mean_mass)) / std::abs(1 - kappa_tot - shear);
 
-	/*make shooting region a multiple of the ray separation*/
+	/******************************************************************************
+	make shooting region a multiple of the ray separation
+	******************************************************************************/
 	lens_hl_x1 = ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1);
 	lens_hl_x2 = ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1);
 
-	/*if stars are not drawn from external file, calculate final number of stars to use*/
+	/******************************************************************************
+	if stars are not drawn from external file, calculate final number of stars to
+	use
+	******************************************************************************/
 	if (starfile == "")
 	{
 		if (rectangular)
@@ -530,9 +578,9 @@ int main(int argc, char* argv[])
 		taylor = 1;
 	}
 
-	/**********************
+	/******************************************************************************
 	BEGIN memory allocation
-	**********************/
+	******************************************************************************/
 
 	std::cout << "Beginning memory allocation...\n";
 
@@ -542,13 +590,17 @@ int main(int argc, char* argv[])
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
 
-	/*allocate memory for stars*/
+	/******************************************************************************
+	allocate memory for stars
+	******************************************************************************/
 	cudaMallocManaged(&states, num_stars * sizeof(curandState));
 	if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&stars, num_stars * sizeof(star<dtype>));
 	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
 
-	/*allocate memory for pixels*/
+	/******************************************************************************
+	allocate memory for pixels
+	******************************************************************************/
 	cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
 	if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return -1;
 	if (write_parities)
@@ -561,39 +613,47 @@ int main(int argc, char* argv[])
 
 	std::cout << "Done allocating memory.\n\n";
 
-	/********************
+	/******************************************************************************
 	END memory allocation
-	********************/
+	******************************************************************************/
 
 
-	/*variables for kernel threads and blocks*/
+	/******************************************************************************
+	variables for kernel threads and blocks
+	******************************************************************************/
 	dim3 threads;
 	dim3 blocks;
 
-	/*number of threads per block, and number of blocks per grid
-	uses 512 for number of threads in x dimension, as 1024 is the
-	maximum allowable number of threads per block but is too large
-	for some memory allocation, and 512 is next power of 2 smaller*/
+	/******************************************************************************
+	number of threads per block, and number of blocks per grid
+	uses 512 for number of threads in x dimension, as 1024 is the maximum allowable
+	number of threads per block but is too large for some memory allocation, and
+	512 is next power of 2 smaller
+	******************************************************************************/
 	set_threads(threads, 512);
 	set_blocks(threads, blocks, num_stars);
 
 
-	/**************************
+	/******************************************************************************
 	BEGIN populating star array
-	**************************/
+	******************************************************************************/
 
 	if (starfile == "")
 	{
 		std::cout << "Generating star field...\n";
 
-		/*if random seed was not provided, get one based on the time*/
+		/******************************************************************************
+		if random seed was not provided, get one based on the time
+		******************************************************************************/
 		if (random_seed == 0)
 		{
 			random_seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count());
 		}
 
-		/*generate random star field if no star file has been given
-		uses default star mass of 1.0*/
+		/******************************************************************************
+		generate random star field if no star file has been given
+		uses default star mass of 1.0
+		******************************************************************************/
 		initialize_curand_states_kernel<dtype> <<<blocks, threads>>> (states, num_stars, random_seed);
 		if (cuda_error("initialize_curand_states_kernel", true, __FILE__, __LINE__)) return -1;
 		if (rectangular)
@@ -610,12 +670,16 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		/*ensure random seed is 0 to denote that stars come from external file*/
+		/******************************************************************************
+		ensure random seed is 0 to denote that stars come from external file
+		******************************************************************************/
 		random_seed = 0;
 
 		std::cout << "Reading star field from file " << starfile << "\n";
 
-		/*reading star field from external file*/
+		/******************************************************************************
+		reading star field from external file
+		******************************************************************************/
 		if (!read_star_file<dtype>(stars, num_stars, starfile))
 		{
 			std::cerr << "Error. Unable to read star field from file " << starfile << "\n";
@@ -625,16 +689,20 @@ int main(int argc, char* argv[])
 		std::cout << "Done reading star field from file " << starfile << "\n\n";
 	}
 
-	/************************
+	/******************************************************************************
 	END populating star array
-	************************/
+	******************************************************************************/
 
 
-	/*redefine thread and block size to maximize parallelization*/
+	/******************************************************************************
+	redefine thread and block size to maximize parallelization
+	******************************************************************************/
 	set_threads(threads, 16, 16);
 	set_blocks(threads, blocks, 2 * lens_hl_x1 / ray_sep, 2 * lens_hl_x2 / ray_sep);
 
-	/*initialize pixel values*/
+	/******************************************************************************
+	initialize pixel values
+	******************************************************************************/
 	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
 	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	if (write_parities)
@@ -646,24 +714,29 @@ int main(int argc, char* argv[])
 	}
 
 
-	/*start and end time for timing purposes*/
+	/******************************************************************************
+	start and end time for timing purposes
+	******************************************************************************/
 	std::chrono::high_resolution_clock::time_point starttime;
 	std::chrono::high_resolution_clock::time_point endtime;
 
+
+	/******************************************************************************
+	shoot rays and calculate time taken in seconds
+	******************************************************************************/
 	std::cout << "Shooting rays...\n";
-	/*get current time at start*/
 	starttime = std::chrono::high_resolution_clock::now();
-	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
+	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star, 
+		rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
-	/*get current time at end of loop, and calculate duration in milliseconds*/
 	endtime = std::chrono::high_resolution_clock::now();
 	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(endtime - starttime).count() / 1000.0;
 	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 
-	/********************************
+	/******************************************************************************
 	create histograms of pixel values
-	********************************/
+	******************************************************************************/
 
 	int* min_rays = nullptr;
 	int* max_rays = nullptr;
@@ -686,7 +759,9 @@ int main(int argc, char* argv[])
 		*min_rays = std::numeric_limits<int>::max();
 		*max_rays = 0;
 
-		/*redefine thread and block size to maximize parallelization*/
+		/******************************************************************************
+		redefine thread and block size to maximize parallelization
+		******************************************************************************/
 		set_threads(threads, 16, 16);
 		set_blocks(threads, blocks, num_pixels, num_pixels);
 
@@ -712,7 +787,9 @@ int main(int argc, char* argv[])
 			if (cuda_error("cudaMallocManaged(*histogram_saddles)", false, __FILE__, __LINE__)) return -1;
 		}
 
-		/*redefine thread and block size to maximize parallelization*/
+		/******************************************************************************
+		redefine thread and block size to maximize parallelization
+		******************************************************************************/
 		set_threads(threads, 512);
 		set_blocks(threads, blocks, histogram_length);
 
@@ -726,7 +803,9 @@ int main(int argc, char* argv[])
 			if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		}
 
-		/*redefine thread and block size to maximize parallelization*/
+		/******************************************************************************
+		redefine thread and block size to maximize parallelization
+		******************************************************************************/
 		set_threads(threads, 16, 16);
 		set_blocks(threads, blocks, num_pixels, num_pixels);
 
@@ -742,13 +821,15 @@ int main(int argc, char* argv[])
 
 		std::cout << "Done creating histograms.\n\n";
 	}
-	/***************************************
+	/******************************************************************************
 	done creating histograms of pixel values
-	***************************************/
+	******************************************************************************/
 
 
-	/*stream for writing output files
-	set precision to 9 digits*/
+	/******************************************************************************
+	stream for writing output files
+	set precision to 9 digits
+	******************************************************************************/
 	std::ofstream outfile;
 	outfile.precision(9);
 	std::string fname;
@@ -808,7 +889,9 @@ int main(int argc, char* argv[])
 	std::cout << "Done writing star info to file " << fname << "\n\n";
 
 
-	/*histograms of magnification maps*/
+	/******************************************************************************
+	histograms of magnification maps
+	******************************************************************************/
 	if (write_histograms)
 	{
 		std::cout << "Writing magnification histograms...\n";
@@ -842,7 +925,9 @@ int main(int argc, char* argv[])
 	}
 
 
-	/*write magnifications for minima, saddle, and combined maps*/
+	/******************************************************************************
+	write magnifications for minima, saddle, and combined maps
+	******************************************************************************/
 	if (write_maps)
 	{
 		std::cout << "Writing magnifications...\n";

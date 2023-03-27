@@ -5,7 +5,7 @@
 #include <string>
 
 
-/*******************************************************
+/******************************************************************************
 determine if a string exists within some array of char*s
 
 \param begin -- starting pointer of array
@@ -13,13 +13,13 @@ determine if a string exists within some array of char*s
 \param option -- string to find within the array
 
 \returns bool -- true if string is in array, false if not
-********************************************************/
+******************************************************************************/
 bool cmd_option_exists(char** begin, char** end, const std::string& option)
 {
 	return std::find(begin, end, option) != end;
 }
 
-/***************************************************************
+/******************************************************************************
 determine if a string is a valid option from some options array
 
 \param begin -- starting pointer of array of string options
@@ -27,13 +27,13 @@ determine if a string is a valid option from some options array
 \param option -- string to find within the array
 
 \returns bool -- true if string was found in array, false if not
-***************************************************************/
+******************************************************************************/
 bool cmd_option_valid(const std::string* begin, const std::string* end, const std::string& option)
 {
 	return std::find(begin, end, option) != end;
 }
 
-/**************************************************************
+/******************************************************************************
 determine the parameter value of an option in array of char*s
 assumed to be placed immediately after the option in some range
 
@@ -42,7 +42,7 @@ assumed to be placed immediately after the option in some range
 \param option -- string to find the value of
 
 \returns char* -- array of chars of the value after the option
-**************************************************************/
+******************************************************************************/
 char* cmd_option_value(char** begin, char** end, const std::string& option)
 {
 	char** itr = std::find(begin, end, option);
@@ -54,7 +54,7 @@ char* cmd_option_value(char** begin, char** end, const std::string& option)
 	return nullptr;
 }
 
-/****************************************************
+/******************************************************************************
 function to print out progress bar of loops
 examples: [====    ] 50%       [=====  ] 73%
 
@@ -62,7 +62,7 @@ examples: [====    ] 50%       [=====  ] 73%
 \param imax -- maximum position in the loop
 \param num_bars -- number of = symbols inside the bar
 				   default value: 50
-****************************************************/
+******************************************************************************/
 void print_progress(int icurr, int imax, int num_bars = 50)
 {
 	std::cout << "\r[";
@@ -80,7 +80,7 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 	std::cout << "] " << icurr * 100 / imax << " %";
 }
 
-/*********************************************************************
+/******************************************************************************
 CUDA error checking
 
 \param name -- to print in error msg
@@ -89,7 +89,7 @@ CUDA error checking
 \param line -- line number of the source code where the error is given
 
 \return bool -- true for error, false for no error
-*********************************************************************/
+******************************************************************************/
 bool cuda_error(const char* name, bool sync, const char* file, const int line)
 {
 	cudaError_t err = cudaGetLastError();
@@ -118,14 +118,14 @@ bool cuda_error(const char* name, bool sync, const char* file, const int line)
 	return false;
 }
 
-/*****************************************************
+/******************************************************************************
 set the number of threads per block for the kernel
 
 \param threads -- reference to threads
 \param x -- number of threads per block in x dimension
 \param y -- number of threads per block in y dimension
 \param z -- number of threads per block in z dimension
-*****************************************************/
+******************************************************************************/
 void set_threads(dim3& threads, int x = 1, int y = 1, int z = 1)
 {
 	threads.x = x;
@@ -133,7 +133,7 @@ void set_threads(dim3& threads, int x = 1, int y = 1, int z = 1)
 	threads.z = z;
 }
 
-/*******************************************
+/******************************************************************************
 set the number of blocks for the kernel
 
 \param threads -- reference to threads
@@ -141,7 +141,7 @@ set the number of blocks for the kernel
 \param x -- number of threads in x dimension
 \param y -- number of threads in y dimension
 \param z -- number of threads in z dimension
-*******************************************/
+******************************************************************************/
 void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
 {
 	blocks.x = static_cast<int>((x - 1) / threads.x) + 1;
@@ -149,3 +149,33 @@ void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
 	blocks.z = static_cast<int>((z - 1) / threads.z) + 1;
 }
 
+/******************************************************************************
+display info about a cuda device
+
+\param num -- device number
+\param prop -- reference to cuda device property structure
+******************************************************************************/
+void show_device_info(int num, cudaDeviceProp& prop)
+{
+	std::cout << "Device Number: " << num << "\n";
+	std::cout << "  Device name: " << prop.name << "\n";
+	std::cout << "  Memory clock rate (kHz): " << prop.memoryClockRate << "\n";
+	std::cout << "  Memory bus width (bits): " << prop.memoryBusWidth << "\n";
+	std::cout << "  Peak memory bandwidth (GB/s): " << 2 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / (1024 * 1024) << "\n";
+	std::cout << "  Total global memory (GB): " << prop.totalGlobalMem / (1024 * 1024 * 1024) << "\n";
+	std::cout << "  Shared memory per block (kbytes): " << prop.sharedMemPerBlock / 1024 << "\n";
+	std::cout << "  Compute capability (major.minor): " << prop.major << "." << prop.minor << "\n";
+	std::cout << "  Warp size: " << prop.warpSize << "\n";
+	std::cout << "  Number of multiprocessors: " << prop.multiProcessorCount << "\n";
+	std::cout << "  Max block size: " << prop.maxThreadsPerBlock << "\n";
+	
+	std::cout << "  Maximum (x, y, z) dimensions  of block: ("
+		<< prop.maxThreadsDim[0] << ", "
+		<< prop.maxThreadsDim[1] << ", "
+		<< prop.maxThreadsDim[2] << ")\n";
+
+	std::cout << "  Maximum (x, y, z) dimensions  of grid: ("
+		<< prop.maxGridSize[0] << ", "
+		<< prop.maxGridSize[1] << ", "
+		<< prop.maxGridSize[2] << ")\n";
+}

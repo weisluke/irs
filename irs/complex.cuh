@@ -4,9 +4,9 @@
 #include <stdexcept>
 
 
-/****************************************************************************
+/******************************************************************************
 template class for handling complex number arithmetic with operator overloads
-****************************************************************************/
+******************************************************************************/
 template <typename T>
 class Complex
 {
@@ -14,14 +14,18 @@ public:
 	T re;
 	T im;
 
-	/*default constructor initializes the complex number to zero*/
+	/******************************************************************************
+	default constructor initializes the complex number to zero
+	******************************************************************************/
 	__host__ __device__ Complex(T real = 0, T imag = 0)
 	{
 		re = real;
 		im = imag;
 	}
 
-	/*copy constructors*/
+	/******************************************************************************
+	copy constructors
+	******************************************************************************/
 	template <typename U> __host__ __device__ Complex(const Complex<U>& c1)
 	{
 		re = static_cast<T>(c1.re);
@@ -33,7 +37,9 @@ public:
 		im = static_cast<T>(0);
 	}
 
-	/*assignment operators*/
+	/******************************************************************************
+	assignment operators
+	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator=(const Complex<U>& c1)
 	{
 		re = static_cast<T>(c1.re);
@@ -47,13 +53,17 @@ public:
 		return *this;
 	}
 
-	/*complex conjugate of the complex number*/
+	/******************************************************************************
+	complex conjugate of the complex number
+	******************************************************************************/
 	__host__ __device__ Complex conj()
 	{
 		return Complex(re, -im);
 	}
 
-	/*norm of the complex number = sqrt(re*re + im*im)*/
+	/******************************************************************************
+	norm of the complex number = sqrt(re*re + im*im)
+	******************************************************************************/
 	__host__ __device__ T abs()
 	{
 		/*use device or host square root function*/
@@ -64,7 +74,9 @@ public:
 #endif
 	}
 
-	/*argument of the complex number in the range [-pi, pi]*/
+	/******************************************************************************
+	argument of the complex number in the range [-pi, pi]
+	******************************************************************************/
 	__host__ __device__ T arg()
 	{
 #ifdef CUDA_ARCH
@@ -74,7 +86,9 @@ public:
 #endif
 	}
 
-	/*exponential of the complex number*/
+	/******************************************************************************
+	exponential of the complex number
+	******************************************************************************/
 	__host__ __device__ Complex exp()
 	{
 #ifdef CUDA_ARCH
@@ -84,7 +98,9 @@ public:
 #endif
 	}
 
-	/*logarithm of the complex number*/
+	/******************************************************************************
+	logarithm of the complex number
+	******************************************************************************/
 	__host__ __device__ Complex log()
 	{
 		T abs = (*this).abs();
@@ -96,7 +112,9 @@ public:
 #endif
 	}
 
-	/*positive and negative operators*/
+	/******************************************************************************
+	positive and negative operators
+	******************************************************************************/
 	__host__ __device__ Complex operator+()
 	{
 		return Complex(re, im);
@@ -106,7 +124,9 @@ public:
 		return Complex(-re, -im);
 	}
 
-	/*addition*/
+	/******************************************************************************
+	addition
+	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator+=(Complex<U> c1)
 	{
 		re += c1.re;
@@ -131,7 +151,9 @@ public:
 		return Complex(num + c1.re, c1.im);
 	}
 
-	/*subtraction*/
+	/******************************************************************************
+	subtraction
+	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator-=(Complex<U> c1)
 	{
 		re -= c1.re;
@@ -156,7 +178,9 @@ public:
 		return Complex(num - c1.re, -c1.im);
 	}
 
-	/*multiplication*/
+	/******************************************************************************
+	multiplication
+	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator*=(Complex<U> c1)
 	{
 		T new_re = re * c1.re - im * c1.im;
@@ -184,7 +208,9 @@ public:
 		return Complex(num * c1.re, num * c1.im);
 	}
 
-	/*division*/
+	/******************************************************************************
+	division
+	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator/=(Complex<U> c1)
 	{
 		T norm2 = c1.re * c1.re + c1.im * c1.im;
@@ -215,7 +241,9 @@ public:
 		return Complex(num * c1.re / norm2, -num * c1.im / norm2);
 	}
 
-	/*exponentiation*/
+	/******************************************************************************
+	exponentiation
+	******************************************************************************/
 	__host__ __device__ Complex pow(int num)
 	{
 		Complex res = Complex(1, 0);

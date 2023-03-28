@@ -29,10 +29,11 @@ using dtype = float;
 constants to be used
 ******************************************************************************/
 const dtype PI = static_cast<dtype>(3.1415926535898);
-constexpr int OPTS_SIZE = 2 * 18;
+constexpr int OPTS_SIZE = 2 * 19;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
+	"-v", "--verbose",
 	"-k", "--kappa_tot",
 	"-s", "--shear",
 	"-t", "--theta_e",
@@ -56,6 +57,7 @@ const std::string OPTS[OPTS_SIZE] =
 /******************************************************************************
 default input option values
 ******************************************************************************/
+bool verbose = false;
 dtype kappa_tot = static_cast<dtype>(0.3);
 dtype shear = static_cast<dtype>(0.3);
 dtype theta_e = static_cast<dtype>(1);
@@ -105,6 +107,7 @@ void display_usage(char* name)
 		<< "                                                                               \n"
 		<< "Options:\n"
 		<< "  -h,--help               Show this help message.\n"
+		<< "  -v,--verbose            Toggle verbose output. Takes no option value.\n"
 		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << kappa_tot << "\n"
 		<< "  -s,--shear              Specify the external shear. Default value: " << shear << "\n"
 		<< "  -t,--theta_e            Specify the size of the Einstein radius of a unit\n"
@@ -185,8 +188,10 @@ int main(int argc, char* argv[])
 	if there are input options, but not an even number (since all options take a
 	parameter), display usage message and exit
 	subtract 1 to take into account that first argument array value is program name
+	account for possible verbose option, which is a toggle and takes no input
 	******************************************************************************/
-	if ((argc - 1) % 2 != 0)
+	if ((argc - 1) % 2 != 0 && 
+		!(cmd_option_exists(argv, argv + argc, "-v") || cmd_option_exists(argv, argv + argc, "--verbose")))
 	{
 		std::cerr << "Error. Invalid input syntax.\n";
 		display_usage(argv[0]);
@@ -197,9 +202,15 @@ int main(int argc, char* argv[])
 	check that all options given are valid. use step of 2 since all input options
 	take parameters (assumed to be given immediately after the option). start at 1,
 	since first array element, argv[0], is program name
+	account for possible verbose option, which is a toggle and takes no input
 	******************************************************************************/
 	for (int i = 1; i < argc; i += 2)
 	{
+		if (argv[i] == std::string("-v") || argv[i] == std::string("--verbose"))
+		{
+			i--;
+			continue;
+		}
 		if (!cmd_option_valid(OPTS, OPTS + OPTS_SIZE, argv[i]))
 		{
 			std::cerr << "Error. Invalid input syntax. Unknown option " << argv[i] << "\n";
@@ -217,6 +228,16 @@ int main(int argc, char* argv[])
 
 	for (int i = 1; i < argc; i += 2)
 	{
+		/******************************************************************************
+		account for possible verbose option, which is a toggle and takes no input
+		******************************************************************************/
+		if (argv[i] == std::string("-v") || argv[i] == std::string("--verbose"))
+		{
+			verbose = true;
+			i--;
+			continue;
+		}
+
 		cmdinput = cmd_option_value(argv, argv + argc, std::string(argv[i]));
 
 		if (argv[i] == std::string("-k") || argv[i] == std::string("--kappa_tot"))
@@ -224,6 +245,10 @@ int main(int argc, char* argv[])
 			try
 			{
 				kappa_tot = static_cast<dtype>(std::stod(cmdinput));
+				if (verbose)
+				{
+					std::cout << "kappa_tot set to: " << kappa_tot << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -235,7 +260,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				shear = static_cast<dtype>(std::stod(cmdinput));;
+				shear = static_cast<dtype>(std::stod(cmdinput));
+				if (verbose)
+				{
+					std::cout << "shear set to: " << shear << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -247,11 +276,15 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				theta_e = static_cast<dtype>(std::stod(cmdinput));;
+				theta_e = static_cast<dtype>(std::stod(cmdinput));
 				if (theta_e < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid theta_e input. theta_e must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "theta_e set to: " << theta_e << "\n";
 				}
 			}
 			catch (...)
@@ -264,11 +297,15 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				kappa_star = static_cast<dtype>(std::stod(cmdinput));;
+				kappa_star = static_cast<dtype>(std::stod(cmdinput));
 				if (kappa_star < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid kappa_star input. kappa_star must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "kappa_star set to: " << kappa_star << "\n";
 				}
 			}
 			catch (...)
@@ -287,6 +324,10 @@ int main(int argc, char* argv[])
 					std::cerr << "Error. Invalid rectangular input. rectangular must be 1 (rectangular) or 0 (circular).\n";
 					return -1;
 				}
+				if (verbose)
+				{
+					std::cout << "rectangular set to: " << rectangular << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -304,6 +345,10 @@ int main(int argc, char* argv[])
 					std::cerr << "Error. Invalid approx input. approx must be 1 (approximate) or 0 (exact).\n";
 					return -1;
 				}
+				if (verbose)
+				{
+					std::cout << "approx set to: " << approx << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -315,11 +360,15 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				safety_scale = static_cast<dtype>(std::stod(cmdinput));;
+				safety_scale = static_cast<dtype>(std::stod(cmdinput));
 				if (safety_scale < 1)
 				{
 					std::cerr << "Error. Invalid safety_scale input. safety_scale must be > 1\n";
 					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "safety_scale set to: " << safety_scale << "\n";
 				}
 			}
 			catch (...)
@@ -331,16 +380,24 @@ int main(int argc, char* argv[])
 		else if (argv[i] == std::string("-sf") || argv[i] == std::string("--starfile"))
 		{
 			starfile = cmdinput;
+			if (verbose)
+			{
+				std::cout << "starfile set to: " << starfile << "\n";
+			}
 		}
 		else if (argv[i] == std::string("-hl") || argv[i] == std::string("--half_length"))
 		{
 			try
 			{
-				half_length = static_cast<dtype>(std::stod(cmdinput));;
+				half_length = static_cast<dtype>(std::stod(cmdinput));
 				if (half_length < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid half_length input. half_length must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "half_length set to: " << half_length << "\n";
 				}
 			}
 			catch (...)
@@ -359,6 +416,10 @@ int main(int argc, char* argv[])
 					std::cerr << "Error. Invalid num_pixels input. num_pixels must be an integer > 0\n";
 					return -1;
 				}
+				if (verbose)
+				{
+					std::cout << "num_pixels set to: " << num_pixels << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -375,6 +436,10 @@ int main(int argc, char* argv[])
 				{
 					std::cerr << "Error. Invalid num_rays input. num_rays must be an integer > 0\n";
 					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "num_rays set to: " << num_rays << "\n";
 				}
 			}
 			catch (...)
@@ -393,6 +458,10 @@ int main(int argc, char* argv[])
 					std::cerr << "Error. Invalid random_seed input. Seed of 0 is reserved for star input files.\n";
 					return -1;
 				}
+				if (verbose)
+				{
+					std::cout << "random_seed set to: " << random_seed << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -409,6 +478,10 @@ int main(int argc, char* argv[])
 				{
 					std::cerr << "Error. Invalid write_maps input. write_maps must be 1 (true) or 0 (false).\n";
 					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "write_maps set to: " << write_maps << "\n";
 				}
 			}
 			catch (...)
@@ -427,6 +500,10 @@ int main(int argc, char* argv[])
 					std::cerr << "Error. Invalid write_parities input. write_parities must be 1 (true) or 0 (false).\n";
 					return -1;
 				}
+				if (verbose)
+				{
+					std::cout << "write_parities set to: " << write_parities << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -444,6 +521,10 @@ int main(int argc, char* argv[])
 					std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
 					return -1;
 				}
+				if (verbose)
+				{
+					std::cout << "write_histograms set to: " << write_histograms << "\n";
+				}
 			}
 			catch (...)
 			{
@@ -459,12 +540,21 @@ int main(int argc, char* argv[])
 				std::cerr << "Error. Invalid outfile_type. outfile_type must be .bin or .txt\n";
 				return -1;
 			}
+			if (verbose)
+			{
+				std::cout << "outfile_type set to: " << outfile_type << "\n";
+			}
 		}
 		else if (argv[i] == std::string("-o") || argv[i] == std::string("--outfile_prefix"))
 		{
 			outfile_prefix = cmdinput;
+			if (verbose)
+			{
+				std::cout << "outfile_prefix set to: " << outfile_prefix << "\n";
+			}
 		}
 	}
+	std::cout << "\n";
 
 	/******************************************************************************
 	END read in options and values, checking correctness and exiting if necessary
@@ -479,14 +569,19 @@ int main(int argc, char* argv[])
 	cudaGetDeviceCount(&n_devices);
 	if (cuda_error("cudaGetDeviceCount", false, __FILE__, __LINE__)) return -1;
 
-	for (int i = 0; i < n_devices; i++)
+	if (verbose)
 	{
-		cudaDeviceProp prop;
-		cudaGetDeviceProperties(&prop, i);
-		if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return -1;
+		std::cout << "Available CUDA capable devices:\n\n";
 
-		show_device_info(i, prop);
-		std::cout << "\n";
+		for (int i = 0; i < n_devices; i++)
+		{
+			cudaDeviceProp prop;
+			cudaGetDeviceProperties(&prop, i);
+			if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return -1;
+
+			show_device_info(i, prop);
+			std::cout << "\n";
+		}
 	}
 
 	if (n_devices > 1)
@@ -703,6 +798,10 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	initialize pixel values
 	******************************************************************************/
+	if (verbose)
+	{
+		std::cout << "Initializing pixel values...\n";
+	}
 	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
 	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	if (write_parities)
@@ -711,6 +810,10 @@ int main(int argc, char* argv[])
 		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels);
 		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
+	}
+	if (verbose)
+	{
+		std::cout << "Done initializing pixel values.\n\n";
 	}
 
 

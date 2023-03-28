@@ -166,15 +166,16 @@ void show_device_info(int num, cudaDeviceProp& prop)
 	std::cout << "  Shared memory per block (kbytes): " << prop.sharedMemPerBlock / 1024 << "\n";
 	std::cout << "  Compute capability (major.minor): " << prop.major << "." << prop.minor << "\n";
 	std::cout << "  Warp size: " << prop.warpSize << "\n";
+	std::cout << "  Clock rate (kHz): " << prop.clockRate << "\n";
 	std::cout << "  Number of multiprocessors: " << prop.multiProcessorCount << "\n";
 	std::cout << "  Max block size: " << prop.maxThreadsPerBlock << "\n";
 	
-	std::cout << "  Maximum (x, y, z) dimensions  of block: ("
+	std::cout << "  Maximum (x, y, z) dimensions of block: ("
 		<< prop.maxThreadsDim[0] << ", "
 		<< prop.maxThreadsDim[1] << ", "
 		<< prop.maxThreadsDim[2] << ")\n";
 
-	std::cout << "  Maximum (x, y, z) dimensions  of grid: ("
+	std::cout << "  Maximum (x, y, z) dimensions of grid: ("
 		<< prop.maxGridSize[0] << ", "
 		<< prop.maxGridSize[1] << ", "
 		<< prop.maxGridSize[2] << ")\n";

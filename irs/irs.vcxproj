@@ -13,6 +13,7 @@
   <ItemGroup>
     <CudaCompile Include="complex.cuh" />
     <CudaCompile Include="irs_microlensing.cuh" />
+    <CudaCompile Include="mass_function.cuh" />
     <ClInclude Include="util.hpp" />
     <CudaCompile Include="star.cuh" />
   </ItemGroup>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <string>
 
@@ -78,6 +79,16 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 		}
 	}
 	std::cout << "] " << icurr * 100 / imax << " %";
+}
+
+/******************************************************************************
+function to make a string lowercase in place
+
+\param what -- reference to the string to make lowercase
+******************************************************************************/
+void make_lowercase(std::string& what)
+{
+	std::transform(what.begin(), what.end(), what.begin(), [](unsigned char c) { return std::tolower(c); });
 }
 
 /******************************************************************************

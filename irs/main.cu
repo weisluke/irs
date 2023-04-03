@@ -734,6 +734,11 @@ int main(int argc, char* argv[])
 		}
 
 		std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n\n";
+
+		m_lower = m_lower_actual;
+		m_upper = m_upper_actual;
+		mean_mass = mean_mass_actual;
+		mean_mass2 = mean_mass2_actual;
 	}
 
 	/******************************************************************************
@@ -1085,22 +1090,32 @@ int main(int argc, char* argv[])
 	outfile << "smooth_fraction " << smooth_fraction << "\n";
 	outfile << "kappa_star " << kappa_star << "\n";
 	outfile << "theta_e " << theta_e << "\n";
-	outfile << "mass_function " << mass_function_str << "\n";
-	if (mass_function_str == "salpeter" || mass_function_str == "kroupa")
+	if (starfile == "")
 	{
-		outfile << "m_solar " << m_solar << "\n";
+		outfile << "mass_function " << mass_function_str << "\n";
+		if (mass_function_str == "salpeter" || mass_function_str == "kroupa")
+		{
+			outfile << "m_solar " << m_solar << "\n";
+		}
+		if (mass_function_str != "equal")
+		{
+			outfile << "m_lower " << m_lower << "\n";
+			outfile << "m_upper " << m_upper << "\n";
+			outfile << "m_lower_actual " << m_lower_actual << "\n";
+			outfile << "m_upper_actual " << m_upper_actual << "\n";
+		}
+		outfile << "mean_mass " << mean_mass << "\n";
+		outfile << "mean_mass2 " << mean_mass2 << "\n";
+		if (mass_function_str != "equal")
+		{
+			outfile << "mean_mass_actual " << mean_mass_actual << "\n";
+			outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
+		}
 	}
-	if (mass_function_str != "equal")
+	else
 	{
-		outfile << "m_lower " << m_lower << "\n";
-		outfile << "m_upper " << m_upper << "\n";
 		outfile << "m_lower_actual " << m_lower_actual << "\n";
 		outfile << "m_upper_actual " << m_upper_actual << "\n";
-	}
-	outfile << "mean_mass " << mean_mass << "\n";
-	outfile << "mean_mass2 " << mean_mass2 << "\n";
-	if (mass_function_str != "equal")
-	{
 		outfile << "mean_mass_actual " << mean_mass_actual << "\n";
 		outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
 	}

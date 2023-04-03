@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "complex.cuh"
+#include "mass_function.cuh"
 
 #include <curand_kernel.h>
 
@@ -53,10 +54,14 @@ generate random rectangular star field
 \param nstars -- number of stars to generate
 \param corner -- corner of the rectangular region within which to generate
 				 stars
-\param mass -- mass for each star
+\param mf -- enum for the mass function
+\param msolar -- solar mass in arbitrary units
+\param mL -- lower mass cutoff for the distribution in arbitrary units
+\param mH -- upper mass cutoff for the distribution in arbitrary units
 ******************************************************************************/
 template <typename T>
-__global__ void generate_rectangular_star_field_kernel(curandState* states, star<T>* stars, int nstars, Complex<T> corner, T mass)
+__global__ void generate_rectangular_star_field_kernel(curandState* states, star<T>* stars, int nstars, Complex<T> corner, 
+	enumMassFunction mf = equal, T msolar = 1, T mL = 0.01, T mH = 10)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -67,7 +72,7 @@ __global__ void generate_rectangular_star_field_kernel(curandState* states, star
 		T x2 = static_cast<T>(curand_uniform_double(&states[i]) * 2 * corner.im - corner.im);
 
 		stars[i].position = Complex<T>(x1, x2);
-		stars[i].mass = mass;
+		stars[i].mass = MassFunction<T>(mf).mass(curand_uniform_double(&states[i]), msolar, mL, mH);
 	}
 }
 
@@ -78,10 +83,14 @@ generate random circular star field
 \param stars -- pointer to array of stars
 \param nstars -- number of stars to generate
 \param rad -- radius of the circular region within which to generate stars
-\param mass -- mass for each star
+\param mf -- enum for the mass function
+\param msolar -- solar mass in arbitrary units
+\param mL -- lower mass cutoff for the distribution in arbitrary units
+\param mH -- upper mass cutoff for the distribution in arbitrary units
 ******************************************************************************/
 template <typename T>
-__global__ void generate_circular_star_field_kernel(curandState* states, star<T>* stars, int nstars, T rad, T mass)
+__global__ void generate_circular_star_field_kernel(curandState* states, star<T>* stars, int nstars, T rad, 
+	enumMassFunction mf = equal, T msolar = 1, T mL = 0.01, T mH = 10)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -104,8 +113,38 @@ __global__ void generate_circular_star_field_kernel(curandState* states, star<T>
 		transform to Cartesian coordinates
 		******************************************************************************/
 		stars[i].position = Complex<T>(r * cos(a), r * sin(a));
-		stars[i].mass = mass;
+		stars[i].mass = MassFunction<T>(mf).mass(curand_uniform_double(&states[i]), msolar, mL, mH);
 	}
+}
+
+/******************************************************************************
+determines star field parameters from the given array
+
+\param stars -- pointer to array of point mass lenses
+\param nstars -- number of stars
+\param m_low -- lower mass cutoff
+\param m_up -- upper mass cutoff
+\param meanmass -- mean mass <m>
+\param meanmass2 -- mean mass squared <m^2>
+******************************************************************************/
+template <typename T>
+void calculate_star_params(star<T>* stars, int nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2)
+{
+	m_low = std::numeric_limits<T>::max();
+	m_up = std::numeric_limits<T>::min();
+
+	T mtot = 0;
+	T m2tot = 0;
+
+	for (int i = 0; i < nstars; i++)
+	{
+		mtot += stars[i].mass;
+		m2tot += stars[i].mass * stars[i].mass;
+		m_low = std::fmin(m_low, stars[i].mass);
+		m_up = std::fmax(m_up, stars[i].mass);
+	}
+	meanmass = mtot / nstars;
+	meanmass2 = m2tot / nstars;
 }
 
 /******************************************************************************
@@ -114,8 +153,8 @@ determines star field parameters from the given starfile
 \param nstars -- number of stars
 \param m_low -- lower mass cutoff
 \param m_up -- upper mass cutoff
-\param meanmass -- mean mass
-\param meanmass2 -- mean squared mass
+\param meanmass -- mean mass <m>
+\param meanmass2 -- mean mass squared <m^2>
 \param starfile -- location of the star field file. the file may be either a
 				   whitespace delimited .txt file containing valid values for a
 				   star's x coordinate, y coordinate, and mass, in that order,
@@ -257,15 +296,7 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 
 		infile.close();
 
-		for (int i = 0; i < nstars; i++)
-		{
-			mtot += stars[i].mass;
-			m2tot += stars[i].mass * stars[i].mass;
-			m_low = std::fmin(m_low, stars[i].mass);
-			m_up = std::fmax(m_up, stars[i].mass);
-		}
-		meanmass = mtot / nstars;
-		meanmass2 = m2tot / nstars;
+		calculate_star_params<T>(stars, nstars, m_low, m_up, meanmass, meanmass2);
 
 		delete stars;
 		stars = nullptr;

@@ -29,7 +29,7 @@ using dtype = float;
 constants to be used
 ******************************************************************************/
 const dtype PI = static_cast<dtype>(3.1415926535898);
-constexpr int OPTS_SIZE = 2 * 23;
+constexpr int OPTS_SIZE = 2 * 24;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -37,6 +37,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-k", "--kappa_tot",
 	"-y", "--shear",
 	"-s", "--smooth_fraction",
+	"-ks", "--kappa_star",
 	"-t", "--theta_e",
 	"-mf", "--mass_function",
 	"-ms", "--m_solar",
@@ -71,6 +72,7 @@ bool verbose = false;
 dtype kappa_tot = static_cast<dtype>(0.3);
 dtype shear = static_cast<dtype>(0.3);
 dtype smooth_fraction = static_cast<dtype>(0.1);
+dtype kappa_star = static_cast<dtype>(0.27);
 dtype theta_e = static_cast<dtype>(1);
 std::string mass_function_str = "equal";
 dtype m_solar = static_cast<dtype>(1);
@@ -116,6 +118,9 @@ void display_usage(char* name)
 		<< "  -y,--shear              Specify the external shear. Default value: " << shear << "\n"
 		<< "  -s,--smooth_fraction    Specify the fraction of convergence due to smoothly\n"
 		<< "                          distributed mass. Default value: " << smooth_fraction << "\n"
+		<< "  -ks,--kappa_star        Specify the convergence in point mass lenses. If\n"
+		<< "                          provided, this overrides any supplied value for the\n"
+		<< "                          smooth fraction. Default value: " << kappa_star << "\n"
 		<< "  -t,--theta_e            Specify the size of the Einstein radius of a unit\n"
 		<< "                          mass point lens in arbitrary units. Default value: " << theta_e << "\n"
 		<< "  -mf,--mass_function     Specify the mass function to use for the point mass\n"
@@ -125,7 +130,7 @@ void display_usage(char* name)
 		<< "                          Default value: " << m_solar << "\n"
 		<< "  -ml,--m_lower           Specify the lower mass cutoff in arbitrary units.\n"
 		<< "                          Default value: " << m_lower << "\n"
-		<< "  -ml,--m_upper           Specify the upper mass cutoff in arbitrary units.\n"
+		<< "  -mh,--m_upper           Specify the upper mass cutoff in arbitrary units.\n"
 		<< "                          Default value: " << m_upper << "\n"
 		<< "  -r,--rectangular        Specify whether the star field should be\n"
 		<< "                          rectangular (1) or circular (0). Default value: " << rectangular << "\n"
@@ -287,6 +292,10 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-s") || argv[i] == std::string("--smooth_fraction"))
 		{
+			if (cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star"))
+			{
+				continue;
+			}
 			try
 			{
 				smooth_fraction = static_cast<dtype>(std::stod(cmdinput));
@@ -308,6 +317,27 @@ int main(int argc, char* argv[])
 			catch (...)
 			{
 				std::cerr << "Error. Invalid smooth_fraction input.\n";
+				return -1;
+			}
+		}
+		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_star"))
+		{
+			try
+			{
+				kappa_star = static_cast<dtype>(std::stod(cmdinput));
+				if (kappa_star < std::numeric_limits<dtype>::min())
+				{
+					std::cerr << "Error. Invalid kappa_star input. kappa_star must be > " << std::numeric_limits<dtype>::min() << "\n";
+					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "kappa_star set to: " << kappa_star << "\n";
+				}
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid kappa_star input.\n";
 				return -1;
 			}
 		}
@@ -663,6 +693,23 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+	if (cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star"))
+	{
+		smooth_fraction = 1 - kappa_star / kappa_tot;
+		if (verbose)
+		{
+			std::cout << "smooth_fraction set to: " << smooth_fraction << "\n";
+		}
+	}
+	else
+	{
+		kappa_star = (1 - smooth_fraction) * kappa_tot;
+		if (verbose)
+		{
+			std::cout << "kappa_star set to: " << kappa_star << "\n";
+		}
+	}
+
 	/******************************************************************************
 	END read in options and values, checking correctness and exiting if necessary
 	******************************************************************************/
@@ -700,18 +747,18 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
-	determine convergence in point mass lenses, mass function, <m>, and <m^2>
+	determine mass function, <m>, and <m^2>
 	******************************************************************************/
-	dtype kappa_star = (1 - smooth_fraction) * kappa_tot;
 	enumMassFunction mass_function = MASS_FUNCTIONS.at(mass_function_str);
 	dtype mean_mass = MassFunction<dtype>(mass_function).mean_mass(m_solar, m_lower, m_upper);
 	dtype mean_mass2 = MassFunction<dtype>(mass_function).mean_mass2(m_solar, m_lower, m_upper);
 
 	/******************************************************************************
-	calculated values for the number of stars, upper and lower mass cutoffs, <m>,
-	and <m^2>
+	calculated values for the number of stars, kappa_star, upper and lower mass
+	cutoffs, <m>, and <m^2>
 	******************************************************************************/
 	int num_stars = 0;
+	dtype kappa_star_actual = static_cast<dtype>(1);
 	dtype m_lower_actual = static_cast<dtype>(1);
 	dtype m_upper_actual = static_cast<dtype>(1);
 	dtype mean_mass_actual = static_cast<dtype>(1);
@@ -896,10 +943,18 @@ int main(int argc, char* argv[])
 		std::cout << "Done generating star field.\n\n";
 
 		/******************************************************************************
-		calculate m_lower_actual, m_upper_actual, mean_mass_actual, and
-		mean_mass2_actual based on star information
+		calculate kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual,
+		and mean_mass2_actual based on star information
 		******************************************************************************/
 		calculate_star_params<dtype>(stars, num_stars, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
+		if (rectangular)
+		{
+			kappa_star_actual = PI * theta_e * theta_e * num_stars * mean_mass_actual / (4 * c.re * c.im);
+		}
+		else
+		{
+			kappa_star_actual = theta_e * theta_e * num_stars * mean_mass_actual / (rad * rad);
+		}
 	}
 	else
 	{
@@ -1089,6 +1144,10 @@ int main(int argc, char* argv[])
 	outfile << "mu_ave " << mu_ave << "\n";
 	outfile << "smooth_fraction " << smooth_fraction << "\n";
 	outfile << "kappa_star " << kappa_star << "\n";
+	if (starfile == "")
+	{
+		outfile << "kappa_star_actual " << kappa_star_actual << "\n";
+	}
 	outfile << "theta_e " << theta_e << "\n";
 	if (starfile == "")
 	{

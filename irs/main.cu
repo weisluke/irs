@@ -709,6 +709,7 @@ int main(int argc, char* argv[])
 			std::cout << "kappa_star set to: " << kappa_star << "\n";
 		}
 	}
+	std::cout << "\n";
 
 	/******************************************************************************
 	END read in options and values, checking correctness and exiting if necessary

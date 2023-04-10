@@ -29,7 +29,7 @@ using dtype = float;
 constants to be used
 ******************************************************************************/
 const dtype PI = static_cast<dtype>(3.1415926535898);
-constexpr int OPTS_SIZE = 2 * 24;
+constexpr int OPTS_SIZE = 2 * 25;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -43,6 +43,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-ms", "--m_solar",
 	"-ml", "--m_lower",
 	"-mh", "--m_upper",
+	"-ll", "--light_loss",
 	"-r", "--rectangular",
 	"-a", "--approx",
 	"-ss", "--safety_scale",
@@ -78,6 +79,7 @@ std::string mass_function_str = "equal";
 dtype m_solar = static_cast<dtype>(1);
 dtype m_lower = static_cast<dtype>(0.01);
 dtype m_upper = static_cast<dtype>(10);
+dtype light_loss = static_cast<dtype>(0.01);
 int rectangular = 1;
 int approx = 1;
 dtype safety_scale = static_cast<dtype>(1.37);
@@ -132,6 +134,9 @@ void display_usage(char* name)
 		<< "                          Default value: " << m_lower << "\n"
 		<< "  -mh,--m_upper           Specify the upper mass cutoff in arbitrary units.\n"
 		<< "                          Default value: " << m_upper << "\n"
+		<< "  -ll,--light_loss        Allowed average fraction of light lost due to scatter\n"
+		<< "                          by the microlenses in the large deflection limit.\n"
+		<< "                          Default value: " << light_loss << "\n"
 		<< "  -r,--rectangular        Specify whether the star field should be\n"
 		<< "                          rectangular (1) or circular (0). Default value: " << rectangular << "\n"
 		<< "  -a,--approx             Specify whether terms for alpha_smooth should be\n"
@@ -441,6 +446,32 @@ int main(int argc, char* argv[])
 			catch (...)
 			{
 				std::cerr << "Error. Invalid m_upper input.\n";
+				return -1;
+			}
+		}
+		else if (argv[i] == std::string("-ll") || argv[i] == std::string("--light_loss"))
+		{
+			try
+			{
+				light_loss = static_cast<dtype>(std::stod(cmdinput));
+				if (light_loss < std::numeric_limits<dtype>::min())
+				{
+					std::cerr << "Error. Invalid light_loss input. light_loss must be > " << std::numeric_limits<dtype>::min() << "\n";
+					return -1;
+				}
+				else if (light_loss > 0.01)
+				{
+					std::cerr << "Error. Invalid light_loss input. light_loss must be < 0.01\n";
+					return -1;
+				}
+				if (verbose)
+				{
+					std::cout << "light_loss set to: " << light_loss << "\n";
+				}
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid light_loss input.\n";
 				return -1;
 			}
 		}
@@ -808,10 +839,11 @@ int main(int argc, char* argv[])
 
 	/******************************************************************************
 	shooting region is greater than outer boundary for macro-mapping by the size of
-	the region of images visible for a macro-image which contain 99% of the flux
+	the region of images visible for a macro-image which on average loses no more
+	than the desired amount of flux
 	******************************************************************************/
-	dtype lens_hl_x1 = (half_length + 10 * theta_e * std::sqrt(kappa_star * mean_mass2 / mean_mass)) / std::abs(1 - kappa_tot + shear);
-	dtype lens_hl_x2 = (half_length + 10 * theta_e * std::sqrt(kappa_star * mean_mass2 / mean_mass)) / std::abs(1 - kappa_tot - shear);
+	dtype lens_hl_x1 = (half_length + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) / std::abs(1 - kappa_tot + shear);
+	dtype lens_hl_x2 = (half_length + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) / std::abs(1 - kappa_tot - shear);
 
 	/******************************************************************************
 	make shooting region a multiple of the ray separation
@@ -1178,6 +1210,7 @@ int main(int argc, char* argv[])
 		outfile << "mean_mass_actual " << mean_mass_actual << "\n";
 		outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
 	}
+	outfile << "light_loss " << light_loss << "\n";
 	outfile << "num_stars " << num_stars << "\n";
 	if (rectangular)
 	{

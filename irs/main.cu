@@ -304,9 +304,9 @@ int main(int argc, char* argv[])
 			try
 			{
 				smooth_fraction = static_cast<dtype>(std::stod(cmdinput));
-				if (smooth_fraction < std::numeric_limits<dtype>::min())
+				if (smooth_fraction < 0)
 				{
-					std::cerr << "Error. Invalid smooth_fraction input. smooth_fraction must be > " << std::numeric_limits<dtype>::min() << "\n";
+					std::cerr << "Error. Invalid smooth_fraction input. smooth_fraction must be >= 0\n";
 					return -1;
 				}
 				else if (smooth_fraction >= 1)

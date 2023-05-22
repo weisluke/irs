@@ -958,7 +958,6 @@ int main(int argc, char* argv[])
 
 		/******************************************************************************
 		generate random star field if no star file has been given
-		uses default star mass of 1.0
 		******************************************************************************/
 		initialize_curand_states_kernel<dtype> <<<blocks, threads>>> (states, num_stars, random_seed);
 		if (cuda_error("initialize_curand_states_kernel", true, __FILE__, __LINE__)) return -1;

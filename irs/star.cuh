@@ -267,7 +267,7 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
 				stars[i].mass = static_cast<T>(temp_stars[i].mass);
 			}
-			delete temp_stars;
+			delete[] temp_stars;
 			temp_stars = nullptr;
 		}
 		else if ((fsize - sizeof(int)) == nstars * sizeof(star<double>))
@@ -284,7 +284,7 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
 				stars[i].mass = static_cast<T>(temp_stars[i].mass);
 			}
-			delete temp_stars;
+			delete[] temp_stars;
 			temp_stars = nullptr;
 		}
 		else
@@ -298,7 +298,7 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 
 		calculate_star_params<T>(stars, nstars, m_low, m_up, meanmass, meanmass2);
 
-		delete stars;
+		delete[] stars;
 		stars = nullptr;
 	}
 	else
@@ -390,7 +390,7 @@ bool read_star_file(star<T>* stars, int nstars, const std::string& starfile)
 				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
 				stars[i].mass = static_cast<T>(temp_stars[i].mass);
 			}
-			delete temp_stars;
+			delete[] temp_stars;
 			temp_stars = nullptr;
 		}
 		else if ((fsize - sizeof(int)) == nstars * sizeof(star<double>))
@@ -407,7 +407,7 @@ bool read_star_file(star<T>* stars, int nstars, const std::string& starfile)
 				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
 				stars[i].mass = static_cast<T>(temp_stars[i].mass);
 			}
-			delete temp_stars;
+			delete[] temp_stars;
 			temp_stars = nullptr;
 		}
 		else

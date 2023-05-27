@@ -56,7 +56,7 @@ calculate the deflection angle due to smooth matter
 template <typename T>
 __device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor)
 {
-	T PI = static_cast<T>(3.1415926535898);
+	T PI = 3.1415926535898;
 	Complex<T> alpha_smooth;
 
 	if (rectangular)
@@ -146,10 +146,11 @@ complex point in the source plane converted to pixel position
 
 \return (w + hly * (1 + i)) * npixels / (2 * hly)
 ******************************************************************************/
-template <typename T>
-__device__ Complex<T> point_to_pixel(Complex<T> w, T hly, int npixels)
+template <typename T, typename U>
+__device__ Complex<T> point_to_pixel(Complex<U> w, U hly, int npixels)
 {
-	return (w + hly * Complex<T>(1, 1)) * npixels / (2 * hly);
+	Complex<T> result((w + hly * Complex<U>(1, 1)) * npixels / (2 * hly));
+	return result;
 }
 
 /******************************************************************************
@@ -199,10 +200,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			/******************************************************************************
 			location of central ray in image plane
 			******************************************************************************/
-			T x1 = -hlx1 + raysep / 2 + raysep * i;
-			T x2 = -hlx2 + raysep / 2 + raysep * j;
-
-			Complex<T> z = Complex<T>(x1, x2);
+			Complex<T> z(-hlx1 + raysep / 2 + raysep * i, -hlx2 + raysep / 2 + raysep * j);
 
 			/******************************************************************************
 			shooting more rays in image plane at center +/- 1/3 * distance to next central
@@ -210,10 +208,10 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			******************************************************************************/
 			T dx = raysep / 3;
 
-			x[0] = Complex<T>(x1 + dx, x2 + dx);
-			x[1] = Complex<T>(x1 - dx, x2 + dx);
-			x[2] = Complex<T>(x1 - dx, x2 - dx);
-			x[3] = Complex<T>(x1 + dx, x2 - dx);
+			x[0] = z + Complex<T>(dx, dx);
+			x[1] = z + Complex<T>(-dx, dx);
+			x[2] = z + Complex<T>(-dx, -dx);
+			x[3] = z + Complex<T>(dx, -dx);
 
 			/******************************************************************************
 			map rays from image plane to source plane
@@ -258,7 +256,6 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 			T invmag11;
 			T invmag12;
 			T invmag;
-			Complex<T> ypos;
 			Complex<int> ypix;
 			for (int k = -13; k <= 13; k++)
 			{
@@ -282,8 +279,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 						continue;
 					}
 
-					ypos = Complex<T>(y1, y2);
-					ypix = point_to_pixel(ypos, hly, npixels);
+					ypix = point_to_pixel<int, T>(Complex<T>(y1, y2), hly, npixels);
 
 					/******************************************************************************
 					reverse y coordinate so array forms image in correct orientation
@@ -304,29 +300,29 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, int
 					{
 						if (pixmin) 
 						{
-							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+							atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
 						}
-						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
 					}
 					else if (invmag < -0)
 					{
 						if (pixsad) 
 						{
-							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+							atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
 						}
-						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 1);
+						atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
 					}
 					else
 					{
 						if (pixmin) 
 						{
-							atomicAdd(&(pixmin[ypix.im * npixels + ypix.re]), 1);
+							atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
 						}
 						if (pixsad) 
 						{
-							atomicAdd(&(pixsad[ypix.im * npixels + ypix.re]), 1);
+							atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
 						}
-						atomicAdd(&(pixels[ypix.im * npixels + ypix.re]), 2);
+						atomicAdd(&pixels[ypix.im * npixels + ypix.re], 2);
 					}
 				}
 			}
@@ -424,7 +420,7 @@ __global__ void histogram_kernel(int* pixels, int npixels, int minrays, int* his
 	{
 		for (int j = y_index; j < npixels; j += y_stride)
 		{
-			atomicAdd(&(histogram[pixels[j * npixels + i] - minrays]), 1);
+			atomicAdd(&histogram[pixels[j * npixels + i] - minrays], 1);
 		}
 	}
 }

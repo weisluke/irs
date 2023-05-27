@@ -14,6 +14,7 @@ Email: weisluke@alum.mit.edu
 
 #include <curand_kernel.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <fstream>
@@ -28,7 +29,7 @@ using dtype = float;
 /******************************************************************************
 constants to be used
 ******************************************************************************/
-const dtype PI = static_cast<dtype>(3.1415926535898);
+const dtype PI = 3.1415926535898;
 constexpr int OPTS_SIZE = 2 * 25;
 const std::string OPTS[OPTS_SIZE] =
 {
@@ -70,21 +71,21 @@ const std::map<std::string, enumMassFunction> MASS_FUNCTIONS{
 default input option values
 ******************************************************************************/
 bool verbose = false;
-dtype kappa_tot = static_cast<dtype>(0.3);
-dtype shear = static_cast<dtype>(0.3);
-dtype smooth_fraction = static_cast<dtype>(0.1);
-dtype kappa_star = static_cast<dtype>(0.27);
-dtype theta_e = static_cast<dtype>(1);
+dtype kappa_tot = 0.3;
+dtype shear = 0.3;
+dtype smooth_fraction = 0.1;
+dtype kappa_star = 0.27;
+dtype theta_e = 1;
 std::string mass_function_str = "equal";
-dtype m_solar = static_cast<dtype>(1);
-dtype m_lower = static_cast<dtype>(0.01);
-dtype m_upper = static_cast<dtype>(10);
-dtype light_loss = static_cast<dtype>(0.01);
+dtype m_solar = 1;
+dtype m_lower = 0.01;
+dtype m_upper = 50;
+dtype light_loss = 0.01;
 int rectangular = 1;
 int approx = 1;
-dtype safety_scale = static_cast<dtype>(1.37);
+dtype safety_scale = 1.37;
 std::string starfile = "";
-dtype half_length = static_cast<dtype>(5);
+dtype half_length = 5;
 int num_pixels = 1000;
 int num_rays = 100;
 int random_seed = 0;
@@ -267,11 +268,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				kappa_tot = static_cast<dtype>(std::stod(cmdinput));
-				if (verbose)
-				{
-					std::cout << "kappa_tot set to: " << kappa_tot << "\n";
-				}
+				set_param("kappa_tot", kappa_tot, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -283,11 +280,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				shear = static_cast<dtype>(std::stod(cmdinput));
-				if (verbose)
-				{
-					std::cout << "shear set to: " << shear << "\n";
-				}
+				set_param("shear", shear, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -303,7 +296,7 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				smooth_fraction = static_cast<dtype>(std::stod(cmdinput));
+				set_param("smooth_fraction", smooth_fraction, std::stod(cmdinput), verbose);
 				if (smooth_fraction < 0)
 				{
 					std::cerr << "Error. Invalid smooth_fraction input. smooth_fraction must be >= 0\n";
@@ -313,10 +306,6 @@ int main(int argc, char* argv[])
 				{
 					std::cerr << "Error. Invalid smooth_fraction input. smooth_fraction must be < 1\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "smooth_fraction set to: " << smooth_fraction << "\n";
 				}
 			}
 			catch (...)
@@ -329,15 +318,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				kappa_star = static_cast<dtype>(std::stod(cmdinput));
+				set_param("kappa_star", kappa_star, std::stod(cmdinput), verbose);
 				if (kappa_star < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid kappa_star input. kappa_star must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "kappa_star set to: " << kappa_star << "\n";
 				}
 			}
 			catch (...)
@@ -350,15 +335,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				theta_e = static_cast<dtype>(std::stod(cmdinput));
+				set_param("theta_e", theta_e, std::stod(cmdinput), verbose);
 				if (theta_e < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid theta_e input. theta_e must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "theta_e set to: " << theta_e << "\n";
 				}
 			}
 			catch (...)
@@ -369,31 +350,22 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-mf") || argv[i] == std::string("--mass_function"))
 		{
-			mass_function_str = cmdinput;
-			make_lowercase(mass_function_str);
+			set_param("mass_function", mass_function_str, make_lowercase(cmdinput), verbose);
 			if (!MASS_FUNCTIONS.count(mass_function_str))
 			{
 				std::cerr << "Error. Invalid mass_function input. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
 				return -1;
-			}
-			if (verbose)
-			{
-				std::cout << "mass_function set to: " << mass_function_str << "\n";
 			}
 		}
 		else if (argv[i] == std::string("-ms") || argv[i] == std::string("--m_solar"))
 		{
 			try
 			{
-				m_solar = static_cast<dtype>(std::stod(cmdinput));
+				set_param("m_solar", m_solar, std::stod(cmdinput), verbose);
 				if (m_solar < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid m_solar input. m_solar must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "m_solar set to: " << m_solar << "\n";
 				}
 			}
 			catch (...)
@@ -406,15 +378,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				m_lower = static_cast<dtype>(std::stod(cmdinput));
+				set_param("m_lower", m_lower, std::stod(cmdinput), verbose);
 				if (m_lower < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid m_lower input. m_lower must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "m_lower set to: " << m_lower << "\n";
 				}
 			}
 			catch (...)
@@ -427,7 +395,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				m_upper = static_cast<dtype>(std::stod(cmdinput));
+				set_param("m_upper", m_upper, std::stod(cmdinput), verbose);
 				if (m_upper < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid m_upper input. m_upper must be > " << std::numeric_limits<dtype>::min() << "\n";
@@ -437,10 +405,6 @@ int main(int argc, char* argv[])
 				{
 					std::cerr << "Error. Invalid m_upper input. m_upper must be < " << std::numeric_limits<dtype>::max() << "\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "m_upper set to: " << m_upper << "\n";
 				}
 			}
 			catch (...)
@@ -453,7 +417,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				light_loss = static_cast<dtype>(std::stod(cmdinput));
+				set_param("light_loss", light_loss, std::stod(cmdinput), verbose);
 				if (light_loss < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid light_loss input. light_loss must be > " << std::numeric_limits<dtype>::min() << "\n";
@@ -463,10 +427,6 @@ int main(int argc, char* argv[])
 				{
 					std::cerr << "Error. Invalid light_loss input. light_loss must be < 0.01\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "light_loss set to: " << light_loss << "\n";
 				}
 			}
 			catch (...)
@@ -479,15 +439,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				rectangular = std::stoi(cmdinput);
+				set_param("rectangular", rectangular, std::stoi(cmdinput), verbose);
 				if (rectangular != 0 && rectangular != 1)
 				{
 					std::cerr << "Error. Invalid rectangular input. rectangular must be 1 (rectangular) or 0 (circular).\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "rectangular set to: " << rectangular << "\n";
 				}
 			}
 			catch (...)
@@ -500,15 +456,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				approx = std::stoi(cmdinput);
+				set_param("approx", approx, std::stoi(cmdinput), verbose);
 				if (approx != 0 && approx != 1)
 				{
 					std::cerr << "Error. Invalid approx input. approx must be 1 (approximate) or 0 (exact).\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "approx set to: " << approx << "\n";
 				}
 			}
 			catch (...)
@@ -521,15 +473,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				safety_scale = static_cast<dtype>(std::stod(cmdinput));
+				set_param("safety_scale", safety_scale, std::stod(cmdinput), verbose);
 				if (safety_scale < 1)
 				{
 					std::cerr << "Error. Invalid safety_scale input. safety_scale must be > 1\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "safety_scale set to: " << safety_scale << "\n";
 				}
 			}
 			catch (...)
@@ -540,25 +488,17 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-sf") || argv[i] == std::string("--starfile"))
 		{
-			starfile = cmdinput;
-			if (verbose)
-			{
-				std::cout << "starfile set to: " << starfile << "\n";
-			}
+			set_param("starfile", starfile, cmdinput, verbose);
 		}
 		else if (argv[i] == std::string("-hl") || argv[i] == std::string("--half_length"))
 		{
 			try
 			{
-				half_length = static_cast<dtype>(std::stod(cmdinput));
+				set_param("half_length", half_length, std::stod(cmdinput), verbose);
 				if (half_length < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid half_length input. half_length must be > " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "half_length set to: " << half_length << "\n";
 				}
 			}
 			catch (...)
@@ -571,15 +511,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				num_pixels = std::stoi(cmdinput);
+				set_param("num_pixels", num_pixels, std::stoi(cmdinput), verbose);
 				if (num_pixels < 1)
 				{
 					std::cerr << "Error. Invalid num_pixels input. num_pixels must be an integer > 0\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "num_pixels set to: " << num_pixels << "\n";
 				}
 			}
 			catch (...)
@@ -592,15 +528,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				num_rays = std::stoi(cmdinput);
+				set_param("num_rays", num_rays, std::stoi(cmdinput), verbose);
 				if (num_rays < 1)
 				{
 					std::cerr << "Error. Invalid num_rays input. num_rays must be an integer > 0\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "num_rays set to: " << num_rays << "\n";
 				}
 			}
 			catch (...)
@@ -613,15 +545,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				random_seed = std::stoi(cmdinput);
+				set_param("random_seed", random_seed, std::stoi(cmdinput), verbose);
 				if (random_seed == 0 && !(cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file")))
 				{
 					std::cerr << "Error. Invalid random_seed input. Seed of 0 is reserved for star input files.\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "random_seed set to: " << random_seed << "\n";
 				}
 			}
 			catch (...)
@@ -634,15 +562,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				write_maps = std::stoi(cmdinput);
+				set_param("write_maps", write_maps, std::stoi(cmdinput), verbose);
 				if (write_maps != 0 && write_maps != 1)
 				{
 					std::cerr << "Error. Invalid write_maps input. write_maps must be 1 (true) or 0 (false).\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "write_maps set to: " << write_maps << "\n";
 				}
 			}
 			catch (...)
@@ -655,15 +579,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				write_parities = std::stoi(cmdinput);
+				set_param("write_parities", write_parities, std::stoi(cmdinput), verbose);
 				if (write_parities != 0 && write_parities != 1)
 				{
 					std::cerr << "Error. Invalid write_parities input. write_parities must be 1 (true) or 0 (false).\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "write_parities set to: " << write_parities << "\n";
 				}
 			}
 			catch (...)
@@ -676,15 +596,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				write_histograms = std::stoi(cmdinput);
+				set_param("write_histograms", write_histograms, std::stoi(cmdinput), verbose);
 				if (write_histograms != 0 && write_histograms != 1)
 				{
 					std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
 					return -1;
-				}
-				if (verbose)
-				{
-					std::cout << "write_histograms set to: " << write_histograms << "\n";
 				}
 			}
 			catch (...)
@@ -695,27 +611,19 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ot") || argv[i] == std::string("--outfile_type"))
 		{
-			outfile_type = cmdinput;
-			make_lowercase(outfile_type);
+			set_param("outfile_type", outfile_type, make_lowercase(cmdinput), verbose);
 			if (outfile_type != ".bin" && outfile_type != ".txt")
 			{
 				std::cerr << "Error. Invalid outfile_type. outfile_type must be .bin or .txt\n";
 				return -1;
 			}
-			if (verbose)
-			{
-				std::cout << "outfile_type set to: " << outfile_type << "\n";
-			}
 		}
 		else if (argv[i] == std::string("-o") || argv[i] == std::string("--outfile_prefix"))
 		{
-			outfile_prefix = cmdinput;
-			if (verbose)
-			{
-				std::cout << "outfile_prefix set to: " << outfile_prefix << "\n";
-			}
+			set_param("outfile_prefix", outfile_prefix, cmdinput, verbose);
 		}
 	}
+
 	std::cout << "\n";
 
 	if (m_lower >= m_upper)
@@ -726,19 +634,11 @@ int main(int argc, char* argv[])
 
 	if (cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star"))
 	{
-		smooth_fraction = 1 - kappa_star / kappa_tot;
-		if (verbose)
-		{
-			std::cout << "smooth_fraction set to: " << smooth_fraction << "\n\n";
-		}
+		set_param("smooth_fraction", smooth_fraction, 1 - kappa_star / kappa_tot, verbose, true);
 	}
 	else
 	{
-		kappa_star = (1 - smooth_fraction) * kappa_tot;
-		if (verbose)
-		{
-			std::cout << "kappa_star set to: " << kappa_star << "\n\n";
-		}
+		set_param("kappa_star", kappa_star, (1 - smooth_fraction) * kappa_tot, verbose, true);
 	}
 
 	/******************************************************************************
@@ -781,8 +681,10 @@ int main(int argc, char* argv[])
 	determine mass function, <m>, and <m^2>
 	******************************************************************************/
 	enumMassFunction mass_function = MASS_FUNCTIONS.at(mass_function_str);
-	dtype mean_mass = MassFunction<dtype>(mass_function).mean_mass(m_solar, m_lower, m_upper);
-	dtype mean_mass2 = MassFunction<dtype>(mass_function).mean_mass2(m_solar, m_lower, m_upper);
+	dtype mean_mass;
+	set_param("mean_mass", mean_mass, MassFunction<dtype>(mass_function).mean_mass(m_solar, m_lower, m_upper), verbose);
+	dtype mean_mass2;
+	set_param("mean_mass2", mean_mass2, MassFunction<dtype>(mass_function).mean_mass2(m_solar, m_lower, m_upper), verbose, true);
 
 	/******************************************************************************
 	calculated values for the number of stars, kappa_star, upper and lower mass
@@ -822,7 +724,8 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	average magnification of the system
 	******************************************************************************/
-	dtype mu_ave = 1 / ((1 - kappa_tot) * (1 - kappa_tot) - shear * shear);
+	dtype mu_ave;
+	set_param("mu_ave", mu_ave, 1 / ((1 - kappa_tot) * (1 - kappa_tot) - shear * shear), verbose);
 
 	/******************************************************************************
 	number density of rays in the lens plane
@@ -835,7 +738,8 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	average separation between rays in one dimension is 1/sqrt(number density)
 	******************************************************************************/
-	dtype ray_sep = 1 / std::sqrt(num_rays_lens);
+	dtype ray_sep;
+	set_param("ray_sep", ray_sep, 1 / std::sqrt(num_rays_lens), verbose);
 
 	/******************************************************************************
 	shooting region is greater than outer boundary for macro-mapping by the size of
@@ -848,8 +752,8 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	make shooting region a multiple of the ray separation
 	******************************************************************************/
-	lens_hl_x1 = ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1);
-	lens_hl_x2 = ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1);
+	set_param("lens_hl_x1", lens_hl_x1, ray_sep * (static_cast<int>(lens_hl_x1 / ray_sep) + 1), verbose);
+	set_param("lens_hl_x2", lens_hl_x2, ray_sep * (static_cast<int>(lens_hl_x2 / ray_sep) + 1), verbose, true);
 
 	/******************************************************************************
 	if stars are not drawn from external file, calculate final number of stars to
@@ -871,18 +775,24 @@ int main(int argc, char* argv[])
 
 	std::cout << "Number of stars used: " << num_stars << "\n\n";
 
-	Complex<dtype> c = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
+	Complex<dtype> c;
+	set_param("corner", c, 
+		std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
 		* Complex<dtype>(
 			std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))),
 			std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
-			);
-	dtype rad = std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
+			), 
+		verbose && rectangular, true && !approx);
 
-	int taylor = static_cast<int>(std::log(2 * kappa_star * c.abs() / (2 * half_length / num_pixels * PI)) / std::log(safety_scale));
-	if (taylor < 1)
-	{
-		taylor = 1;
-	}
+	int taylor;
+	set_param("taylor", taylor, 
+		std::max(
+			static_cast<int>(std::log(2 * kappa_star * c.abs() / (2 * half_length / num_pixels * PI)) / std::log(safety_scale)),
+			1),
+		verbose && rectangular && approx, true);
+
+	dtype rad;
+	set_param("rad", rad, std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star), verbose && !rectangular, true);
 
 	/******************************************************************************
 	BEGIN memory allocation
@@ -953,7 +863,7 @@ int main(int argc, char* argv[])
 		******************************************************************************/
 		if (random_seed == 0)
 		{
-			random_seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count());
+			set_param("random_seed", random_seed, static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()), verbose);
 		}
 
 		/******************************************************************************
@@ -992,7 +902,7 @@ int main(int argc, char* argv[])
 		/******************************************************************************
 		ensure random seed is 0 to denote that stars come from external file
 		******************************************************************************/
-		random_seed = 0;
+		set_param("random_seed", random_seed, 0, verbose);
 
 		std::cout << "Reading star field from file " << starfile << "\n";
 
@@ -1044,20 +954,20 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	start and end time for timing purposes
 	******************************************************************************/
-	std::chrono::high_resolution_clock::time_point starttime;
-	std::chrono::high_resolution_clock::time_point endtime;
+	std::chrono::high_resolution_clock::time_point t_start;
+	std::chrono::high_resolution_clock::time_point t_end;
 
 
 	/******************************************************************************
 	shoot rays and calculate time taken in seconds
 	******************************************************************************/
 	std::cout << "Shooting rays...\n";
-	starttime = std::chrono::high_resolution_clock::now();
+	t_start = std::chrono::high_resolution_clock::now();
 	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star,
 		rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
-	endtime = std::chrono::high_resolution_clock::now();
-	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(endtime - starttime).count() / 1000.0;
+	t_end = std::chrono::high_resolution_clock::now();
+	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() / 1000.0;
 	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 

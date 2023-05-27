@@ -12,21 +12,21 @@
     <CudaCompile Include="main.cu">
       <Filter>src</Filter>
     </CudaCompile>
-    <CudaCompile Include="complex.cuh">
-      <Filter>include</Filter>
-    </CudaCompile>
-    <CudaCompile Include="irs_microlensing.cuh">
-      <Filter>include</Filter>
-    </CudaCompile>
-    <CudaCompile Include="star.cuh">
-      <Filter>include</Filter>
-    </CudaCompile>
-    <CudaCompile Include="mass_function.cuh">
-      <Filter>include</Filter>
-    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="complex.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="irs_microlensing.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_function.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="star.cuh">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

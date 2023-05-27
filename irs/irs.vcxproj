@@ -11,11 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="complex.cuh" />
-    <CudaCompile Include="irs_microlensing.cuh" />
-    <CudaCompile Include="mass_function.cuh" />
+    <ClInclude Include="complex.cuh" />
+    <ClInclude Include="irs_microlensing.cuh" />
+    <ClInclude Include="mass_function.cuh" />
     <ClInclude Include="util.hpp" />
-    <CudaCompile Include="star.cuh" />
+    <ClInclude Include="star.cuh" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="main.cu" />

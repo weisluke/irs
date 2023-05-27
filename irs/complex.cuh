@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <cmath>
+#include <iostream>
 #include <stdexcept>
 
 
@@ -17,24 +18,29 @@ public:
 	/******************************************************************************
 	default constructor initializes the complex number to zero
 	******************************************************************************/
-	__host__ __device__ Complex(T real = 0, T imag = 0)
+	__host__ __device__ Complex()
+	{
+		re = 0;
+		im = 0;
+	}
+	template <typename U> __host__ __device__ Complex(U real)
+	{
+		re = real;
+		im = 0;
+	}
+	template <typename U, typename V> __host__ __device__ Complex(U real, V imag)
 	{
 		re = real;
 		im = imag;
 	}
 
 	/******************************************************************************
-	copy constructors
+	copy constructor
 	******************************************************************************/
 	template <typename U> __host__ __device__ Complex(const Complex<U>& c1)
 	{
-		re = static_cast<T>(c1.re);
-		im = static_cast<T>(c1.im);
-	}
-	template <typename U> __host__ __device__ Complex(const U& num)
-	{
-		re = static_cast<T>(num);
-		im = static_cast<T>(0);
+		re = c1.re;
+		im = c1.im;
 	}
 
 	/******************************************************************************
@@ -42,15 +48,24 @@ public:
 	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator=(const Complex<U>& c1)
 	{
-		re = static_cast<T>(c1.re);
-		im = static_cast<T>(c1.im);
+		re = c1.re;
+		im = c1.im;
 		return *this;
 	}
-	template <typename U> __host__ __device__ Complex& operator=(U num)
+	template <typename U> __host__ __device__ Complex& operator=(const U& num)
 	{
-		re = static_cast<T>(num);
-		im = static_cast<T>(0);
+		re = num;
+		im = 0;
 		return *this;
+	}
+
+	/******************************************************************************
+	print a complex number to screen
+	******************************************************************************/
+	friend std::ostream& operator<< (std::ostream& out, const Complex& c1)
+	{
+		out << "(" << c1.re << ", " << c1.im << ")";
+		return out;
 	}
 
 	/******************************************************************************
@@ -103,8 +118,8 @@ public:
 	******************************************************************************/
 	__host__ __device__ Complex log()
 	{
-		T abs = (*this).abs();
-		T arg = (*this).arg();
+		T abs = this->abs();
+		T arg = this->arg();
 #ifdef CUDA_ARCH
 		return Complex(log(abs), arg);
 #else

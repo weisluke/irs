@@ -175,7 +175,7 @@ public:
 	\param mL -- lower mass cutoff for the distribution in arbitrary units
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	******************************************************************************/
-	__host__ __device__ T uniform_mass(T p, T mL = 0.01, T mH = 10)
+	__host__ __device__ T uniform_mass(T p, T mL = 0.01, T mH = 50)
 	{
 		return p * (mH - mL) + mL;
 	}
@@ -186,7 +186,7 @@ public:
 	\param mL -- lower mass cutoff for the distribution in arbitrary units
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	******************************************************************************/
-	__host__ __device__ T mean_uniform_mass(T mL = 0.01, T mH = 10)
+	__host__ __device__ T mean_uniform_mass(T mL = 0.01, T mH = 50)
 	{
 		return (mH + mL) / 2;
 	}
@@ -197,7 +197,7 @@ public:
 	\param mL -- lower mass cutoff for the distribution in arbitrary units
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	******************************************************************************/
-	__host__ __device__ T mean_uniform_mass2(T mL = 0.01, T mH = 10)
+	__host__ __device__ T mean_uniform_mass2(T mL = 0.01, T mH = 50)
 	{
 		return (mH * mH + mH * mL + mL * mL) / 3;
 	}
@@ -215,7 +215,7 @@ public:
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	\param a -- slope for the distribution
 	******************************************************************************/
-	__host__ __device__ T salpeter_mass(T p, T msolar = 1, T mL = 0.01, T mH = 10, T a = -2.35)
+	__host__ __device__ T salpeter_mass(T p, T msolar = 1, T mL = 0.01, T mH = 50, T a = -2.35)
 	{
 		/******************************************************************************
 		p(m) = b * m^a
@@ -254,7 +254,7 @@ public:
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	\param a -- slope for the distribution
 	******************************************************************************/
-	__host__ __device__ T mean_salpeter_mass(T msolar = 1, T mL = 0.01, T mH = 10, T a = -2.35)
+	__host__ __device__ T mean_salpeter_mass(T msolar = 1, T mL = 0.01, T mH = 50, T a = -2.35)
 	{
 		/******************************************************************************
 		p(m) = b * m^a
@@ -293,7 +293,7 @@ public:
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	\param a -- slope for the distribution
 	******************************************************************************/
-	__host__ __device__ T mean_salpeter_mass2(T msolar = 1, T mL = 0.01, T mH = 10, T a = -2.35)
+	__host__ __device__ T mean_salpeter_mass2(T msolar = 1, T mL = 0.01, T mH = 50, T a = -2.35)
 	{
 		/******************************************************************************
 		p(m) = b * m^a
@@ -341,7 +341,7 @@ public:
 	\param m2 -- cutoff for second slope in solar mass units
 	\param a3 -- third slope for the distribution
 	******************************************************************************/
-	__host__ __device__ T kroupa_mass(T p, T msolar = 1, T mL = 0.01, T mH = 10, T a1 = -0.3, T m1 = 0.08, T a2 = -1.3, T m2 = 0.5, T a3 = -2.3)
+	__host__ __device__ T kroupa_mass(T p, T msolar = 1, T mL = 0.01, T mH = 50, T a1 = -0.3, T m1 = 0.08, T a2 = -1.3, T m2 = 0.5, T a3 = -2.3)
 	{
 		/******************************************************************************
 		p(m) = b * m^a
@@ -518,7 +518,7 @@ public:
 	\param m2 -- cutoff for second slope in solar mass units
 	\param a3 -- third slope for the distribution
 	******************************************************************************/
-	__host__ __device__ T mean_kroupa_mass(T msolar = 1, T mL = 0.01, T mH = 10, T a1 = -0.3, T m1 = 0.08, T a2 = -1.3, T m2 = 0.5, T a3 = -2.3)
+	__host__ __device__ T mean_kroupa_mass(T msolar = 1, T mL = 0.01, T mH = 50, T a1 = -0.3, T m1 = 0.08, T a2 = -1.3, T m2 = 0.5, T a3 = -2.3)
 	{
 		/******************************************************************************
 		p(m) = b * m^a
@@ -699,7 +699,7 @@ public:
 	\param m2 -- cutoff for second slope in solar mass units
 	\param a3 -- third slope for the distribution
 	******************************************************************************/
-	__host__ __device__ T mean_kroupa_mass2(T msolar = 1, T mL = 0.01, T mH = 10, T a1 = -0.3, T m1 = 0.08, T a2 = -1.3, T m2 = 0.5, T a3 = -2.3)
+	__host__ __device__ T mean_kroupa_mass2(T msolar = 1, T mL = 0.01, T mH = 50, T a1 = -0.3, T m1 = 0.08, T a2 = -1.3, T m2 = 0.5, T a3 = -2.3)
 	{
 		/******************************************************************************
 		p(m) = b * m^a
@@ -880,7 +880,7 @@ public:
 	\param mL -- lower mass cutoff for the distribution in arbitrary units
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	******************************************************************************/
-	__host__ __device__ T mass(T p, T msolar = 1, T mL = 0.01, T mH = 10)
+	__host__ __device__ T mass(T p, T msolar = 1, T mL = 0.01, T mH = 50)
 	{
 		switch (mass_function)
 		{
@@ -905,7 +905,7 @@ public:
 	\param mL -- lower mass cutoff for the distribution in arbitrary units
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	******************************************************************************/
-	__host__ __device__ T mean_mass(T msolar = 1, T mL = 0.01, T mH = 10)
+	__host__ __device__ T mean_mass(T msolar = 1, T mL = 0.01, T mH = 50)
 	{
 		switch (mass_function)
 		{
@@ -929,7 +929,7 @@ public:
 	\param mL -- lower mass cutoff for the distribution in arbitrary units
 	\param mH -- upper mass cutoff for the distribution in arbitrary units
 	******************************************************************************/
-	__host__ __device__ T mean_mass2(T msolar = 1, T mL = 0.01, T mH = 10)
+	__host__ __device__ T mean_mass2(T msolar = 1, T mL = 0.01, T mH = 50)
 	{
 		switch (mass_function)
 		{

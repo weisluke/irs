@@ -13,7 +13,7 @@ determine if a string exists within some array of char*s
 \param end -- ending pointer of array
 \param option -- string to find within the array
 
-\returns bool -- true if string is in array, false if not
+\return bool -- true if string is in array, false if not
 ******************************************************************************/
 bool cmd_option_exists(char** begin, char** end, const std::string& option)
 {
@@ -27,7 +27,7 @@ determine if a string is a valid option from some options array
 \param end -- ending pointer of array of string options
 \param option -- string to find within the array
 
-\returns bool -- true if string was found in array, false if not
+\return bool -- true if string was found in array, false if not
 ******************************************************************************/
 bool cmd_option_valid(const std::string* begin, const std::string* end, const std::string& option)
 {
@@ -42,7 +42,7 @@ assumed to be placed immediately after the option in some range
 \param end -- ending pointer of array
 \param option -- string to find the value of
 
-\returns char* -- array of chars of the value after the option
+\return char* -- array of chars of the value after the option
 ******************************************************************************/
 char* cmd_option_value(char** begin, char** end, const std::string& option)
 {
@@ -53,6 +53,43 @@ char* cmd_option_value(char** begin, char** end, const std::string& option)
 		return *itr;
 	}
 	return nullptr;
+}
+
+/******************************************************************************
+function to make a string lowercase
+
+\param what -- reference to the string to make lowercase
+
+\return lowercase version of the string
+******************************************************************************/
+std::string make_lowercase(const std::string& what)
+{
+	std::string lowercase = what;
+	std::transform(lowercase.begin(), lowercase.end(), lowercase.begin(), [](unsigned char c) { return std::tolower(c); });
+	return lowercase;
+}
+
+/******************************************************************************
+function to set a parameter value and print message if necessary
+
+\param name -- name of the parameter
+\param param -- reference to the parameter
+\param what -- value to set the parameter equal to
+\verbose -- whether to print message or not
+\newline -- whether to add an extra newline to the end or not
+******************************************************************************/
+template <typename T, typename U>
+void set_param(const std::string& name, T& param, U what, bool verbose, bool newline = false)
+{
+	param = what;
+	if (verbose)
+	{
+		std::cout << name << " set to: " << param << "\n";
+		if (newline)
+		{
+			std::cout << "\n";
+		}
+	}
 }
 
 /******************************************************************************
@@ -79,16 +116,6 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 		}
 	}
 	std::cout << "] " << icurr * 100 / imax << " %";
-}
-
-/******************************************************************************
-function to make a string lowercase in place
-
-\param what -- reference to the string to make lowercase
-******************************************************************************/
-void make_lowercase(std::string& what)
-{
-	std::transform(what.begin(), what.end(), what.begin(), [](unsigned char c) { return std::tolower(c); });
 }
 
 /******************************************************************************

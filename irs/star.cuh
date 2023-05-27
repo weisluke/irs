@@ -61,15 +61,15 @@ generate random rectangular star field
 ******************************************************************************/
 template <typename T>
 __global__ void generate_rectangular_star_field_kernel(curandState* states, star<T>* stars, int nstars, Complex<T> corner, 
-	enumMassFunction mf = equal, T msolar = 1, T mL = 0.01, T mH = 10)
+	enumMassFunction mf = equal, T msolar = 1, T mL = 0.01, T mH = 50)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
 
 	for (int i = x_index; i < nstars; i += x_stride)
 	{
-		T x1 = static_cast<T>(curand_uniform_double(&states[i]) * 2 * corner.re - corner.re);
-		T x2 = static_cast<T>(curand_uniform_double(&states[i]) * 2 * corner.im - corner.im);
+		T x1 = curand_uniform_double(&states[i]) * 2 * corner.re - corner.re;
+		T x2 = curand_uniform_double(&states[i]) * 2 * corner.im - corner.im;
 
 		stars[i].position = Complex<T>(x1, x2);
 		stars[i].mass = MassFunction<T>(mf).mass(curand_uniform_double(&states[i]), msolar, mL, mH);
@@ -90,24 +90,24 @@ generate random circular star field
 ******************************************************************************/
 template <typename T>
 __global__ void generate_circular_star_field_kernel(curandState* states, star<T>* stars, int nstars, T rad, 
-	enumMassFunction mf = equal, T msolar = 1, T mL = 0.01, T mH = 10)
+	enumMassFunction mf = equal, T msolar = 1, T mL = 0.01, T mH = 50)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
 
 	for (int i = x_index; i < nstars; i += x_stride)
 	{
-		const T PI = static_cast<T>(3.1415926535898);
+		const T PI = 3.1415926535898;
 
 		/******************************************************************************
 		random angle
 		******************************************************************************/
-		T a = static_cast<T>(curand_uniform_double(&states[i]) * 2 * PI);
+		T a = curand_uniform_double(&states[i]) * 2 * PI;
 		/******************************************************************************
 		random radius uses square root of random number as numbers need to be evenly
 		dispersed in 2-D space
 		******************************************************************************/
-		T r = static_cast<T>(sqrt(curand_uniform_double(&states[i])) * rad);
+		T r = sqrt(curand_uniform_double(&states[i])) * rad;
 
 		/******************************************************************************
 		transform to Cartesian coordinates
@@ -264,8 +264,8 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 			infile.read((char*)temp_stars, nstars * sizeof(star<float>));
 			for (int i = 0; i < nstars; i++)
 			{
-				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
-				stars[i].mass = static_cast<T>(temp_stars[i].mass);
+				stars[i].position = Complex<T>(temp_stars[i].position.re, temp_stars[i].position.im);
+				stars[i].mass = temp_stars[i].mass;
 			}
 			delete[] temp_stars;
 			temp_stars = nullptr;
@@ -281,7 +281,7 @@ bool read_star_params(int& nstars, T& m_low, T& m_up, T& meanmass, T& meanmass2,
 			infile.read((char*)temp_stars, nstars * sizeof(star<double>));
 			for (int i = 0; i < nstars; i++)
 			{
-				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
+				stars[i].position = Complex<T>(temp_stars[i].position.re, temp_stars[i].position.im);
 				stars[i].mass = static_cast<T>(temp_stars[i].mass);
 			}
 			delete[] temp_stars;
@@ -387,8 +387,8 @@ bool read_star_file(star<T>* stars, int nstars, const std::string& starfile)
 			infile.read((char*)temp_stars, nstars * sizeof(star<float>));
 			for (int i = 0; i < nstars; i++)
 			{
-				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
-				stars[i].mass = static_cast<T>(temp_stars[i].mass);
+				stars[i].position = Complex<T>(temp_stars[i].position.re, temp_stars[i].position.im);
+				stars[i].mass = temp_stars[i].mass;
 			}
 			delete[] temp_stars;
 			temp_stars = nullptr;
@@ -404,7 +404,7 @@ bool read_star_file(star<T>* stars, int nstars, const std::string& starfile)
 			infile.read((char*)temp_stars, nstars * sizeof(star<double>));
 			for (int i = 0; i < nstars; i++)
 			{
-				stars[i].position = Complex<T>(static_cast<T>(temp_stars[i].position.re), static_cast<T>(temp_stars[i].position.im));
+				stars[i].position = Complex<T>(temp_stars[i].position.re, temp_stars[i].position.im);
 				stars[i].mass = static_cast<T>(temp_stars[i].mass);
 			}
 			delete[] temp_stars;

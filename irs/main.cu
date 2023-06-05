@@ -9,6 +9,7 @@ Email: weisluke@alum.mit.edu
 #include "complex.cuh"
 #include "irs_microlensing.cuh"
 #include "mass_function.cuh"
+#include "tree_node.cuh"
 #include "star.cuh"
 #include "util.hpp"
 
@@ -792,7 +793,19 @@ int main(int argc, char* argv[])
 		verbose && rectangular && approx, true);
 
 	dtype rad;
-	set_param("rad", rad, std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star), verbose && !rectangular, true);
+	set_param("rad", rad, std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star), verbose && !rectangular);
+
+	int tree_levels;
+	set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / (c.re > c.im ? c.im : c.re ) * (c.re > c.im ? c.re : c.im)) / 2 + 1), verbose);
+
+	int tree_size = 2;
+	tree_size = tree_size << (2 * tree_levels + 1);
+	tree_size -= 1;
+	set_param("tree_size", tree_size, tree_size / 3, verbose);
+
+	int multipole_order;
+	set_param("multipole_order", multipole_order, std::log2(7 * m_upper * num_pixels / (2 * half_length)), verbose, true);
+
 
 	/******************************************************************************
 	BEGIN memory allocation
@@ -802,6 +815,8 @@ int main(int argc, char* argv[])
 
 	curandState* states = nullptr;
 	star<dtype>* stars = nullptr;
+	star<dtype>* temp_stars = nullptr;
+	TreeNode<dtype>* tree = nullptr;
 	int* pixels = nullptr;
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
@@ -813,6 +828,14 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&stars, num_stars * sizeof(star<dtype>));
 	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
+	cudaMallocManaged(&temp_stars, num_stars * sizeof(star<dtype>));
+	if (cuda_error("cudaMallocManaged(*temp_stars)", false, __FILE__, __LINE__)) return -1;
+
+	/******************************************************************************
+	allocate memory for quadtree
+	******************************************************************************/
+	cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<dtype>));
+	if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return -1;
 
 	/******************************************************************************
 	allocate memory for pixels
@@ -922,6 +945,63 @@ int main(int argc, char* argv[])
 	END populating star array
 	******************************************************************************/
 
+
+	tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
+	tree[0].numstars = num_stars;
+	
+	int* max_num_stars_in_level;
+	int* min_num_stars_in_level;
+	cudaMallocManaged(&max_num_stars_in_level, sizeof(int));
+	if (cuda_error("cudaMallocManaged(*max_num_stars_in_level)", false, __FILE__, __LINE__)) return -1;
+	cudaMallocManaged(&min_num_stars_in_level, sizeof(int));
+	if (cuda_error("cudaMallocManaged(*min_num_stars_in_level)", false, __FILE__, __LINE__)) return -1;
+
+	for (int i = 0; i < tree_levels; i++)
+	{
+		if (verbose)
+		{
+			std::cout << "Loop " << (i + 1) <<  " /  " << tree_levels << "\n";
+		}
+
+		set_threads(threads, 512);
+		set_blocks(threads, blocks, get_num_nodes(i));
+		create_children_kernel<dtype> <<<blocks, threads>>> (tree, i);
+		if (cuda_error("create_tree_kernel", true, __FILE__, __LINE__)) return -1;
+
+		set_threads(threads, 512);
+		set_blocks(threads, blocks, 512 * get_num_nodes(i));
+		sort_stars_kernel<dtype> <<<blocks, threads>>> (tree, i, stars, temp_stars);
+		if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return -1;
+
+
+		*max_num_stars_in_level = 0;
+		*min_num_stars_in_level = num_stars;
+
+		set_threads(threads, 512);
+		set_blocks(threads, blocks, get_num_nodes(i));
+	
+		get_min_max_stars_kernel<dtype> <<<blocks, threads>>> (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
+		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
+		if (*max_num_stars_in_level <= 7)
+		{
+			std::cout << "Necessary recursion limit reached. Maximum number of stars in a node is " << *max_num_stars_in_level << "\n";
+			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
+			set_param("tree_levels", tree_levels, i + 1, true);
+			break;
+		}
+		else
+		{
+			std::cout << "Maximum number of stars in a node is " << *max_num_stars_in_level << "\n";
+			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
+		}
+	}
+
+	set_threads(threads, multipole_order + 1);
+	set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(tree_levels));
+
+	calculate_multipole_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, tree_levels, stars, multipole_order);
+	if (cuda_error("calculate_multipole_coeffs_kernel", true, __FILE__, __LINE__)) return -1;
+	
 
 	/******************************************************************************
 	redefine thread and block size to maximize parallelization

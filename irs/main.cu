@@ -6,6 +6,7 @@ Email: weisluke@alum.mit.edu
 ******************************************************************************/
 
 
+#include "binomial_coefficients.cuh"
 #include "complex.cuh"
 #include "irs_microlensing.cuh"
 #include "mass_function.cuh"
@@ -816,6 +817,7 @@ int main(int argc, char* argv[])
 	curandState* states = nullptr;
 	star<dtype>* stars = nullptr;
 	star<dtype>* temp_stars = nullptr;
+	int* binomial_coeffs = nullptr;
 	TreeNode<dtype>* tree = nullptr;
 	int* pixels = nullptr;
 	int* pixels_minima = nullptr;
@@ -834,8 +836,10 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	allocate memory for quadtree
 	******************************************************************************/
+	cudaMallocManaged(&binomial_coeffs, multipole_order * (multipole_order + 3) / 2 * sizeof(int));
+	if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<dtype>));
-	if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return -1;
+	if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return -1;
 
 	/******************************************************************************
 	allocate memory for pixels
@@ -999,9 +1003,26 @@ int main(int argc, char* argv[])
 	set_threads(threads, multipole_order + 1);
 	set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(tree_levels));
 
+	if (verbose)
+	{
+		std::cout << "Calculating multipole coefficients...\n";
+	}
 	calculate_multipole_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, tree_levels, stars, multipole_order);
 	if (cuda_error("calculate_multipole_coeffs_kernel", true, __FILE__, __LINE__)) return -1;
-	
+	if (verbose)
+	{
+		std::cout << "Done calculating multipole coefficients.\n\n";
+	}
+
+	if (verbose)
+	{
+		std::cout << "Calculating binomial coefficients...\n";
+	}
+	calculate_binomial_coeffs(binomial_coeffs, multipole_order);
+	if (verbose)
+	{
+		std::cout << "Done calculating binomial coefficients.\n\n";
+	}
 
 	/******************************************************************************
 	redefine thread and block size to maximize parallelization

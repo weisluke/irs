@@ -11,9 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="binomial_coefficients.cuh" />
     <ClInclude Include="complex.cuh" />
     <ClInclude Include="irs_microlensing.cuh" />
     <ClInclude Include="mass_function.cuh" />
+    <ClInclude Include="tree_node.cuh" />
     <ClInclude Include="util.hpp" />
     <ClInclude Include="star.cuh" />
   </ItemGroup>

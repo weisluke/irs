@@ -29,5 +29,11 @@
     <ClInclude Include="star.cuh">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="tree_node.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="binomial_coefficients.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

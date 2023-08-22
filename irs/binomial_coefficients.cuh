@@ -27,7 +27,7 @@ void calculate_binomial_coeffs(int* binom_coeffs, int n)
 	}
 }
 
-__host__ __device__ int get_binomial_coeffs(int* binom_coeffs, int n, int k)
+__host__ __device__ int get_binomial_coeff(int* binom_coeffs, int n, int k)
 {
 	int row_start = n * (n + 1) / 2;
 	return binom_coeffs[row_start + k];

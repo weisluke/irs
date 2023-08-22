@@ -836,7 +836,7 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	allocate memory for quadtree
 	******************************************************************************/
-	cudaMallocManaged(&binomial_coeffs, multipole_order * (multipole_order + 3) / 2 * sizeof(int));
+	cudaMallocManaged(&binomial_coeffs, 2 * multipole_order * (2 * multipole_order + 3) / 2 * sizeof(int));
 	if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<dtype>));
 	if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return -1;
@@ -950,6 +950,13 @@ int main(int argc, char* argv[])
 	******************************************************************************/
 
 
+	/******************************************************************************
+	start and end time for timing purposes
+	******************************************************************************/
+	std::chrono::high_resolution_clock::time_point t_start;
+	std::chrono::high_resolution_clock::time_point t_end;
+
+
 	tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
 	tree[0].numstars = num_stars;
 	
@@ -960,6 +967,11 @@ int main(int argc, char* argv[])
 	cudaMallocManaged(&min_num_stars_in_level, sizeof(int));
 	if (cuda_error("cudaMallocManaged(*min_num_stars_in_level)", false, __FILE__, __LINE__)) return -1;
 
+	if (verbose)
+	{
+		std::cout << "Creating children and sorting stars...\n";
+	}
+	t_start = std::chrono::high_resolution_clock::now();
 	for (int i = 0; i < tree_levels; i++)
 	{
 		if (verbose)
@@ -988,7 +1000,8 @@ int main(int argc, char* argv[])
 		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
 		if (*max_num_stars_in_level <= 7)
 		{
-			std::cout << "Necessary recursion limit reached. Maximum number of stars in a node is " << *max_num_stars_in_level << "\n";
+			std::cout << "Necessary recursion limit reached.\n";
+			std::cout << "Maximum number of stars in a node is " << *max_num_stars_in_level << "\n";
 			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
 			set_param("tree_levels", tree_levels, i + 1, true);
 			break;
@@ -999,29 +1012,67 @@ int main(int argc, char* argv[])
 			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
 		}
 	}
-
-	set_threads(threads, multipole_order + 1);
-	set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(tree_levels));
-
+	t_end = std::chrono::high_resolution_clock::now(); 
 	if (verbose)
 	{
-		std::cout << "Calculating multipole coefficients...\n";
+		std::cout << "Done creating children and sorting stars. Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() / 1000.0 << " seconds.\n\n";
 	}
-	calculate_multipole_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, tree_levels, stars, multipole_order);
-	if (cuda_error("calculate_multipole_coeffs_kernel", true, __FILE__, __LINE__)) return -1;
-	if (verbose)
+
+
+	set_threads(threads, 512);
+	for (int i = 0; i <= tree_levels; i++)
 	{
-		std::cout << "Done calculating multipole coefficients.\n\n";
+		set_blocks(threads, blocks, get_num_nodes(i));
+		set_neighbors_kernel<dtype> <<<blocks, threads>>> (tree, i);
+		if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return -1;
 	}
+
 
 	if (verbose)
 	{
 		std::cout << "Calculating binomial coefficients...\n";
 	}
-	calculate_binomial_coeffs(binomial_coeffs, multipole_order);
+	calculate_binomial_coeffs(binomial_coeffs, 2 * multipole_order);
 	if (verbose)
 	{
 		std::cout << "Done calculating binomial coefficients.\n\n";
+	}
+
+
+	if (verbose)
+	{
+		std::cout << "Calculating multipole and Taylor coefficients...\n";
+	}
+	t_start = std::chrono::high_resolution_clock::now();
+
+	set_threads(threads, multipole_order + 1);
+	set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(tree_levels));
+	calculate_multipole_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, tree_levels, multipole_order, stars);
+
+	set_threads(threads, multipole_order + 1, 4);
+	for (int i = tree_levels - 1; i >= 0; i--)
+	{
+		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i), 4);
+		calculate_M2M_coeffs_kernel<dtype> <<<blocks, threads, 4 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
+	}
+
+	for (int i = 1; i <= tree_levels; i++)
+	{
+		set_threads(threads, multipole_order + 1);
+		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i));
+		calculate_L2L_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
+
+		set_threads(threads, multipole_order + 1, 27);
+		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i), 27);
+		calculate_M2L_coeffs_kernel<dtype> <<<blocks, threads, 27 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
+	}
+
+	if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return -1;
+
+	t_end = std::chrono::high_resolution_clock::now();
+	if (verbose)
+	{
+		std::cout << "Done calculating multipole and Taylor coefficients. Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() / 1000.0 << " seconds.\n\n";
 	}
 
 	/******************************************************************************
@@ -1050,13 +1101,6 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "Done initializing pixel values.\n\n";
 	}
-
-
-	/******************************************************************************
-	start and end time for timing purposes
-	******************************************************************************/
-	std::chrono::high_resolution_clock::time_point t_start;
-	std::chrono::high_resolution_clock::time_point t_end;
 
 
 	/******************************************************************************

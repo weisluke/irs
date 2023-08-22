@@ -1,5 +1,6 @@
 #pragma once
 
+#include "binomial_coefficients.cuh"
 #include "complex.cuh"
 #include "star.cuh"
 
@@ -12,14 +13,24 @@ class TreeNode
 public:
     Complex<T> center;
     T half_length;
+
     int level;
     int index;
+
     TreeNode* parent;
     TreeNode* children[4];
+    TreeNode* neighbors[8];
+    int numneighbors;
+    TreeNode* interactionlist[27];
+    int numinterlist;
+
     int stars;
     int numstars;
+
     int multipole_order;
     Complex<T> multipole_coeffs[21];
+    int taylor_order;
+    Complex<T> taylor_coeffs[21];
 
 
     /******************************************************************************
@@ -31,13 +42,27 @@ public:
         half_length = hl;
         level = lvl;
         index = idx;
+
 		parent = p;
 		for (int i = 0; i < 4; i++)
         {
             children[i] = nullptr;
         }
+        for (int i = 0; i < 8; i++)
+        {
+            neighbors[i] = nullptr;
+        }
+        numneighbors = 0;
+        for (int i = 0; i < 27; i++)
+        {
+            interactionlist[i] = nullptr;
+        }
+        numinterlist = 0;
+
         stars = 0;
         numstars = 0;
+        multipole_order = 0;
+        taylor_order = 0;
 	}
     
     /******************************************************************************
@@ -49,13 +74,36 @@ public:
         half_length = n.half_length;
         level = n.level;
         index = n.index;
+
         parent = n.parent;
 		for (int i = 0; i < 4; i++)
         {
             children[i] = n.children[i];
         }
+
+        for (int i = 0; i < 8; i++)
+        {
+            neighbors[i] = n.neighbors[i];
+        }
+        numneighbors = n.numneighbors;
+        for (int i = 0; i < 27; i++)
+        {
+            interactionlist[i] = n.interactionlist[i];
+        }
+        numinterlist = n.numinterlist;
+
         stars = n.stars;
         numstars = n.numstars;
+        multipole_order = n.multipole_order;
+        for (int i = 0; i < multipole_order; i++)
+        {
+            multipole_coeffs[i] = n.multipole_coeffs[i];
+        }
+        taylor_order = n.taylor_order;
+        for (int i = 0; i < taylor_order; i++)
+        {
+            taylor_coeffs[i] = n.taylor_coeffs[i];
+        }
 
 		return *this;
 	}
@@ -87,6 +135,42 @@ public:
             make_child(i, nodes);
         }
     }
+    
+    __device__ void set_neighbors()
+    {
+        if (level == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            if (parent->children[i] != this)
+            {
+                neighbors[numneighbors] = parent->children[i];
+                numneighbors++;
+            }
+        }
+        for (int i = 0; i < parent->numneighbors; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                TreeNode* node = parent->neighbors[i]->children[j];
+
+                if (fabs(node->center.re - center.re) < 3 * half_length
+                    && fabs(node->center.im - center.im) < 3 * half_length)
+                {
+                    neighbors[numneighbors] = node;
+                    numneighbors++;
+                }
+                else
+                {
+                    interactionlist[numinterlist] = node;
+                    numinterlist++;
+                }
+            }
+        }
+    }
 
     __host__ __device__ void set_multipole_coeffs(Complex<T>* coeffs, int power)
     {
@@ -95,6 +179,31 @@ public:
             multipole_coeffs[i] = coeffs[i];
         }
         multipole_order = power;
+    }
+    
+    __host__ __device__ void add_multipole_coeffs(Complex<T>* coeffs, int power)
+    {
+        for (int i = 0; i <= power; i++)
+        {
+            multipole_coeffs[i] += coeffs[i];
+        }
+    }
+
+    __host__ __device__ void set_taylor_coeffs(Complex<T>* coeffs, int power)
+    {
+        for (int i = 0; i <= power; i++)
+        {
+            taylor_coeffs[i] = coeffs[i];
+        }
+        taylor_order = power;
+    }
+
+    __host__ __device__ void add_taylor_coeffs(Complex<T>* coeffs, int power)
+    {
+        for (int i = 0; i <= power; i++)
+        {
+            taylor_coeffs[i] += coeffs[i];
+        }
     }
 
 };
@@ -106,6 +215,10 @@ __host__ __device__ int get_min_index(int level)
     {
         return 0;
     }
+    /******************************************************************************
+    min index for a level = ( 4 ^ n - 1 ) / 3 = ( 2 ^ (2n) - 1) / 3
+                          = (2 * 2 ^ (2n - 1) - 1) / 3
+    ******************************************************************************/
     int min_index = 2;
     min_index = min_index << (2 * level - 1);
     min_index = (min_index - 1) / 3;
@@ -117,6 +230,10 @@ __host__ __device__ int get_max_index(int level)
     {
         return 0;
     }
+    /******************************************************************************
+    max index for a level = ( 4 ^ (n + 1) - 4 ) / 3 = ( 2 ^ (2n + 2) - 4) / 3
+                          = (2 * 2 ^ (2n + 1) - 4) / 3
+    ******************************************************************************/
     int max_index = 2;
     max_index = max_index << (2 * level + 1);
     max_index = (max_index - 4) / 3;
@@ -130,6 +247,33 @@ __host__ __device__ int get_num_nodes(int level)
     return max_index - min_index + 1;
 }
 
+template <typename T>
+__global__ void create_children_kernel(TreeNode<T>* nodes, int level)
+{
+    int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int x_stride = blockDim.x * gridDim.x;
+
+    int min_index = get_min_index(level);
+
+    for (int i = x_index; i < get_num_nodes(level); i += x_stride)
+    {
+        nodes[min_index + i].make_children(nodes);
+    }
+}
+
+template <typename T>
+__global__ void set_neighbors_kernel(TreeNode<T>* nodes, int level)
+{
+    int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int x_stride = blockDim.x * gridDim.x;
+
+    int min_index = get_min_index(level);
+
+    for (int i = x_index; i < get_num_nodes(level); i += x_stride)
+    {
+        nodes[min_index + i].set_neighbors();
+    }
+}
 
 template <typename T>
 __global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int level, int* min_n_stars, int* max_n_stars)
@@ -141,26 +285,10 @@ __global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int level, int* min
 
 	for (int i = x_index; i < get_num_nodes(level); i += x_stride)
 	{
-        atomicMin(min_n_stars, nodes[i + min_index].numstars);
-        atomicMax(max_n_stars, nodes[i + min_index].numstars);
+        atomicMin(min_n_stars, nodes[min_index + i].numstars);
+        atomicMax(max_n_stars, nodes[min_index + i].numstars);
 	}
 }
-
-
-template <typename T>
-__global__ void create_children_kernel(TreeNode<T>* nodes, int level)
-{
-	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
-	int x_stride = blockDim.x * gridDim.x;
-
-    int min_index = get_min_index(level);
-
-	for (int i = x_index; i < get_num_nodes(level); i += x_stride)
-	{
-        nodes[i + min_index].make_children(nodes);
-	}
-}
-
 
 template <typename T>
 __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars, star<T>* temp_stars)
@@ -194,6 +322,9 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
     {
         TreeNode<T>* node = &nodes[min_index + node_index];
 
+        /******************************************************************************
+        in the first pass, figure out whether the start is above or below the center
+        ******************************************************************************/
         for (int i = x_index; i < node->numstars; i += x_stride)
         {
             if (stars[node->stars + i].position.im >= node->center.im)
@@ -207,8 +338,14 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
         }
         __syncthreads();
 
+        /******************************************************************************
+        in the second pass, figure out whether the start is left or right of the center
+        ******************************************************************************/
         for (int i = x_index; i < node->numstars; i += x_stride)
         {
+            /******************************************************************************
+            if the start was in the top, then sort left and right
+            ******************************************************************************/
             if (i < n_stars_top)
             {
                 if (temp_stars[node->stars + i].position.re >= node->center.re)
@@ -220,6 +357,9 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
                     stars[node->stars + n_stars_top - 1 - atomicAdd(&n_stars_children[1], 1)] = temp_stars[node->stars + i];
                 }
             }
+            /******************************************************************************
+            if the start was in the bottom, then sort left and right
+            ******************************************************************************/
             else
             {
                 if (temp_stars[node->stars + i].position.re < node->center.re)
@@ -234,6 +374,10 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
         }
         __syncthreads();
 
+        /******************************************************************************
+        once the sorting is done, assign the starting pointer of stars to the children
+        along with the number of stars
+        ******************************************************************************/
         if (threadIdx.x == 0)
         {
             node->children[0]->stars = node->stars;
@@ -251,7 +395,7 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
 
 
 template <typename T>
-__device__ void calculate_multipole_coeff(TreeNode<T>* node, star<T>* stars, Complex<T>* coeffs, int power)
+__device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, star<T>* stars)
 {
     Complex<T> result;
     for (int i = 0; i < node->numstars; i++)
@@ -263,7 +407,7 @@ __device__ void calculate_multipole_coeff(TreeNode<T>* node, star<T>* stars, Com
 
 
 template <typename T>
-__global__ void calculate_multipole_coeffs_kernel(TreeNode<T>* nodes, int level, star<T>* stars, int power)
+__global__ void calculate_multipole_coeffs_kernel(TreeNode<T>* nodes, int level, int power, star<T>* stars)
 {
     /******************************************************************************
     each block is a node, and each thread calculates a multipole coefficient
@@ -283,12 +427,172 @@ __global__ void calculate_multipole_coeffs_kernel(TreeNode<T>* nodes, int level,
 
         for (int i = x_index; i <= power; i += x_stride)
         {
-            calculate_multipole_coeff(node, stars, coeffs, i);
+            calculate_multipole_coeff(node, coeffs, i, stars);
         }
         __syncthreads();
         if (threadIdx.x == 0)
         {
             node->set_multipole_coeffs(coeffs, power);
+        }
+    }
+}
+
+template <typename T>
+__device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int* binomcoeffs)
+{
+    Complex<T> result;
+    Complex<T> dz = node->center - node->parent->center;
+
+    for (int i = power; i >= 1; i--)
+    {
+        result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power - 1, i - 1);
+        result /= dz;
+    }
+    result = node->multipole_coeffs[0] - power * result;
+    result *= dz.pow(power);
+
+    coeffs[power] = result;
+}
+
+template <typename T>
+__global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
+{
+    /******************************************************************************
+    each block is a node, and each thread calculates a multipole coefficient
+    ******************************************************************************/
+    int node_index = blockIdx.x;
+
+    int x_index = threadIdx.x;
+    int x_stride = blockDim.x;
+    int y_index = threadIdx.y;
+    int y_stride = blockDim.y;
+
+    extern __shared__ Complex<T> coeffs[];
+
+    int min_index = get_min_index(level);
+
+    if (node_index < get_num_nodes(level))
+    {
+        TreeNode<T>* node = &nodes[min_index + node_index];
+
+        for (int i = y_index; i < 4; i += y_stride)
+        {
+            for (int j = x_index; j <= power; j += x_stride)
+            {
+                calculate_M2M_coeff(node->children[i], &coeffs[power * i], j, binomcoeffs);
+            }
+        }
+        __syncthreads();
+        if (threadIdx.x == 0 && threadIdx.y == 0)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                node->add_multipole_coeffs(&coeffs[power * i], power);
+            }
+        }
+    }
+}
+
+template <typename T>
+__device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int* binomcoeffs)
+{
+    Complex<T> result;
+    Complex<T> dz = node->parent->center - node->center;
+
+    for (int i = power; i >= 1; i--)
+    {
+        result += node->parent->taylor_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
+        result *= dz;
+    }
+    result = power * result;
+    result *= dz.pow(power);
+
+    coeffs[power] = result;
+}
+
+template <typename T>
+__global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
+{
+    /******************************************************************************
+    each block is a node, and each thread calculates a multipole coefficient
+    ******************************************************************************/
+    int node_index = blockIdx.x;
+
+    int x_index = threadIdx.x;
+    int x_stride = blockDim.x;
+
+    extern __shared__ Complex<T> coeffs[];
+
+    int min_index = get_min_index(level);
+
+    if (node_index < get_num_nodes(level))
+    {
+        TreeNode<T>* node = &nodes[min_index + node_index];
+
+        for (int i = x_index; i <= power; i += x_stride)
+        {
+            calculate_L2L_coeff(node, coeffs, i, binomcoeffs);
+        }
+        __syncthreads();
+        if (threadIdx.x == 0)
+        {
+            node->set_taylor_coeffs(coeffs, power);
+        }
+    }
+}
+
+template <typename T>
+__device__ void calculate_M2L_coeff(TreeNode<T>* node, TreeNode<T>* farnode, Complex<T>* coeffs, int power, int* binomcoeffs)
+{
+    Complex<T> result;
+    Complex<T> dz = node->center - farnode->center;
+
+    for (int i = power; i >= 1; i--)
+    {
+        result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power + i - 1, i - 1);
+        result /= -dz;
+    }
+    result = -node->multipole_coeffs[0] + power * result;
+    result /= dz.pow(power);
+
+    coeffs[power] = result;
+}
+
+template <typename T>
+__global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
+{
+    /******************************************************************************
+    each block is a node, and each thread calculates a Taylor coefficient
+    ******************************************************************************/
+    int node_index = blockIdx.x;
+
+    int x_index = threadIdx.x;
+    int x_stride = blockDim.x;
+    int y_index = threadIdx.y;
+    int y_stride = blockDim.y;
+
+    extern __shared__ Complex<T> coeffs[];
+
+    int min_index = get_min_index(level);
+
+    if (node_index < get_num_nodes(level))
+    {
+        TreeNode<T>* node = &nodes[min_index + node_index];
+
+        for (int i = y_index; i < node->numinterlist; i += y_stride)
+        {
+            for (int j = x_index; j <= power; j += x_stride)
+            {
+                calculate_M2L_coeff(node, node->interactionlist[i], &coeffs[power * i], j, binomcoeffs);
+            }
+        }
+        __syncthreads();
+        if (threadIdx.x == 0 && threadIdx.y == 0)
+        {
+            for (int i = x_index; i <= node->numinterlist; i++)
+            {
+                node->add_taylor_coeffs(coeffs, power);
+            }
         }
     }
 }

@@ -1015,7 +1015,7 @@ int main(int argc, char* argv[])
 	t_end = std::chrono::high_resolution_clock::now(); 
 	if (verbose)
 	{
-		std::cout << "Done creating children and sorting stars. Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() / 1000.0 << " seconds.\n\n";
+		std::cout << "Done creating children and sorting stars. Elapsed time: " << get_time_interval(t_start, t_end) << " seconds.\n\n";
 	}
 
 
@@ -1072,7 +1072,7 @@ int main(int argc, char* argv[])
 	t_end = std::chrono::high_resolution_clock::now();
 	if (verbose)
 	{
-		std::cout << "Done calculating multipole and Taylor coefficients. Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() / 1000.0 << " seconds.\n\n";
+		std::cout << "Done calculating multipole and Taylor coefficients. Elapsed time: " << get_time_interval(t_start, t_end) << " seconds.\n\n";
 	}
 
 	/******************************************************************************
@@ -1112,7 +1112,7 @@ int main(int argc, char* argv[])
 		rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
 	t_end = std::chrono::high_resolution_clock::now();
-	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() / 1000.0;
+	double t_ray_shoot = get_time_interval(t_start, t_end);
 	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 

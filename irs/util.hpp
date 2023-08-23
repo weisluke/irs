@@ -94,6 +94,20 @@ void set_param(const std::string& name, T& param, U what, bool verbose, bool new
 }
 
 /******************************************************************************
+function to print a message if toggle is true
+
+\param what -- what to print
+\param verbose -- toggle for whether or not to print
+******************************************************************************/
+void print_verbose(const std::string& what, bool verbose)
+{
+	if (verbose)
+	{
+		std::cout << what;
+	}
+}
+
+/******************************************************************************
 function to print out progress bar of loops
 examples: [====    ] 50%       [=====  ] 73%
 
@@ -122,10 +136,10 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 /******************************************************************************
 calculate a time duration in seconds
 
-\param tstart - initial time
-\param tend - final time
+\param tstart -- initial time
+\param tend -- final time
 
-\return tend - tstart (seconds)
+\return tend -- tstart (seconds)
 ******************************************************************************/
 double get_time_interval(std::chrono::high_resolution_clock::time_point tstart, std::chrono::high_resolution_clock::time_point tend)
 {

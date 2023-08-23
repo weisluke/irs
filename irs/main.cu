@@ -967,17 +967,11 @@ int main(int argc, char* argv[])
 	cudaMallocManaged(&min_num_stars_in_level, sizeof(int));
 	if (cuda_error("cudaMallocManaged(*min_num_stars_in_level)", false, __FILE__, __LINE__)) return -1;
 
-	if (verbose)
-	{
-		std::cout << "Creating children and sorting stars...\n";
-	}
+	print_verbose("Creating children and sorting stars...\n", verbose);
 	t_start = std::chrono::high_resolution_clock::now();
 	for (int i = 0; i < tree_levels; i++)
 	{
-		if (verbose)
-		{
-			std::cout << "Loop " << (i + 1) <<  " /  " << tree_levels << "\n";
-		}
+		print_verbose("Loop " + std::to_string(i + 1) +  " /  " + std::to_string(tree_levels) + "\n", verbose);
 
 		set_threads(threads, 512);
 		set_blocks(threads, blocks, get_num_nodes(i));
@@ -1012,11 +1006,8 @@ int main(int argc, char* argv[])
 			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
 		}
 	}
-	t_end = std::chrono::high_resolution_clock::now(); 
-	if (verbose)
-	{
-		std::cout << "Done creating children and sorting stars. Elapsed time: " << get_time_interval(t_start, t_end) << " seconds.\n\n";
-	}
+	t_end = std::chrono::high_resolution_clock::now();
+	print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(get_time_interval(t_start, t_end)) + " seconds.\n\n", verbose);
 
 
 	set_threads(threads, 512);
@@ -1028,21 +1019,12 @@ int main(int argc, char* argv[])
 	}
 
 
-	if (verbose)
-	{
-		std::cout << "Calculating binomial coefficients...\n";
-	}
+	print_verbose("Calculating binomial coefficients...\n", verbose);
 	calculate_binomial_coeffs(binomial_coeffs, 2 * multipole_order);
-	if (verbose)
-	{
-		std::cout << "Done calculating binomial coefficients.\n\n";
-	}
+	print_verbose("Done calculating binomial coefficients.\n\n", verbose);
 
 
-	if (verbose)
-	{
-		std::cout << "Calculating multipole and Taylor coefficients...\n";
-	}
+	print_verbose("Calculating multipole and Taylor coefficients...\n", verbose);
 	t_start = std::chrono::high_resolution_clock::now();
 
 	set_threads(threads, multipole_order + 1);
@@ -1070,10 +1052,7 @@ int main(int argc, char* argv[])
 	if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return -1;
 
 	t_end = std::chrono::high_resolution_clock::now();
-	if (verbose)
-	{
-		std::cout << "Done calculating multipole and Taylor coefficients. Elapsed time: " << get_time_interval(t_start, t_end) << " seconds.\n\n";
-	}
+	print_verbose("Done calculating multipole and Taylor coefficients. Elapsed time: " + std::to_string(get_time_interval(t_start, t_end)) + " seconds.\n\n", verbose);
 
 	/******************************************************************************
 	redefine thread and block size to maximize parallelization
@@ -1084,10 +1063,7 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	initialize pixel values
 	******************************************************************************/
-	if (verbose)
-	{
-		std::cout << "Initializing pixel values...\n";
-	}
+	print_verbose("Initializing pixel values...\n", verbose);
 	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
 	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	if (write_parities)
@@ -1097,10 +1073,7 @@ int main(int argc, char* argv[])
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels);
 		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	}
-	if (verbose)
-	{
-		std::cout << "Done initializing pixel values.\n\n";
-	}
+	print_verbose("Done initializing pixel values.\n\n", verbose);
 
 
 	/******************************************************************************

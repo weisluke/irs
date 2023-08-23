@@ -12,12 +12,12 @@ Email: weisluke@alum.mit.edu
 #include "mass_function.cuh"
 #include "tree_node.cuh"
 #include "star.cuh"
+#include "stopwatch.hpp"
 #include "util.hpp"
 
 #include <curand_kernel.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -951,10 +951,9 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
-	start and end time for timing purposes
+	stopwatch for timing purposes
 	******************************************************************************/
-	std::chrono::high_resolution_clock::time_point t_start;
-	std::chrono::high_resolution_clock::time_point t_end;
+	Stopwatch stopwatch;
 
 
 	tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
@@ -968,7 +967,7 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaMallocManaged(*min_num_stars_in_level)", false, __FILE__, __LINE__)) return -1;
 
 	print_verbose("Creating children and sorting stars...\n", verbose);
-	t_start = std::chrono::high_resolution_clock::now();
+	stopwatch.start();
 	for (int i = 0; i < tree_levels; i++)
 	{
 		print_verbose("Loop " + std::to_string(i + 1) +  " /  " + std::to_string(tree_levels) + "\n", verbose);
@@ -1006,8 +1005,7 @@ int main(int argc, char* argv[])
 			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
 		}
 	}
-	t_end = std::chrono::high_resolution_clock::now();
-	print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(get_time_interval(t_start, t_end)) + " seconds.\n\n", verbose);
+	print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
 
 
 	set_threads(threads, 512);
@@ -1025,7 +1023,7 @@ int main(int argc, char* argv[])
 
 
 	print_verbose("Calculating multipole and Taylor coefficients...\n", verbose);
-	t_start = std::chrono::high_resolution_clock::now();
+	stopwatch.start();
 
 	set_threads(threads, multipole_order + 1);
 	set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(tree_levels));
@@ -1051,8 +1049,7 @@ int main(int argc, char* argv[])
 
 	if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return -1;
 
-	t_end = std::chrono::high_resolution_clock::now();
-	print_verbose("Done calculating multipole and Taylor coefficients. Elapsed time: " + std::to_string(get_time_interval(t_start, t_end)) + " seconds.\n\n", verbose);
+	print_verbose("Done calculating multipole and Taylor coefficients. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
 
 	/******************************************************************************
 	redefine thread and block size to maximize parallelization
@@ -1080,12 +1077,11 @@ int main(int argc, char* argv[])
 	shoot rays and calculate time taken in seconds
 	******************************************************************************/
 	std::cout << "Shooting rays...\n";
-	t_start = std::chrono::high_resolution_clock::now();
+	stopwatch.start();
 	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star,
 		rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
-	t_end = std::chrono::high_resolution_clock::now();
-	double t_ray_shoot = get_time_interval(t_start, t_end);
+	double t_ray_shoot = stopwatch.stop();
 	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 

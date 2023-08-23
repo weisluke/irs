@@ -35,5 +35,8 @@
     <ClInclude Include="binomial_coefficients.cuh">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="stopwatch.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

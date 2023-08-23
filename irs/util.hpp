@@ -134,20 +134,6 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 }
 
 /******************************************************************************
-calculate a time duration in seconds
-
-\param tstart -- initial time
-\param tend -- final time
-
-\return tend -- tstart (seconds)
-******************************************************************************/
-double get_time_interval(std::chrono::high_resolution_clock::time_point tstart, std::chrono::high_resolution_clock::time_point tend)
-{
-	double dt = std::chrono::duration_cast<std::chrono::milliseconds>(tend - tstart).count() / 1000.0;
-	return dt;
-}
-
-/******************************************************************************
 CUDA error checking
 
 \param name -- to print in error msg

@@ -18,6 +18,7 @@ Email: weisluke@alum.mit.edu
 #include <curand_kernel.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -888,7 +889,7 @@ int main(int argc, char* argv[])
 		/******************************************************************************
 		if random seed was not provided, get one based on the time
 		******************************************************************************/
-		if (random_seed == 0)
+		while (random_seed == 0)
 		{
 			set_param("random_seed", random_seed, static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()), verbose);
 		}

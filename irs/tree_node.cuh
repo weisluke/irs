@@ -323,7 +323,7 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
         TreeNode<T>* node = &nodes[min_index + node_index];
 
         /******************************************************************************
-        in the first pass, figure out whether the start is above or below the center
+        in the first pass, figure out whether the star is above or below the center
         ******************************************************************************/
         for (int i = x_index; i < node->numstars; i += x_stride)
         {
@@ -339,12 +339,12 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
         __syncthreads();
 
         /******************************************************************************
-        in the second pass, figure out whether the start is left or right of the center
+        in the second pass, figure out whether the star is left or right of the center
         ******************************************************************************/
         for (int i = x_index; i < node->numstars; i += x_stride)
         {
             /******************************************************************************
-            if the start was in the top, then sort left and right
+            if the star was in the top, then sort left and right
             ******************************************************************************/
             if (i < n_stars_top)
             {
@@ -358,7 +358,7 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
                 }
             }
             /******************************************************************************
-            if the start was in the bottom, then sort left and right
+            if the star was in the bottom, then sort left and right
             ******************************************************************************/
             else
             {
@@ -375,7 +375,7 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
         __syncthreads();
 
         /******************************************************************************
-        once the sorting is done, assign the starting pointer of stars to the children
+        once the sorting is done, assign the starting position of stars to the children
         along with the number of stars
         ******************************************************************************/
         if (threadIdx.x == 0)
@@ -479,7 +479,7 @@ __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int p
         {
             for (int j = x_index; j <= power; j += x_stride)
             {
-                calculate_M2M_coeff(node->children[i], &coeffs[power * i], j, binomcoeffs);
+                calculate_M2M_coeff(node->children[i], &coeffs[(power + 1) * i], j, binomcoeffs);
             }
         }
         __syncthreads();
@@ -487,25 +487,25 @@ __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int p
         {
             for (int i = 0; i < 4; i++)
             {
-                node->add_multipole_coeffs(&coeffs[power * i], power);
+                node->add_multipole_coeffs(&coeffs[(power + 1) * i], power);
             }
         }
     }
 }
 
 template <typename T>
-__device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int* binomcoeffs)
+__device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
 {
     Complex<T> result;
     Complex<T> dz = node->parent->center - node->center;
 
-    for (int i = power; i >= 1; i--)
+    for (int i = maxpower; i >= 1; i--)
     {
         result += node->parent->taylor_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
         result *= dz;
     }
-    result = power * result;
-    result *= dz.pow(power);
+    result *= power;
+    result /= dz.pow(power);
 
     coeffs[power] = result;
 }
@@ -531,7 +531,7 @@ __global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
 
         for (int i = x_index; i <= power; i += x_stride)
         {
-            calculate_L2L_coeff(node, coeffs, i, binomcoeffs);
+            calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
         }
         __syncthreads();
         if (threadIdx.x == 0)
@@ -542,12 +542,12 @@ __global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
 }
 
 template <typename T>
-__device__ void calculate_M2L_coeff(TreeNode<T>* node, TreeNode<T>* farnode, Complex<T>* coeffs, int power, int* binomcoeffs)
+__device__ void calculate_M2L_coeff(TreeNode<T>* node, TreeNode<T>* farnode, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
 {
     Complex<T> result;
     Complex<T> dz = node->center - farnode->center;
 
-    for (int i = power; i >= 1; i--)
+    for (int i = maxpower; i >= 1; i--)
     {
         result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power + i - 1, i - 1);
         result /= -dz;
@@ -583,15 +583,15 @@ __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
         {
             for (int j = x_index; j <= power; j += x_stride)
             {
-                calculate_M2L_coeff(node, node->interactionlist[i], &coeffs[power * i], j, binomcoeffs);
+                calculate_M2L_coeff(node, node->interactionlist[i], &coeffs[(power + 1) * i], j, power, binomcoeffs);
             }
         }
         __syncthreads();
         if (threadIdx.x == 0 && threadIdx.y == 0)
         {
-            for (int i = x_index; i <= node->numinterlist; i++)
+            for (int i = 0; i < node->numinterlist; i++)
             {
-                node->add_taylor_coeffs(coeffs, power);
+                node->add_taylor_coeffs(&coeffs[(power + 1) * i], power);
             }
         }
     }

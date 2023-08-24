@@ -806,7 +806,7 @@ int main(int argc, char* argv[])
 	set_param("tree_size", tree_size, tree_size / 3, verbose);
 
 	int multipole_order;
-	set_param("multipole_order", multipole_order, std::log2(7 * m_upper * num_pixels / (2 * half_length)), verbose, true);
+	set_param("multipole_order", multipole_order, std::log2(7 * theta_e * theta_e * m_upper * num_pixels / (2 * half_length)), verbose, true);
 
 
 	/******************************************************************************

@@ -217,10 +217,9 @@ __host__ __device__ int get_min_index(int level)
     }
     /******************************************************************************
     min index for a level = ( 4 ^ n - 1 ) / 3 = ( 2 ^ (2n) - 1) / 3
-                          = (2 * 2 ^ (2n - 1) - 1) / 3
     ******************************************************************************/
-    int min_index = 2;
-    min_index = min_index << (2 * level - 1);
+    int min_index = 1;
+    min_index = min_index << (2 * level);
     min_index = (min_index - 1) / 3;
     return min_index;
 }
@@ -232,10 +231,9 @@ __host__ __device__ int get_max_index(int level)
     }
     /******************************************************************************
     max index for a level = ( 4 ^ (n + 1) - 4 ) / 3 = ( 2 ^ (2n + 2) - 4) / 3
-                          = (2 * 2 ^ (2n + 1) - 4) / 3
     ******************************************************************************/
-    int max_index = 2;
-    max_index = max_index << (2 * level + 1);
+    int max_index = 1;
+    max_index = max_index << (2 * level + 2);
     max_index = (max_index - 4) / 3;
     return max_index;
 }

@@ -994,16 +994,16 @@ int main(int argc, char* argv[])
 		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
 		if (*max_num_stars_in_level <= 7)
 		{
-			std::cout << "Necessary recursion limit reached.\n";
-			std::cout << "Maximum number of stars in a node is " << *max_num_stars_in_level << "\n";
-			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
-			set_param("tree_levels", tree_levels, i + 1, true);
+			print_verbose("Necessary recursion limit reached.\n", verbose);
+			print_verbose("Maximum number of stars in a node is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+			print_verbose("Minimum number of stars in a node is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+			set_param("tree_levels", tree_levels, i + 1, verbose);
 			break;
 		}
 		else
 		{
-			std::cout << "Maximum number of stars in a node is " << *max_num_stars_in_level << "\n";
-			std::cout << "Minimum number of stars in a node is " << *min_num_stars_in_level << "\n";
+			print_verbose("Maximum number of stars in a node is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+			print_verbose("Minimum number of stars in a node is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
 		}
 	}
 	print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);

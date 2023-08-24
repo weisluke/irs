@@ -814,6 +814,11 @@ int main(int argc, char* argv[])
 
 	int multipole_order;
 	set_param("multipole_order", multipole_order, std::log2(7 * theta_e * theta_e * m_upper * num_pixels / (2 * half_length)), verbose, true);
+	if (multipole_order > 20)
+	{
+		std::cerr << "Error. Maximum allowed multipole order is 20.\n";
+		return -1;
+	}
 
 
 	/******************************************************************************

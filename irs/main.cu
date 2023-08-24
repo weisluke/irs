@@ -798,10 +798,17 @@ int main(int argc, char* argv[])
 	set_param("rad", rad, std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star), verbose && !rectangular);
 
 	int tree_levels;
-	set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / (c.re > c.im ? c.im : c.re ) * (c.re > c.im ? c.re : c.im)) / 2 + 1), verbose);
+	if (rectangular)
+	{
+		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / (c.re > c.im ? c.im : c.re) * (c.re > c.im ? c.re : c.im)) / 2 + 1), verbose);
+	}
+	else
+	{
+		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / PI * 4) / 2 + 1), verbose);
+	}
 
-	int tree_size = 2;
-	tree_size = tree_size << (2 * tree_levels + 1);
+	int tree_size = 1;
+	tree_size = tree_size << (2 * tree_levels + 2);
 	tree_size -= 1;
 	set_param("tree_size", tree_size, tree_size / 3, verbose);
 

@@ -396,10 +396,23 @@ template <typename T>
 __device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, star<T>* stars)
 {
     Complex<T> result;
-    for (int i = 0; i < node->numstars; i++)
+
+    if (power == 0)
     {
-        result += (stars[node->stars + i].position - node->center).pow(power) * stars[node->stars + i].mass;
+        for (int i = 0; i < node->numstars; i++)
+        {
+            result += stars[node->stars + i].mass;
+        }
     }
+    else
+    {
+        for (int i = 0; i < node->numstars; i++)
+        {
+            result -= (stars[node->stars + i].position - node->center).pow(power) * stars[node->stars + i].mass;
+        }
+        result /= power;
+    }
+
     coeffs[power] = result;
 }
 
@@ -439,15 +452,22 @@ template <typename T>
 __device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int* binomcoeffs)
 {
     Complex<T> result;
-    Complex<T> dz = node->center - node->parent->center;
 
-    for (int i = power; i >= 1; i--)
+    if (power == 0)
     {
-        result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power - 1, i - 1);
-        result /= dz;
+        result = node->multipole_coeffs[0];
     }
-    result = node->multipole_coeffs[0] - power * result;
-    result *= dz.pow(power);
+    else
+    {
+        Complex<T> dz = node->center - node->parent->center;
+        for (int i = power; i >= 1; i--)
+        {
+            result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power - 1, i - 1);
+            result /= dz;
+        }
+        result -= node->multipole_coeffs[0] / power;
+        result *= dz.pow(power);
+    }
 
     coeffs[power] = result;
 }
@@ -495,14 +515,13 @@ template <typename T>
 __device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
 {
     Complex<T> result;
-    Complex<T> dz = node->parent->center - node->center;
+    Complex<T> dz = node->center - node->parent->center;
 
     for (int i = maxpower; i >= 1; i--)
     {
         result += node->parent->taylor_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
         result *= dz;
     }
-    result *= power;
     result /= dz.pow(power);
 
     coeffs[power] = result;
@@ -545,13 +564,25 @@ __device__ void calculate_M2L_coeff(TreeNode<T>* node, TreeNode<T>* farnode, Com
     Complex<T> result;
     Complex<T> dz = node->center - farnode->center;
 
-    for (int i = maxpower; i >= 1; i--)
+    if (power == 0)
     {
-        result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power + i - 1, i - 1);
-        result /= -dz;
+        for (int i = maxpower; i >= 1; i--)
+        {
+            result += node->multipole_coeffs[i];
+            result /= -dz;
+        }
+        result += node->multipole_coeffs[0] * (-dz).log();
     }
-    result = -node->multipole_coeffs[0] + power * result;
-    result /= dz.pow(power);
+    else
+    {
+        for (int i = maxpower; i >= 1; i--)
+        {
+            result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power + i - 1, i - 1);
+            result /= -dz;
+        }
+        result -= node->multipole_coeffs[0] / power;
+        result /= dz.pow(power);
+    }
 
     coeffs[power] = result;
 }

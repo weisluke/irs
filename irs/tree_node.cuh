@@ -465,7 +465,7 @@ __device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int p
 }
 
 template <typename T>
-__global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
+__global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int* binomcoeffs)
 {
     /******************************************************************************
     each block is a node, and each thread calculates a multipole coefficient
@@ -487,9 +487,9 @@ __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int p
 
         for (int i = y_index; i < 4; i += y_stride)
         {
-            for (int j = x_index; j <= power; j += x_stride)
+            for (int j = x_index; j <= node->multipole_order; j += x_stride)
             {
-                calculate_M2M_coeff(node->children[i], &coeffs[(power + 1) * i], j, binomcoeffs);
+                calculate_M2M_coeff(node->children[i], &coeffs[(node->multipole_order + 1) * i], j, binomcoeffs);
             }
         }
         __syncthreads();
@@ -497,7 +497,7 @@ __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int p
         {
             for (int i = 0; i < 4; i++)
             {
-                node->add_multipole_coeffs(&coeffs[(power + 1) * i], power);
+                node->add_multipole_coeffs(&coeffs[(node->multipole_order + 1) * i], node->multipole_order);
             }
         }
     }
@@ -520,7 +520,7 @@ __device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int p
 }
 
 template <typename T>
-__global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
+__global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int* binomcoeffs)
 {
     /******************************************************************************
     each block is a node, and each thread calculates a multipole coefficient
@@ -538,14 +538,14 @@ __global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
     {
         TreeNode<T>* node = &nodes[min_index + node_index];
 
-        for (int i = x_index; i <= power; i += x_stride)
+        for (int i = x_index; i <= node->multipole_order; i += x_stride)
         {
-            calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
+            calculate_L2L_coeff(node, coeffs, i, node->multipole_order, binomcoeffs);
         }
         __syncthreads();
         if (threadIdx.x == 0)
         {
-            node->set_taylor_coeffs(coeffs, power);
+            node->set_taylor_coeffs(coeffs, node->multipole_order);
         }
     }
 }
@@ -580,7 +580,7 @@ __device__ void calculate_M2L_coeff(TreeNode<T>* node, TreeNode<T>* farnode, Com
 }
 
 template <typename T>
-__global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
+__global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int* binomcoeffs)
 {
     /******************************************************************************
     each block is a node, and each thread calculates a Taylor coefficient
@@ -602,9 +602,9 @@ __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
 
         for (int i = y_index; i < node->numinterlist; i += y_stride)
         {
-            for (int j = x_index; j <= power; j += x_stride)
+            for (int j = x_index; j <= node->multipole_order; j += x_stride)
             {
-                calculate_M2L_coeff(node, node->interactionlist[i], &coeffs[(power + 1) * i], j, power, binomcoeffs);
+                calculate_M2L_coeff(node, node->interactionlist[i], &coeffs[(node->multipole_order + 1) * i], j, node->multipole_order, binomcoeffs);
             }
         }
         __syncthreads();
@@ -612,7 +612,7 @@ __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
         {
             for (int i = 0; i < node->numinterlist; i++)
             {
-                node->add_taylor_coeffs(&coeffs[(power + 1) * i], power);
+                node->add_taylor_coeffs(&coeffs[(node->multipole_order + 1) * i], node->multipole_order);
             }
         }
     }

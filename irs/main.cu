@@ -1114,6 +1114,7 @@ int main(int argc, char* argv[])
 	if (write_histograms)
 	{
 		std::cout << "Creating histograms...\n";
+		stopwatch.start();
 
 		cudaMallocManaged(&min_rays, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return -1;
@@ -1183,7 +1184,7 @@ int main(int argc, char* argv[])
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		}
 
-		std::cout << "Done creating histograms.\n\n";
+		std::cout << "Done creating histograms. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n";
 	}
 	/******************************************************************************
 	done creating histograms of pixel values

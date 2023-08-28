@@ -222,7 +222,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 
 		if (fabs(node->center.re) - node->half_length < hlx1 && fabs(node->center.im) - node->half_length < hlx2)
 		{
-			int NUMBLOCKS = 30;
+			int NUMBLOCKS = 50;
 			for (int i = x_index; i < NUMBLOCKS; i += x_stride)
 			{
 				for (int j = y_index; j < NUMBLOCKS; j += y_stride)

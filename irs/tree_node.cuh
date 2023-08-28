@@ -275,8 +275,14 @@ __global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int level, int* min
 
 	for (int i = x_index; i < get_num_nodes(level); i += x_stride)
 	{
-        atomicMin(min_n_stars, nodes[min_index + i].numstars);
-        atomicMax(max_n_stars, nodes[min_index + i].numstars);
+        TreeNode<T>* node = &nodes[min_index + i];
+        int nstars = node->numstars;
+        for (int j = 0; j < node->numneighbors; j++)
+        {
+            nstars += node->neighbors[j]->numstars;
+        }
+        atomicMin(min_n_stars, nstars);
+        atomicMax(max_n_stars, nstars);
 	}
 }
 

@@ -969,7 +969,14 @@ int main(int argc, char* argv[])
 	Stopwatch stopwatch;
 
 
-	tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
+	if (rectangular)
+	{
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
+	}
+	else
+	{
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), rad, 0, 0);
+	}
 	tree[0].numstars = num_stars;
 	
 	int* max_num_stars_in_level;
@@ -1004,7 +1011,7 @@ int main(int argc, char* argv[])
 	
 		get_min_max_stars_kernel<dtype> <<<blocks, threads>>> (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
 		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
-		if (*max_num_stars_in_level <= 7)
+		if (*max_num_stars_in_level <= 64)
 		{
 			print_verbose("Necessary recursion limit reached.\n", verbose);
 			print_verbose("Maximum number of stars in a node is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);

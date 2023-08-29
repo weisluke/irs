@@ -391,6 +391,32 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
     }
 }
 
+template <typename T>
+__device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* nodes, int level)
+{
+    TreeNode<T>* node = &nodes[0];
+    for (int i = 1; i <= level; i++)
+    {
+        if (z.re > node->center.re && z.im > node->center.im)
+        {
+            node = nodes->children[0];
+        }
+        else if (z.re < node->center.re && z.im > node->center.im)
+        {
+            node = nodes->children[1];
+        }
+        else if (z.re < node->center.re && z.im < node->center.im)
+        {
+            node = nodes->children[2];
+        }
+        else
+        {
+            node = nodes->children[3];
+        }
+    }
+    return node;
+}
+
 
 template <typename T>
 __device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, star<T>* stars)

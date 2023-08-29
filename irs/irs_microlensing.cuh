@@ -60,12 +60,11 @@ __device__ Complex<T> taylor_deflection(Complex<T> z, T theta, TreeNode<T>* node
 {
 	Complex<T> alpha_taylor_bar;
 
-	for (int i = node->expansion_order; i >= 1; i--)
+	for (int i = node->expansion_order - 1; i >= 0; i--)
 	{
-		alpha_taylor_bar += node->taylor_coeffs[i] * i;
 		alpha_taylor_bar *= (z - node->center);
+		alpha_taylor_bar += node->taylor_coeffs[i + 1] * (i + 1);
 	}
-	alpha_taylor_bar /= (z - node->center);
 	alpha_taylor_bar *= (theta * theta);
 
 	return alpha_taylor_bar.conj();
@@ -213,6 +212,9 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	int rectangular, Complex<T> corner, int approx, int taylor, 
 	T hlx1, T hlx2, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
+    /******************************************************************************
+    each block is a node, and each thread shoots rays for a subblock of the node
+    ******************************************************************************/
 	int node_index = blockIdx.x;
 
 	int x_index = threadIdx.x;

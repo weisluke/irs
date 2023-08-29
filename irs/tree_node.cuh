@@ -401,14 +401,14 @@ __device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs,
     {
         for (int i = 0; i < node->numstars; i++)
         {
-            result -= stars[node->stars + i].mass;
+            result += stars[node->stars + i].mass;
         }
     }
     else
     {
         for (int i = 0; i < node->numstars; i++)
         {
-            result += (stars[node->stars + i].position - node->center).pow(power) * stars[node->stars + i].mass;
+            result -= (stars[node->stars + i].position - node->center).pow(power) * stars[node->stars + i].mass;
         }
         result /= power;
     }

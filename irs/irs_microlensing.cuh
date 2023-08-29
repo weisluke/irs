@@ -11,12 +11,12 @@
 
 
 /******************************************************************************
-calculate the deflection angle due to a field of stars
+calculate the deflection angle due to nearby stars for a node
 
 \param z -- complex image plane position
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
-\param nstars -- number of point mass lenses in array
+\param node -- node within which to calculate the deflection angle
 
 \return alpha_star = theta^2 * sum(m_i / (z - z_i)_bar)
 ******************************************************************************/
@@ -26,29 +26,35 @@ __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, Tre
 	Complex<T> alpha_star_bar;
 
 	/******************************************************************************
-	sum m_i / (z - z_i)
+	theta^2 * sum(m_i / (z - z_i))
 	******************************************************************************/
 	for (int i = 0; i < node->numstars; i++)
 	{
 		alpha_star_bar += stars[node->stars + i].mass / (z - stars[node->stars + i].position);
 	}
-	for (int i = 0; i < node->numneighbors; i++)
+	for (int j = 0; j < node->numneighbors; j++)
 	{
-		TreeNode<T>* neighbor = node->neighbors[i];
-		for (int j = 0; j < neighbor->numstars; j++)
+		TreeNode<T>* neighbor = node->neighbors[j];
+		for (int i = 0; i < neighbor->numstars; i++)
 		{
-			alpha_star_bar += stars[neighbor->stars + j].mass / (z - stars[neighbor->stars + j].position);
+			alpha_star_bar += stars[neighbor->stars + i].mass / (z - stars[neighbor->stars + i].position);
 		}
 	}
-
-	/******************************************************************************
-	theta_e^2 * ( sum m_i / (z - z_i) )
-	******************************************************************************/
 	alpha_star_bar *= (theta * theta);
 
 	return alpha_star_bar.conj();
 }
 
+/******************************************************************************
+calculate the deflection angle due to far away stars for a node
+
+\param z -- complex image plane position
+\param theta -- size of the Einstein radius of a unit mass point lens
+\param node -- node within which to calculate the deflection angle
+
+\return alpha_taylor = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
+           where a_i are coefficients of the potential
+******************************************************************************/
 template <typename T>
 __device__ Complex<T> taylor_deflection(Complex<T> z, T theta, TreeNode<T>* node)
 {
@@ -56,7 +62,8 @@ __device__ Complex<T> taylor_deflection(Complex<T> z, T theta, TreeNode<T>* node
 
 	for (int i = node->taylor_order; i >= 1; i--)
 	{
-		alpha_taylor_bar += node->taylor_coeffs[i] * i * (z - node->center);
+		alpha_taylor_bar += node->taylor_coeffs[i] * i
+		alpha_taylor_bar *= (z - node->center);
 	}
 	alpha_taylor_bar /= (z - node->center);
 	alpha_taylor_bar *= (theta * theta);

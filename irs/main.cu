@@ -6,10 +6,13 @@ Email: weisluke@alum.mit.edu
 ******************************************************************************/
 
 
+#include "binomial_coefficients.cuh"
 #include "complex.cuh"
 #include "irs_microlensing.cuh"
 #include "mass_function.cuh"
 #include "star.cuh"
+#include "stopwatch.hpp"
+#include "tree_node.cuh"
 #include "util.hpp"
 
 #include <curand_kernel.h>
@@ -65,6 +68,8 @@ const std::map<std::string, enumMassFunction> MASS_FUNCTIONS{
 	{"salpeter", salpeter},
 	{"kroupa", kroupa}
 };
+const int MAX_NUM_STARS_DIRECT = 32;
+const int MAX_EXPANSION_ORDER = 20;
 
 
 /******************************************************************************
@@ -678,6 +683,12 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
+	stopwatch for timing purposes
+	******************************************************************************/
+	Stopwatch stopwatch;
+
+
+	/******************************************************************************
 	determine mass function, <m>, and <m^2>
 	******************************************************************************/
 	enumMassFunction mass_function = MASS_FUNCTIONS.at(mass_function_str);
@@ -792,7 +803,32 @@ int main(int argc, char* argv[])
 		verbose && rectangular && approx, true);
 
 	dtype rad;
-	set_param("rad", rad, std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star), verbose && !rectangular, true);
+	set_param("rad", rad, std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star), verbose && !rectangular);
+
+	int tree_levels;
+	if (rectangular)
+	{
+		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / (c.re > c.im ? c.im : c.re) * (c.re > c.im ? c.re : c.im)) / 2) + 1, verbose);
+	}
+	else
+	{
+		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / PI * 4) / 2) + 1, verbose);
+	}
+
+	int tree_size = 1;
+	tree_size = tree_size << (2 * tree_levels + 2);
+	tree_size -= 1;
+	set_param("tree_size", tree_size, tree_size / 3, verbose);
+
+	int expansion_order;
+	set_param("expansion_order", expansion_order, 
+		static_cast<int>(std::log2(theta_e * theta_e * m_upper * num_pixels / (2 * half_length) * MAX_NUM_STARS_DIRECT / 9)) + 1, verbose, true);
+	if (expansion_order > MAX_EXPANSION_ORDER)
+	{
+		std::cerr << "Error. Maximum allowed expansion order is " << MAX_EXPANSION_ORDER << "\n";
+		return -1;
+	}
+
 
 	/******************************************************************************
 	BEGIN memory allocation
@@ -802,6 +838,9 @@ int main(int argc, char* argv[])
 
 	curandState* states = nullptr;
 	star<dtype>* stars = nullptr;
+	star<dtype>* temp_stars = nullptr;
+	int* binomial_coeffs = nullptr;
+	TreeNode<dtype>* tree = nullptr;
 	int* pixels = nullptr;
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
@@ -813,6 +852,16 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&stars, num_stars * sizeof(star<dtype>));
 	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return -1;
+	cudaMallocManaged(&temp_stars, num_stars * sizeof(star<dtype>));
+	if (cuda_error("cudaMallocManaged(*temp_stars)", false, __FILE__, __LINE__)) return -1;
+
+	/******************************************************************************
+	allocate memory for tree
+	******************************************************************************/
+	cudaMallocManaged(&binomial_coeffs, 2 * expansion_order * (2 * expansion_order + 3) / 2 * sizeof(int));
+	if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return -1;
+	cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<dtype>));
+	if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return -1;
 
 	/******************************************************************************
 	allocate memory for pixels
@@ -861,7 +910,7 @@ int main(int argc, char* argv[])
 		/******************************************************************************
 		if random seed was not provided, get one based on the time
 		******************************************************************************/
-		if (random_seed == 0)
+		while (random_seed == 0)
 		{
 			set_param("random_seed", random_seed, static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()), verbose);
 		}
@@ -924,6 +973,114 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
+	BEGIN create root node, then create children and sort stars
+	******************************************************************************/
+
+	if (rectangular)
+	{
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
+	}
+	else
+	{
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), rad, 0, 0);
+	}
+	tree[0].numstars = num_stars;
+	
+	int* max_num_stars_in_level;
+	int* min_num_stars_in_level;
+	cudaMallocManaged(&max_num_stars_in_level, sizeof(int));
+	if (cuda_error("cudaMallocManaged(*max_num_stars_in_level)", false, __FILE__, __LINE__)) return -1;
+	cudaMallocManaged(&min_num_stars_in_level, sizeof(int));
+	if (cuda_error("cudaMallocManaged(*min_num_stars_in_level)", false, __FILE__, __LINE__)) return -1;
+
+	print_verbose("Creating children and sorting stars...\n", verbose);
+	stopwatch.start();
+	set_threads(threads, 512);
+	for (int i = 0; i < tree_levels; i++)
+	{
+		print_verbose("Loop " + std::to_string(i + 1) +  " /  " + std::to_string(tree_levels) + "\n", verbose);
+
+		set_blocks(threads, blocks, get_num_nodes(i));
+		create_children_kernel<dtype> <<<blocks, threads>>> (tree, i);
+		if (cuda_error("create_tree_kernel", true, __FILE__, __LINE__)) return -1;
+
+		set_blocks(threads, blocks, 512 * get_num_nodes(i));
+		sort_stars_kernel<dtype> <<<blocks, threads>>> (tree, i, stars, temp_stars);
+		if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return -1;
+
+
+		*max_num_stars_in_level = 0;
+		*min_num_stars_in_level = num_stars;
+
+		set_blocks(threads, blocks, get_num_nodes(i));
+		get_min_max_stars_kernel<dtype> <<<blocks, threads>>> (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
+		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
+
+		if (*max_num_stars_in_level <= MAX_NUM_STARS_DIRECT)
+		{
+			print_verbose("Necessary recursion limit reached.\n", verbose);
+			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+			set_param("tree_levels", tree_levels, i + 1, verbose);
+			break;
+		}
+		else
+		{
+			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+		}
+	}
+	print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
+
+	/******************************************************************************
+	END create root node, then create children and sort stars
+	******************************************************************************/
+
+
+	set_threads(threads, 512);
+	for (int i = 0; i <= tree_levels; i++)
+	{
+		set_blocks(threads, blocks, get_num_nodes(i));
+		set_neighbors_kernel<dtype> <<<blocks, threads>>> (tree, i);
+		if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return -1;
+	}
+
+
+	print_verbose("Calculating binomial coefficients...\n", verbose);
+	calculate_binomial_coeffs(binomial_coeffs, 2 * expansion_order);
+	print_verbose("Done calculating binomial coefficients.\n\n", verbose);
+
+
+	print_verbose("Calculating multipole and local coefficients...\n", verbose);
+	stopwatch.start();
+
+	set_threads(threads, expansion_order + 1);
+	set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(tree_levels));
+	calculate_multipole_coeffs_kernel<dtype> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, tree_levels, expansion_order, stars);
+
+	set_threads(threads, expansion_order + 1, 4);
+	for (int i = tree_levels - 1; i >= 0; i--)
+	{
+		set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(i), 4);
+		calculate_M2M_coeffs_kernel<dtype> <<<blocks, threads, 4 * (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, expansion_order, binomial_coeffs);
+	}
+
+	for (int i = 2; i <= tree_levels; i++)
+	{
+		set_threads(threads, expansion_order + 1);
+		set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(i));
+		calculate_L2L_coeffs_kernel<dtype> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, expansion_order, binomial_coeffs);
+
+		set_threads(threads, expansion_order + 1, 27);
+		set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(i), 27);
+		calculate_M2L_coeffs_kernel<dtype> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, expansion_order, binomial_coeffs);
+	}
+	if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return -1;
+
+	print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
+
+
+	/******************************************************************************
 	redefine thread and block size to maximize parallelization
 	******************************************************************************/
 	set_threads(threads, 16, 16);
@@ -932,10 +1089,7 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	initialize pixel values
 	******************************************************************************/
-	if (verbose)
-	{
-		std::cout << "Initializing pixel values...\n";
-	}
+	print_verbose("Initializing pixel values...\n", verbose);
 	initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels, num_pixels);
 	if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	if (write_parities)
@@ -945,29 +1099,18 @@ int main(int argc, char* argv[])
 		initialize_pixels_kernel<dtype> <<<blocks, threads>>> (pixels_saddles, num_pixels);
 		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return -1;
 	}
-	if (verbose)
-	{
-		std::cout << "Done initializing pixel values.\n\n";
-	}
-
-
-	/******************************************************************************
-	start and end time for timing purposes
-	******************************************************************************/
-	std::chrono::high_resolution_clock::time_point t_start;
-	std::chrono::high_resolution_clock::time_point t_end;
+	print_verbose("Done initializing pixel values.\n\n", verbose);
 
 
 	/******************************************************************************
 	shoot rays and calculate time taken in seconds
 	******************************************************************************/
 	std::cout << "Shooting rays...\n";
-	t_start = std::chrono::high_resolution_clock::now();
-	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, num_stars, kappa_star,
+	stopwatch.start();
+	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree, tree_levels,
 		rectangular, c, approx, taylor, lens_hl_x1, lens_hl_x2, ray_sep, half_length, pixels_minima, pixels_saddles, pixels, num_pixels);
 	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
-	t_end = std::chrono::high_resolution_clock::now();
-	double t_ray_shoot = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count() / 1000.0;
+	double t_ray_shoot = stopwatch.stop();
 	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 
@@ -987,6 +1130,7 @@ int main(int argc, char* argv[])
 	if (write_histograms)
 	{
 		std::cout << "Creating histograms...\n";
+		stopwatch.start();
 
 		cudaMallocManaged(&min_rays, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return -1;
@@ -1056,7 +1200,7 @@ int main(int argc, char* argv[])
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return -1;
 		}
 
-		std::cout << "Done creating histograms.\n\n";
+		std::cout << "Done creating histograms. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n";
 	}
 	/******************************************************************************
 	done creating histograms of pixel values

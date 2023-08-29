@@ -93,6 +93,20 @@ void set_param(const std::string& name, T& param, U what, bool verbose, bool new
 }
 
 /******************************************************************************
+function to print a message if toggle is true
+
+\param what -- what to print
+\param verbose -- toggle for whether or not to print
+******************************************************************************/
+void print_verbose(const std::string& what, bool verbose)
+{
+	if (verbose)
+	{
+		std::cout << what;
+	}
+}
+
+/******************************************************************************
 function to print out progress bar of loops
 examples: [====    ] 50%       [=====  ] 73%
 
@@ -218,3 +232,4 @@ void show_device_info(int num, cudaDeviceProp& prop)
 		<< prop.maxGridSize[1] << ", "
 		<< prop.maxGridSize[2] << ")\n";
 }
+

@@ -62,7 +62,7 @@ __device__ Complex<T> taylor_deflection(Complex<T> z, T theta, TreeNode<T>* node
 
 	for (int i = node->taylor_order; i >= 1; i--)
 	{
-		alpha_taylor_bar += node->taylor_coeffs[i] * i
+		alpha_taylor_bar += node->taylor_coeffs[i] * i;
 		alpha_taylor_bar *= (z - node->center);
 	}
 	alpha_taylor_bar /= (z - node->center);

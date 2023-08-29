@@ -52,22 +52,22 @@ calculate the deflection angle due to far away stars for a node
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param node -- node within which to calculate the deflection angle
 
-\return alpha_taylor = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
+\return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
            where a_i are coefficients of the potential
 ******************************************************************************/
 template <typename T>
-__device__ Complex<T> taylor_deflection(Complex<T> z, T theta, TreeNode<T>* node)
+__device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
 {
-	Complex<T> alpha_taylor_bar;
+	Complex<T> alpha_local_bar;
 
 	for (int i = node->expansion_order - 1; i >= 0; i--)
 	{
-		alpha_taylor_bar *= (z - node->center);
-		alpha_taylor_bar += node->taylor_coeffs[i + 1] * (i + 1);
+		alpha_local_bar *= (z - node->center);
+		alpha_local_bar += node->local_coeffs[i + 1] * (i + 1);
 	}
-	alpha_taylor_bar *= (theta * theta);
+	alpha_local_bar *= (theta * theta);
 
-	return alpha_taylor_bar.conj();
+	return alpha_local_bar.conj();
 }
 
 /******************************************************************************
@@ -151,7 +151,8 @@ lens equation from image plane to source plane
 \param approx -- whether the smooth matter deflection is approximate or not
 \param taylor -- degree of the taylor series for alpha_smooth if approximate
 
-\return w = (1 - kappa) * z + gamma * z_bar - alpha_star - alpha_smooth
+\return w = (1 - kappa) * z + gamma * z_bar 
+            - alpha_star - alpha_local - alpha_smooth
 ******************************************************************************/
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* node,
@@ -159,12 +160,12 @@ __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T 
 {
 	Complex<T> alpha_star = star_deflection(z, theta, stars, node);
 	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, rectangular, corner, approx, taylor);
-	Complex<T> alpha_taylor = taylor_deflection(z, theta, node);
+	Complex<T> alpha_local = local_deflection(z, theta, node);
 
 	/******************************************************************************
-	(1 - kappa) * z + gamma * z_bar - alpha_star - alpha_smooth
+	(1 - kappa) * z + gamma * z_bar - alpha_star - alpha_local - alpha_smooth
 	******************************************************************************/
-	return (1 - kappa) * z + gamma * z.conj() - alpha_star - alpha_taylor - alpha_smooth;
+	return (1 - kappa) * z + gamma * z.conj() - alpha_star - alpha_local - alpha_smooth;
 }
 
 /******************************************************************************
@@ -191,8 +192,9 @@ shoot rays from image plane to source plane
 \param gamma -- external shear
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
-\param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
+\param nodes -- pointer to tree
+\param level -- level at which to access the nodes
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses

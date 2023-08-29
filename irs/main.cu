@@ -10,9 +10,9 @@ Email: weisluke@alum.mit.edu
 #include "complex.cuh"
 #include "irs_microlensing.cuh"
 #include "mass_function.cuh"
-#include "tree_node.cuh"
 #include "star.cuh"
 #include "stopwatch.hpp"
+#include "tree_node.cuh"
 #include "util.hpp"
 
 #include <curand_kernel.h>
@@ -69,6 +69,7 @@ const std::map<std::string, enumMassFunction> MASS_FUNCTIONS{
 	{"kroupa", kroupa}
 };
 const int MAX_NUM_STARS_DIRECT = 32;
+const int MAX_EXPANSION_ORDER = 20;
 
 
 /******************************************************************************
@@ -682,6 +683,12 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
+	stopwatch for timing purposes
+	******************************************************************************/
+	Stopwatch stopwatch;
+
+
+	/******************************************************************************
 	determine mass function, <m>, and <m^2>
 	******************************************************************************/
 	enumMassFunction mass_function = MASS_FUNCTIONS.at(mass_function_str);
@@ -815,9 +822,9 @@ int main(int argc, char* argv[])
 
 	int expansion_order;
 	set_param("expansion_order", expansion_order, std::log2(MAX_NUM_STARS_DIRECT / 9 * theta_e * theta_e * m_upper * num_pixels / (2 * half_length)) + 1, verbose, true);
-	if (expansion_order > 20)
+	if (expansion_order > MAX_EXPANSION_ORDER)
 	{
-		std::cerr << "Error. Maximum allowed expansion order is 20.\n";
+		std::cerr << "Error. Maximum allowed expansion order is " << MAX_EXPANSION_ORDER << "\n";
 		return -1;
 	}
 
@@ -848,7 +855,7 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaMallocManaged(*temp_stars)", false, __FILE__, __LINE__)) return -1;
 
 	/******************************************************************************
-	allocate memory for quadtree
+	allocate memory for tree
 	******************************************************************************/
 	cudaMallocManaged(&binomial_coeffs, 2 * expansion_order * (2 * expansion_order + 3) / 2 * sizeof(int));
 	if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return -1;
@@ -965,10 +972,8 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
-	stopwatch for timing purposes
+	BEGIN create root node, then create children and sort stars
 	******************************************************************************/
-	Stopwatch stopwatch;
-
 
 	if (rectangular)
 	{
@@ -997,16 +1002,15 @@ int main(int argc, char* argv[])
 
 	print_verbose("Creating children and sorting stars...\n", verbose);
 	stopwatch.start();
+	set_threads(threads, 512);
 	for (int i = 0; i < tree_levels; i++)
 	{
 		print_verbose("Loop " + std::to_string(i + 1) +  " /  " + std::to_string(tree_levels) + "\n", verbose);
 
-		set_threads(threads, 512);
 		set_blocks(threads, blocks, get_num_nodes(i));
 		create_children_kernel<dtype> <<<blocks, threads>>> (tree, i);
 		if (cuda_error("create_tree_kernel", true, __FILE__, __LINE__)) return -1;
 
-		set_threads(threads, 512);
 		set_blocks(threads, blocks, 512 * get_num_nodes(i));
 		sort_stars_kernel<dtype> <<<blocks, threads>>> (tree, i, stars, temp_stars);
 		if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return -1;
@@ -1015,11 +1019,10 @@ int main(int argc, char* argv[])
 		*max_num_stars_in_level = 0;
 		*min_num_stars_in_level = num_stars;
 
-		set_threads(threads, 512);
 		set_blocks(threads, blocks, get_num_nodes(i));
-	
 		get_min_max_stars_kernel<dtype> <<<blocks, threads>>> (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
 		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
+
 		if (*max_num_stars_in_level <= MAX_NUM_STARS_DIRECT)
 		{
 			print_verbose("Necessary recursion limit reached.\n", verbose);
@@ -1036,6 +1039,10 @@ int main(int argc, char* argv[])
 	}
 	print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
 
+	/******************************************************************************
+	END create root node, then create children and sort stars
+	******************************************************************************/
+
 
 	set_threads(threads, 512);
 	for (int i = 0; i <= tree_levels; i++)
@@ -1051,7 +1058,7 @@ int main(int argc, char* argv[])
 	print_verbose("Done calculating binomial coefficients.\n\n", verbose);
 
 
-	print_verbose("Calculating multipole and Taylor coefficients...\n", verbose);
+	print_verbose("Calculating multipole and local coefficients...\n", verbose);
 	stopwatch.start();
 
 	set_threads(threads, expansion_order + 1);
@@ -1075,10 +1082,10 @@ int main(int argc, char* argv[])
 		set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(i), 27);
 		calculate_M2L_coeffs_kernel<dtype> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, expansion_order, binomial_coeffs);
 	}
-
 	if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return -1;
 
-	print_verbose("Done calculating multipole and Taylor coefficients. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
+	print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
+
 
 	/******************************************************************************
 	redefine thread and block size to maximize parallelization
@@ -1105,11 +1112,6 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	shoot rays and calculate time taken in seconds
 	******************************************************************************/
-	set_threads(threads, 16, 16);
-	set_blocks(threads, blocks, 2 * lens_hl_x1 / ray_sep, 2 * lens_hl_x2 / ray_sep);
-	print_verbose("Number of nodes in final level: " + std::to_string(get_num_nodes(tree_levels)) + "\n", true);
-	std::cout << "Node half-length in final level: " << tree[get_min_index(tree_levels)].half_length << "\n";
-
 	std::cout << "Shooting rays...\n";
 	stopwatch.start();
 	shoot_rays_kernel<dtype> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree, tree_levels,

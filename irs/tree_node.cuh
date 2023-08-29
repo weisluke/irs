@@ -29,7 +29,7 @@ public:
 
     int expansion_order;
     Complex<T> multipole_coeffs[21];
-    Complex<T> taylor_coeffs[21];
+    Complex<T> local_coeffs[21];
 
 
     /******************************************************************************
@@ -65,7 +65,7 @@ public:
         for (int i = 0; i <= 20; i++)
         {
             multipole_coeffs[i] = Complex<T>();
-            taylor_coeffs[i] = Complex<T>();
+            local_coeffs[i] = Complex<T>();
         }
 	}
     
@@ -102,7 +102,7 @@ public:
         for (int i = 0; i <= 20; i++)
         {
             multipole_coeffs[i] = n.multipole_coeffs[i];
-            taylor_coeffs[i] = n.taylor_coeffs[i];
+            local_coeffs[i] = n.local_coeffs[i];
         }
 
 		return *this;
@@ -120,6 +120,7 @@ public:
             Complex<T>(1, -1)
         };
 
+        /*incoming index is either 1, 2, 3, or 4*/
         Complex<T> new_center = center + new_half_length * offsets[idx - 1];
 
         int new_index = 4 * index + idx;
@@ -135,14 +136,24 @@ public:
             make_child(i, nodes);
         }
     }
-    
+
+
+    /******************************************************************************
+    set neighbors for a node
+    ******************************************************************************/
     __device__ void set_neighbors()
     {
+        /******************************************************************************
+        root node has no neighbors
+        ******************************************************************************/
         if (level == 0)
         {
             return;
         }
 
+        /******************************************************************************
+        add parent's children as neighbors
+        ******************************************************************************/
         for (int i = 0; i < 4; i++)
         {
             if (parent->children[i] != this)
@@ -151,6 +162,10 @@ public:
                 numneighbors++;
             }
         }
+        /******************************************************************************
+        parent's neighbors' children are on the same level as the node
+        add the close ones as neighbors, and the far ones to the interaction list
+        ******************************************************************************/
         for (int i = 0; i < parent->numneighbors; i++)
         {
             for (int j = 0; j < 4; j++)
@@ -190,20 +205,20 @@ public:
         expansion_order = (expansion_order > power ? expansion_order : power);
     }
 
-    __host__ __device__ void set_taylor_coeffs(Complex<T>* coeffs, int power)
+    __host__ __device__ void set_local_coeffs(Complex<T>* coeffs, int power)
     {
         for (int i = 0; i <= power; i++)
         {
-            taylor_coeffs[i] = coeffs[i];
+            local_coeffs[i] = coeffs[i];
         }
         expansion_order = (expansion_order > power ? expansion_order : power);
     }
 
-    __host__ __device__ void add_taylor_coeffs(Complex<T>* coeffs, int power)
+    __host__ __device__ void add_local_coeffs(Complex<T>* coeffs, int power)
     {
         for (int i = 0; i <= power; i++)
         {
-            taylor_coeffs[i] += coeffs[i];
+            local_coeffs[i] += coeffs[i];
         }
         expansion_order = (expansion_order > power ? expansion_order : power);
     }
@@ -211,27 +226,43 @@ public:
 };
 
 
+/******************************************************************************
+get the minimum index for a level
+
+\param level -- what level in the tree to get the minimum index for
+
+\return ( 4 ^ n - 1 ) / 3 = ( 2 ^ (2n) - 1) / 3
+******************************************************************************/
 __host__ __device__ int get_min_index(int level)
 {
-    /******************************************************************************
-    min index for a level = ( 4 ^ n - 1 ) / 3 = ( 2 ^ (2n) - 1) / 3
-    ******************************************************************************/
     int min_index = 1;
     min_index = min_index << (2 * level);
     min_index = (min_index - 1) / 3;
     return min_index;
 }
+
+/******************************************************************************
+get the maximum index for a level
+
+\param level -- what level in the tree to get the maximum index for
+
+\return ( 4 ^ (n + 1) - 4 ) / 3 = ( 4 * 2 ^ (2n) - 4) / 3
+******************************************************************************/
 __host__ __device__ int get_max_index(int level)
 {
-    /******************************************************************************
-    max index for a level = ( 4 ^ (n + 1) - 4 ) / 3 = ( 4 * 2 ^ (2n) - 4) / 3
-    ******************************************************************************/
     int max_index = 4;
     max_index = max_index << (2 * level);
     max_index = (max_index - 4) / 3;
     return max_index;
 }
 
+/******************************************************************************
+get the number of nodes for a level
+
+\param level -- what level in the tree to get the number of nodes for
+
+\return max_level - min_level + 1
+******************************************************************************/
 __host__ __device__ int get_num_nodes(int level)
 {
     int min_index = get_min_index(level);
@@ -239,6 +270,12 @@ __host__ __device__ int get_num_nodes(int level)
     return max_index - min_index + 1;
 }
 
+/******************************************************************************
+create the children for nodes at a given level
+
+\param nodes -- pointer to tree
+\param level -- what level in the tree to make the children of
+******************************************************************************/
 template <typename T>
 __global__ void create_children_kernel(TreeNode<T>* nodes, int level)
 {
@@ -253,6 +290,12 @@ __global__ void create_children_kernel(TreeNode<T>* nodes, int level)
     }
 }
 
+/******************************************************************************
+set the neighbors for nodes at a given level
+
+\param nodes -- pointer to tree
+\param level -- what level in the tree to set the neighbors of
+******************************************************************************/
 template <typename T>
 __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int level)
 {
@@ -267,6 +310,15 @@ __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int level)
     }
 }
 
+/******************************************************************************
+get the minimum and maximum number of stars contained within a node and its
+neighbors
+
+\param nodes -- pointer to tree
+\param level -- what level in the tree to get the number of stars for
+\param min_n_stars -- pointer to minimum number of stars
+\param max_n_stars -- pointer to maximum number of stars
+******************************************************************************/
 template <typename T>
 __global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int level, int* min_n_stars, int* max_n_stars)
 {
@@ -288,6 +340,15 @@ __global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int level, int* min
 	}
 }
 
+/******************************************************************************
+sort the stars into each node for a given level
+
+\param nodes -- pointer to tree
+\param level -- what level in the tree to sort the stars
+\param stars -- pointer to array of point mass lenses
+\param temp_stars -- pointer to temp array of point mass lenses, used for
+                     swapping
+******************************************************************************/
 template <typename T>
 __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars, star<T>* temp_stars)
 {
@@ -327,6 +388,10 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
         {
             if (stars[node->stars + i].position.im >= node->center.im)
             {
+                /******************************************************************************
+                atomic addition returns the old value, so this is guaranteed to copy the star
+                to a unique location in the temp array
+                ******************************************************************************/
                 temp_stars[node->stars + atomicAdd(&n_stars_top, 1)] = stars[node->stars + i];
             }
             else
@@ -391,17 +456,26 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
     }
 }
 
+/******************************************************************************
+find the node nearest to a given position at a given level
+
+\param z -- position to find the nearest node to
+\param nodes -- pointer to tree
+\param level -- what level in the tree to find the nearest node
+
+\return pointer to nearest node
+******************************************************************************/
 template <typename T>
 __device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* nodes, int level)
 {
     TreeNode<T>* node = &nodes[0];
     for (int i = 1; i <= level; i++)
     {
-        if (z.re > node->center.re && z.im > node->center.im)
+        if (z.re >= node->center.re && z.im >= node->center.im)
         {
             node = nodes->children[0];
         }
-        else if (z.re < node->center.re && z.im > node->center.im)
+        else if (z.re < node->center.re && z.im >= node->center.im)
         {
             node = nodes->children[1];
         }
@@ -418,6 +492,14 @@ __device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* nodes, int l
 }
 
 
+/******************************************************************************
+calculate the multipole coefficient for a given power
+
+\param node -- pointer to node
+\param coeffs -- pointer to array of multipole coefficients
+\param power -- what order to find the multipole coefficient of
+\param stars -- pointer to array of point mass lenses
+******************************************************************************/
 template <typename T>
 __device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, star<T>* stars)
 {
@@ -442,7 +524,14 @@ __device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs,
     coeffs[power] = result;
 }
 
+/******************************************************************************
+calculate the multipole coefficients for a given power
 
+\param nodes -- pointer to tree
+\param level -- level of the tree to calculate the multipole coefficients at
+\param power -- maximum expansion order to find the multipole coefficients of
+\param stars -- pointer to array of point mass lenses
+******************************************************************************/
 template <typename T>
 __global__ void calculate_multipole_coeffs_kernel(TreeNode<T>* nodes, int level, int power, star<T>* stars)
 {
@@ -474,6 +563,15 @@ __global__ void calculate_multipole_coeffs_kernel(TreeNode<T>* nodes, int level,
     }
 }
 
+/******************************************************************************
+calculate the shifted multipole coefficient for a given power
+assumes that the expansion is being shifted to the center of the parent node
+
+\param node -- pointer to node
+\param coeffs -- pointer to array of multipole coefficients
+\param power -- what order to find the multipole coefficient of
+\param binomcoeffs -- pointer to array of binomial coefficients
+******************************************************************************/
 template <typename T>
 __device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int* binomcoeffs)
 {
@@ -498,6 +596,14 @@ __device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int p
     coeffs[power] = result;
 }
 
+/******************************************************************************
+calculate the shifted multipole coefficients for a given power
+
+\param nodes -- pointer to tree
+\param level -- level of the tree to calculate the multipole coefficients at
+\param power -- maximum expansion order to find the multipole coefficients of
+\param binomcoeffs -- pointer to array of binomial coefficients
+******************************************************************************/
 template <typename T>
 __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
 {
@@ -538,6 +644,16 @@ __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int p
     }
 }
 
+/******************************************************************************
+calculate the shifted local coefficient for a given power
+assumes that the expansion is being shifted to the center of the child node
+
+\param node -- pointer to node
+\param coeffs -- pointer to array of local coefficients
+\param power -- what order to find the local coefficient of
+\param maxpower -- maximum order to find the local coefficient of
+\param binomcoeffs -- pointer to array of binomial coefficients
+******************************************************************************/
 template <typename T>
 __device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
 {
@@ -546,7 +662,7 @@ __device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int p
 
     for (int i = maxpower; i >= 1; i--)
     {
-        result += node->parent->taylor_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
+        result += node->parent->local_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
         result *= dz;
     }
     result /= dz.pow(power);
@@ -554,6 +670,14 @@ __device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int p
     coeffs[power] = result;
 }
 
+/******************************************************************************
+calculate the shifted local coefficients for a given power
+
+\param nodes -- pointer to tree
+\param level -- level of the tree to calculate the local coefficients at
+\param power -- maximum expansion order to find the local coefficients of
+\param binomcoeffs -- pointer to array of binomial coefficients
+******************************************************************************/
 template <typename T>
 __global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
 {
@@ -580,11 +704,22 @@ __global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
         __syncthreads();
         if (threadIdx.x == 0)
         {
-            node->set_taylor_coeffs(coeffs, power);
+            node->set_local_coeffs(coeffs, power);
         }
     }
 }
 
+/******************************************************************************
+calculate the local coefficient for a given power from the multipole
+coefficient of a far node
+
+\param node_from -- pointer to node whose multipole expansion is being used
+\param node_to -- pointer to node whose local expansion is being calculated
+\param coeffs -- pointer to array of local coefficients
+\param power -- what order to find the local coefficient of
+\param maxpower -- maximum order to find the local coefficient of
+\param binomcoeffs -- pointer to array of binomial coefficients
+******************************************************************************/
 template <typename T>
 __device__ void calculate_M2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
 {
@@ -614,11 +749,20 @@ __device__ void calculate_M2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to
     coeffs[power] = result;
 }
 
+/******************************************************************************
+calculate the local coefficients for a given power from the multipole
+coefficients of far nodes
+
+\param nodes -- pointer to tree
+\param level -- level of the tree to calculate the local coefficients at
+\param power -- maximum expansion order to find the local coefficients of
+\param binomcoeffs -- pointer to array of binomial coefficients
+******************************************************************************/
 template <typename T>
 __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
 {
     /******************************************************************************
-    each block is a node, and each thread calculates a Taylor coefficient
+    each block is a node, and each thread calculates a local coefficient
     ******************************************************************************/
     int node_index = blockIdx.x;
 
@@ -647,8 +791,9 @@ __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int p
         {
             for (int i = 0; i < node->numinterlist; i++)
             {
-                node->add_taylor_coeffs(&coeffs[(power + 1) * i], power);
+                node->add_local_coeffs(&coeffs[(power + 1) * i], power);
             }
         }
     }
 }
+

@@ -233,3 +233,4 @@ void show_device_info(int num, cudaDeviceProp& prop)
 		<< prop.maxGridSize[1] << ", "
 		<< prop.maxGridSize[2] << ")\n";
 }
+

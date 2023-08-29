@@ -2,6 +2,11 @@
 
 #include <chrono>
 
+
+/******************************************************************************
+template class for starting/stopping a stopwatch and returning the elapsed time
+(in seconds) when stopped
+******************************************************************************/
 class Stopwatch
 {
     std::chrono::high_resolution_clock::time_point tstart;

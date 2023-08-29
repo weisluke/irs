@@ -63,7 +63,7 @@ __device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
 
 	for (int i = node->expansion_order - 1; i >= 0; i--)
 	{
-		alpha_local_bar *= dz
+		alpha_local_bar *= dz;
 		alpha_local_bar += node->local_coeffs[i + 1] * (i + 1);
 	}
 	alpha_local_bar *= (theta * theta);

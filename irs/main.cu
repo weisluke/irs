@@ -68,6 +68,7 @@ const std::map<std::string, enumMassFunction> MASS_FUNCTIONS{
 	{"salpeter", salpeter},
 	{"kroupa", kroupa}
 };
+const int MAX_NUM_STARS_DIRECT = 32;
 
 
 /******************************************************************************
@@ -812,11 +813,11 @@ int main(int argc, char* argv[])
 	tree_size -= 1;
 	set_param("tree_size", tree_size, tree_size / 3, verbose);
 
-	int multipole_order;
-	set_param("multipole_order", multipole_order, std::log2(7 * theta_e * theta_e * m_upper * num_pixels / (2 * half_length)), verbose, true);
-	if (multipole_order > 20)
+	int expansion_order;
+	set_param("expansion_order", expansion_order, std::log2(MAX_NUM_STARS_DIRECT / 9 * theta_e * theta_e * m_upper * num_pixels / (2 * half_length)) + 1, verbose, true);
+	if (expansion_order > 20)
 	{
-		std::cerr << "Error. Maximum allowed multipole order is 20.\n";
+		std::cerr << "Error. Maximum allowed expansion order is 20.\n";
 		return -1;
 	}
 
@@ -849,7 +850,7 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	allocate memory for quadtree
 	******************************************************************************/
-	cudaMallocManaged(&binomial_coeffs, 2 * multipole_order * (2 * multipole_order + 3) / 2 * sizeof(int));
+	cudaMallocManaged(&binomial_coeffs, 2 * expansion_order * (2 * expansion_order + 3) / 2 * sizeof(int));
 	if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return -1;
 	cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<dtype>));
 	if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return -1;
@@ -971,11 +972,19 @@ int main(int argc, char* argv[])
 
 	if (rectangular)
 	{
-		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
+		dtype root_half_length = c.re > c.im ? c.re : c.im;
+		root_half_length /= (1 << tree_levels);
+		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
+		set_param("local root_half_length", root_half_length, root_half_length * (1 << tree_levels), verbose);
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), root_half_length, 0, 0);
 	}
 	else
 	{
-		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), rad, 0, 0);
+		dtype root_half_length = rad;
+		root_half_length /= (1 << tree_levels);
+		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
+		set_param("local root_half_length", root_half_length, root_half_length * (1 << tree_levels), verbose);
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), root_half_length, 0, 0);
 	}
 	tree[0].numstars = num_stars;
 	
@@ -1011,18 +1020,18 @@ int main(int argc, char* argv[])
 	
 		get_min_max_stars_kernel<dtype> <<<blocks, threads>>> (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
 		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
-		if (*max_num_stars_in_level <= 32)
+		if (*max_num_stars_in_level <= MAX_NUM_STARS_DIRECT)
 		{
 			print_verbose("Necessary recursion limit reached.\n", verbose);
-			print_verbose("Maximum number of stars in a node is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
-			print_verbose("Minimum number of stars in a node is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
 			set_param("tree_levels", tree_levels, i + 1, verbose);
 			break;
 		}
 		else
 		{
-			print_verbose("Maximum number of stars in a node is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
-			print_verbose("Minimum number of stars in a node is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
 		}
 	}
 	print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
@@ -1038,33 +1047,33 @@ int main(int argc, char* argv[])
 
 
 	print_verbose("Calculating binomial coefficients...\n", verbose);
-	calculate_binomial_coeffs(binomial_coeffs, 2 * multipole_order);
+	calculate_binomial_coeffs(binomial_coeffs, 2 * expansion_order);
 	print_verbose("Done calculating binomial coefficients.\n\n", verbose);
 
 
 	print_verbose("Calculating multipole and Taylor coefficients...\n", verbose);
 	stopwatch.start();
 
-	set_threads(threads, multipole_order + 1);
-	set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(tree_levels));
-	calculate_multipole_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, tree_levels, multipole_order, stars);
+	set_threads(threads, expansion_order + 1);
+	set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(tree_levels));
+	calculate_multipole_coeffs_kernel<dtype> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, tree_levels, expansion_order, stars);
 
-	set_threads(threads, multipole_order + 1, 4);
+	set_threads(threads, expansion_order + 1, 4);
 	for (int i = tree_levels - 1; i >= 0; i--)
 	{
-		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i), 4);
-		calculate_M2M_coeffs_kernel<dtype> <<<blocks, threads, 4 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
+		set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(i), 4);
+		calculate_M2M_coeffs_kernel<dtype> <<<blocks, threads, 4 * (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, expansion_order, binomial_coeffs);
 	}
 
 	for (int i = 2; i <= tree_levels; i++)
 	{
-		set_threads(threads, multipole_order + 1);
-		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i));
-		calculate_L2L_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
+		set_threads(threads, expansion_order + 1);
+		set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(i));
+		calculate_L2L_coeffs_kernel<dtype> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, expansion_order, binomial_coeffs);
 
-		set_threads(threads, multipole_order + 1, 27);
-		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i), 27);
-		calculate_M2L_coeffs_kernel<dtype> <<<blocks, threads, 27 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
+		set_threads(threads, expansion_order + 1, 27);
+		set_blocks(threads, blocks, (expansion_order + 1) * get_num_nodes(i), 27);
+		calculate_M2L_coeffs_kernel<dtype> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, expansion_order, binomial_coeffs);
 	}
 
 	if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return -1;
@@ -1097,7 +1106,7 @@ int main(int argc, char* argv[])
 	shoot rays and calculate time taken in seconds
 	******************************************************************************/
 	set_threads(threads, 16, 16);
-	set_blocks(threads, blocks, 16 * 30 * get_num_nodes(tree_levels), 16 * 30);
+	set_blocks(threads, blocks, 2 * lens_hl_x1 / ray_sep, 2 * lens_hl_x2 / ray_sep);
 	print_verbose("Number of nodes in final level: " + std::to_string(get_num_nodes(tree_levels)) + "\n", true);
 	std::cout << "Node half-length in final level: " << tree[get_min_index(tree_levels)].half_length << "\n";
 

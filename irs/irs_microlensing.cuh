@@ -209,186 +209,159 @@ shoot rays from image plane to source plane
 ******************************************************************************/
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* nodes, int level,
-	int rectangular, Complex<T> corner, int approx, int taylor, 
+	int rectangular, Complex<T> corner, int approx, int taylor,
 	T hlx1, T hlx2, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
-    /******************************************************************************
-    each block is a node, and each thread shoots rays for a subblock of the node
-    ******************************************************************************/
-	int NUM_SUBBLOCKS = 30;
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
 
-	int node_index = static_cast<int>(blockIdx.x / NUM_SUBBLOCKS);
+	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int y_stride = blockDim.y * gridDim.y;
 
-	int subblock_x = blockIdx.x - node_index * NUM_SUBBLOCKS;
-	int subblock_y = blockIdx.y;
-
-	int x_index = threadIdx.x;
-	int x_stride = blockDim.x;
-
-	int y_index = threadIdx.y;
-	int y_stride = blockDim.y;
-
-	int min_index = get_min_index(level);
-
-	if (node_index < get_num_nodes(level)) 
+	for (int i = x_index; i < 2 * hlx1 / raysep; i += x_stride)
 	{
-		TreeNode<T>* node = &nodes[min_index + node_index];
-		
-		Complex<T> subblock_center = node->center - (NUM_SUBBLOCKS - 1) * node->half_length / NUM_SUBBLOCKS * Complex<T>(1, 1) + Complex<T>(subblock_x, subblock_y) * 2 * node->half_length / NUM_SUBBLOCKS;
-		T subblock_half_length = node->half_length / NUM_SUBBLOCKS;
-
-		if (fabs(subblock_center.re) - subblock_half_length < hlx1 && fabs(subblock_center.im) - subblock_half_length < hlx2)
+		for (int j = y_index; j < 2 * hlx2 / raysep; j += y_stride)
 		{
-			int NUMRAYS = 16;
-			for (int i = x_index; i < NUMRAYS; i += x_stride)
+			/******************************************************************************
+			x = image plane, y = source plane
+			******************************************************************************/
+			Complex<T> x[4];
+			Complex<T> y[4];
+
+			/******************************************************************************
+			location of central ray in image plane
+			******************************************************************************/
+			Complex<T> z(-hlx1 + raysep / 2 + raysep * i, -hlx2 + raysep / 2 + raysep * j);
+			TreeNode<T>* node = get_nearest_node(z, nodes, level);
+
+			/******************************************************************************
+			shooting more rays in image plane at center +/- 1/3 * distance to next central
+			ray in x1 and x2 direction
+			******************************************************************************/
+			T dx = raysep / 3;
+
+			x[0] = z + Complex<T>(dx, dx);
+			x[1] = z + Complex<T>(-dx, dx);
+			x[2] = z + Complex<T>(-dx, -dx);
+			x[3] = z + Complex<T>(dx, -dx);
+
+			/******************************************************************************
+			map rays from image plane to source plane
+			******************************************************************************/
+#pragma unroll
+			for (int k = 0; k < 4; k++)
 			{
-				for (int j = y_index; j < NUMRAYS; j += y_stride)
+				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, kappastar, node, rectangular, corner, approx, taylor);
+			}
+
+			/******************************************************************************
+			calculate local Taylor coefficients of the potential
+			relies on symmetries and the fact that there are no higher order
+			 macro-derivatives than kappa and gamma to be able to calculate down to the 4th
+			 derivatives of the potential with our 4 rays shot
+			assumes rays shot lie within the rectangle of stars, thus removing any boxcar
+			 and heaviside functions
+			******************************************************************************/
+
+			T l_p1 = (y[0].re + y[1].re + y[2].re + y[3].re) / -4;
+			T l_p2 = (y[0].im + y[1].im + y[2].im + y[3].im) / -4;
+
+			T l_p11 = (kappa - kappastar) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
+			T l_p12 = (-y[0].re - y[1].re + y[2].re + y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx);
+
+			T l_p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
+			T l_p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
+
+			T l_p1111 = 3 * (8 * dx * (kappa - kappastar - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
+			T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
+
+			/******************************************************************************
+			divide distance between rays again, by 9
+			this gives us an increase in ray density of 27 (our initial division of 3,
+			 times this one of 9) per unit length, so 27^2 per unit area
+			these rays will use Taylor coefficients rather than being directly shot
+			******************************************************************************/
+			dx = dx / 9;
+
+			T y1;
+			T y2;
+			T invmag11;
+			T invmag12;
+			T invmag;
+			Complex<int> ypix;
+			for (int k = -13; k <= 13; k++)
+			{
+				for (int l = -13; l <= 13; l++)
 				{
-					/******************************************************************************
-					x = image plane, y = source plane
-					******************************************************************************/
-					Complex<T> x[4];
-					Complex<T> y[4];
+					T dx1 = dx * k;
+					T dx2 = dx * l;
 
-					/******************************************************************************
-					location of central ray in image plane
-					******************************************************************************/
-					Complex<T> z(subblock_center - (NUMRAYS - 1) * subblock_half_length / NUMRAYS * Complex<T>(1, 1) + Complex<T>(i, j) * 2 * subblock_half_length / NUMRAYS);
+					y1 = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
+						- (l_p111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p112 * dx1 * dx2) / 2
+						- l_p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
+						- l_p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
 
-					if (fabs(z.re) > hlx1 || fabs(z.im) > hlx2)
+					y2 = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar) - l_p11) * dx2)
+						- (l_p112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p111 * dx1 * dx2) / 2
+						- l_p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
+						- l_p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
+
+					if (y1 <= -hly || y1 >= hly || y2 <= -hly || y2 >= hly)
 					{
 						continue;
 					}
 
-					/******************************************************************************
-					shooting more rays in image plane at center +/- 1/3 * distance to next central
-					ray in x1 and x2 direction
-					******************************************************************************/
-					T dx = 2 * subblock_half_length / (3 * NUMRAYS);
-
-					x[0] = z + Complex<T>(dx, dx);
-					x[1] = z + Complex<T>(-dx, dx);
-					x[2] = z + Complex<T>(-dx, -dx);
-					x[3] = z + Complex<T>(dx, -dx);
+					ypix = point_to_pixel<int, T>(Complex<T>(y1, y2), hly, npixels);
 
 					/******************************************************************************
-					map rays from image plane to source plane
+					reverse y coordinate so array forms image in correct orientation
 					******************************************************************************/
-#pragma unroll
-					for (int k = 0; k < 4; k++)
+					ypix.im = npixels - 1 - ypix.im;
+					if (ypix.re < 0 || ypix.re >= npixels || ypix.im < 0 || ypix.im >= npixels)
 					{
-						y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, kappastar, node, rectangular, corner, approx, taylor);
+						continue;
 					}
 
-					/******************************************************************************
-					calculate local Taylor coefficients of the potential
-					relies on symmetries and the fact that there are no higher order
-					 macro-derivatives than kappa and gamma to be able to calculate down to the 4th
-					 derivatives of the potential with our 4 rays shot
-					assumes rays shot lie within the rectangle of stars, thus removing any boxcar
-					 and heaviside functions
-					******************************************************************************/
+					invmag11 = 1 - l_p11 - (l_p111 * dx1 + l_p112 * dx2)
+						- (l_p1111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p1112 * dx1 * dx2) / 2;
+					invmag12 = -l_p12 - (l_p112 * dx1 - l_p111 * dx2)
+						- (l_p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p1111 * dx1 * dx2) / 2;
+					invmag = invmag11 * (2 * (1 - kappa + kappastar) - invmag11) - invmag12 * invmag12;
 
-					T l_p1 = (y[0].re + y[1].re + y[2].re + y[3].re) / -4;
-					T l_p2 = (y[0].im + y[1].im + y[2].im + y[3].im) / -4;
-
-					T l_p11 = (kappa - kappastar) + (-y[0].re + y[1].re + y[2].re - y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx);
-					T l_p12 = (-y[0].re - y[1].re + y[2].re + y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx);
-
-					T l_p111 = (y[0].im - y[1].im + y[2].im - y[3].im) / (4 * dx * dx);
-					T l_p112 = (-y[0].re + y[1].re - y[2].re + y[3].re) / (4 * dx * dx);
-
-					T l_p1111 = 3 * (8 * dx * (kappa - kappastar - 1) + y[0].re - y[1].re - y[2].re + y[3].re + y[0].im + y[1].im - y[2].im - y[3].im) / (8 * dx * dx * dx);
-					T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
-
-					/******************************************************************************
-					divide distance between rays again, by 9
-					this gives us an increase in ray density of 27 (our initial division of 3,
-					 times this one of 9) per unit length, so 27^2 per unit area
-					these rays will use Taylor coefficients rather than being directly shot
-					******************************************************************************/
-					dx = dx / 9;
-
-					T y1;
-					T y2;
-					T invmag11;
-					T invmag12;
-					T invmag;
-					Complex<int> ypix;
-					for (int k = -13; k <= 13; k++)
+					if (invmag > 0)
 					{
-						for (int l = -13; l <= 13; l++)
+						if (pixmin)
 						{
-							T dx1 = dx * k;
-							T dx2 = dx * l;
-
-							y1 = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
-								- (l_p111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p112 * dx1 * dx2) / 2
-								- l_p1111 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
-								- l_p1112 * (3 * dx1 * dx1 * dx2 - dx2 * dx2 * dx2) / 6;
-
-							y2 = dx2 - l_p2 - (l_p12 * dx1 + (2 * (kappa - kappastar) - l_p11) * dx2)
-								- (l_p112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p111 * dx1 * dx2) / 2
-								- l_p1112 * (dx1 * dx1 * dx1 - 3 * dx1 * dx2 * dx2) / 6
-								- l_p1111 * (-3 * dx1 * dx1 * dx2 + dx2 * dx2 * dx2) / 6;
-
-							if (y1 <= -hly || y1 >= hly || y2 <= -hly || y2 >= hly)
-							{
-								continue;
-							}
-
-							ypix = point_to_pixel<int, T>(Complex<T>(y1, y2), hly, npixels);
-
-							/******************************************************************************
-							reverse y coordinate so array forms image in correct orientation
-							******************************************************************************/
-							ypix.im = npixels - 1 - ypix.im;
-							if (ypix.re < 0 || ypix.re >= npixels || ypix.im < 0 || ypix.im >= npixels)
-							{
-								continue;
-							}
-
-							invmag11 = 1 - l_p11 - (l_p111 * dx1 + l_p112 * dx2)
-								- (l_p1111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p1112 * dx1 * dx2) / 2;
-							invmag12 = -l_p12 - (l_p112 * dx1 - l_p111 * dx2)
-								- (l_p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p1111 * dx1 * dx2) / 2;
-							invmag = invmag11 * (2 * (1 - kappa + kappastar) - invmag11) - invmag12 * invmag12;
-
-							if (invmag > 0)
-							{
-								if (pixmin)
-								{
-									atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
-								}
-								atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
-							}
-							else if (invmag < -0)
-							{
-								if (pixsad)
-								{
-									atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
-								}
-								atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
-							}
-							else
-							{
-								if (pixmin)
-								{
-									atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
-								}
-								if (pixsad)
-								{
-									atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
-								}
-								atomicAdd(&pixels[ypix.im * npixels + ypix.re], 2);
-							}
+							atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
 						}
+						atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
+					}
+					else if (invmag < -0)
+					{
+						if (pixsad)
+						{
+							atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
+						}
+						atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
+					}
+					else
+					{
+						if (pixmin)
+						{
+							atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
+						}
+						if (pixsad)
+						{
+							atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
+						}
+						atomicAdd(&pixels[ypix.im * npixels + ypix.re], 2);
 					}
 				}
 			}
-		}		
+		}
 	}
 }
+
 
 /******************************************************************************
 initialize array of pixels to 0

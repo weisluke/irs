@@ -1096,8 +1096,8 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	shoot rays and calculate time taken in seconds
 	******************************************************************************/
-	set_threads(threads, 32, 32);
-	set_blocks(threads, blocks, 32 * get_num_nodes(tree_levels));
+	set_threads(threads, 16, 16);
+	set_blocks(threads, blocks, 16 * 30 * get_num_nodes(tree_levels), 16 * 30);
 	print_verbose("Number of nodes in final level: " + std::to_string(get_num_nodes(tree_levels)) + "\n", true);
 	std::cout << "Node half-length in final level: " << tree[get_min_index(tree_levels)].half_length << "\n";
 

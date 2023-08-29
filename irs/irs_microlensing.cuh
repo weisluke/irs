@@ -215,7 +215,12 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
     /******************************************************************************
     each block is a node, and each thread shoots rays for a subblock of the node
     ******************************************************************************/
-	int node_index = blockIdx.x;
+	int NUM_SUBBLOCKS = 30;
+
+	int node_index = static_cast<int>(blockIdx.x / NUM_SUBBLOCKS);
+
+	int subblock_x = blockIdx.x - node_index * NUM_SUBBLOCKS;
+	int subblock_y = blockIdx.y;
 
 	int x_index = threadIdx.x;
 	int x_stride = blockDim.x;
@@ -228,13 +233,16 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	if (node_index < get_num_nodes(level)) 
 	{
 		TreeNode<T>* node = &nodes[min_index + node_index];
+		
+		Complex<T> subblock_center = node->center - (NUM_SUBBLOCKS - 1) * node->half_length / NUM_SUBBLOCKS * Complex<T>(1, 1) + Complex<T>(subblock_x, subblock_y) * 2 * node->half_length / NUM_SUBBLOCKS;
+		T subblock_half_length = node->half_length / NUM_SUBBLOCKS;
 
-		if (fabs(node->center.re) - node->half_length < hlx1 && fabs(node->center.im) - node->half_length < hlx2)
+		if (fabs(subblock_center.re) - subblock_half_length < hlx1 && fabs(subblock_center.im) - subblock_half_length < hlx2)
 		{
-			int NUMBLOCKS = 50;
-			for (int i = x_index; i < NUMBLOCKS; i += x_stride)
+			int NUMRAYS = 16;
+			for (int i = x_index; i < NUMRAYS; i += x_stride)
 			{
-				for (int j = y_index; j < NUMBLOCKS; j += y_stride)
+				for (int j = y_index; j < NUMRAYS; j += y_stride)
 				{
 					/******************************************************************************
 					x = image plane, y = source plane
@@ -245,13 +253,18 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					/******************************************************************************
 					location of central ray in image plane
 					******************************************************************************/
-					Complex<T> z(node->center - (NUMBLOCKS - 1) * node->half_length / NUMBLOCKS * Complex<T>(1, 1) + Complex<T>(i, j) * 2 * node->half_length / NUMBLOCKS);
+					Complex<T> z(subblock_center - (NUMRAYS - 1) * subblock_half_length / NUMRAYS * Complex<T>(1, 1) + Complex<T>(i, j) * 2 * subblock_half_length / NUMRAYS);
+
+					if (fabs(z.re) > hlx1 || fabs(z.im) > hlx2)
+					{
+						continue;
+					}
 
 					/******************************************************************************
 					shooting more rays in image plane at center +/- 1/3 * distance to next central
 					ray in x1 and x2 direction
 					******************************************************************************/
-					T dx = 2 * node->half_length / (3 * NUMBLOCKS);
+					T dx = 2 * subblock_half_length / (3 * NUMRAYS);
 
 					x[0] = z + Complex<T>(dx, dx);
 					x[1] = z + Complex<T>(-dx, dx);

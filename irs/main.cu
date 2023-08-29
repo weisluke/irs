@@ -978,19 +978,11 @@ int main(int argc, char* argv[])
 
 	if (rectangular)
 	{
-		dtype root_half_length = c.re > c.im ? c.re : c.im;
-		root_half_length /= (1 << tree_levels);
-		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
-		set_param("local root_half_length", root_half_length, root_half_length * (1 << tree_levels), verbose);
-		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), root_half_length, 0, 0);
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), c.re > c.im ? c.re : c.im, 0, 0);
 	}
 	else
 	{
-		dtype root_half_length = rad;
-		root_half_length /= (1 << tree_levels);
-		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
-		set_param("local root_half_length", root_half_length, root_half_length * (1 << tree_levels), verbose);
-		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), root_half_length, 0, 0);
+		tree[0] = TreeNode<dtype>(Complex<dtype>(0, 0), rad, 0, 0);
 	}
 	tree[0].numstars = num_stars;
 	

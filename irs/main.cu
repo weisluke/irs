@@ -1011,7 +1011,7 @@ int main(int argc, char* argv[])
 	
 		get_min_max_stars_kernel<dtype> <<<blocks, threads>>> (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
 		if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return -1;
-		if (*max_num_stars_in_level <= 64)
+		if (*max_num_stars_in_level <= 32)
 		{
 			print_verbose("Necessary recursion limit reached.\n", verbose);
 			print_verbose("Maximum number of stars in a node is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
@@ -1053,18 +1053,18 @@ int main(int argc, char* argv[])
 	for (int i = tree_levels - 1; i >= 0; i--)
 	{
 		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i), 4);
-		calculate_M2M_coeffs_kernel<dtype> <<<blocks, threads, 4 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, binomial_coeffs);
+		calculate_M2M_coeffs_kernel<dtype> <<<blocks, threads, 4 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
 	}
 
-	for (int i = 1; i <= tree_levels; i++)
+	for (int i = 2; i <= tree_levels; i++)
 	{
 		set_threads(threads, multipole_order + 1);
 		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i));
-		calculate_L2L_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, binomial_coeffs);
+		calculate_L2L_coeffs_kernel<dtype> <<<blocks, threads, (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
 
 		set_threads(threads, multipole_order + 1, 27);
 		set_blocks(threads, blocks, (multipole_order + 1) * get_num_nodes(i), 27);
-		calculate_M2L_coeffs_kernel<dtype> <<<blocks, threads, 27 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, binomial_coeffs);
+		calculate_M2L_coeffs_kernel<dtype> <<<blocks, threads, 27 * (multipole_order + 1) * sizeof(Complex<dtype>)>>> (tree, i, multipole_order, binomial_coeffs);
 	}
 
 	if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return -1;
@@ -1096,8 +1096,8 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	shoot rays and calculate time taken in seconds
 	******************************************************************************/
-	set_threads(threads, 16, 16);
-	set_blocks(threads, blocks, 16 * get_num_nodes(tree_levels));
+	set_threads(threads, 32, 32);
+	set_blocks(threads, blocks, 32 * get_num_nodes(tree_levels));
 	print_verbose("Number of nodes in final level: " + std::to_string(get_num_nodes(tree_levels)) + "\n", true);
 	std::cout << "Node half-length in final level: " << tree[get_min_index(tree_levels)].half_length << "\n";
 

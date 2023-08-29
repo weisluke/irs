@@ -808,11 +808,11 @@ int main(int argc, char* argv[])
 	int tree_levels;
 	if (rectangular)
 	{
-		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / (c.re > c.im ? c.im : c.re) * (c.re > c.im ? c.re : c.im)) / 2 + 1), verbose);
+		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / (c.re > c.im ? c.im : c.re) * (c.re > c.im ? c.re : c.im)) / 2) + 1, verbose);
 	}
 	else
 	{
-		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / PI * 4) / 2 + 1), verbose);
+		set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars / PI * 4) / 2) + 1, verbose);
 	}
 
 	int tree_size = 1;
@@ -821,7 +821,8 @@ int main(int argc, char* argv[])
 	set_param("tree_size", tree_size, tree_size / 3, verbose);
 
 	int expansion_order;
-	set_param("expansion_order", expansion_order, std::log2(MAX_NUM_STARS_DIRECT / 9 * theta_e * theta_e * m_upper * num_pixels / (2 * half_length)) + 1, verbose, true);
+	set_param("expansion_order", expansion_order, 
+		static_cast<int>(std::log2(theta_e * theta_e * m_upper * num_pixels / (2 * half_length) * MAX_NUM_STARS_DIRECT / 9)) + 1, verbose, true);
 	if (expansion_order > MAX_EXPANSION_ORDER)
 	{
 		std::cerr << "Error. Maximum allowed expansion order is " << MAX_EXPANSION_ORDER << "\n";

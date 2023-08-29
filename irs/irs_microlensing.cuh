@@ -53,16 +53,17 @@ calculate the deflection angle due to far away stars for a node
 \param node -- node within which to calculate the deflection angle
 
 \return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
-           where a_i are coefficients of the potential
+           where a_i are coefficients of the lensing potential
 ******************************************************************************/
 template <typename T>
 __device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
 {
 	Complex<T> alpha_local_bar;
+	Complex<T> dz = (z - node->center);
 
 	for (int i = node->expansion_order - 1; i >= 0; i--)
 	{
-		alpha_local_bar *= (z - node->center);
+		alpha_local_bar *= dz
 		alpha_local_bar += node->local_coeffs[i + 1] * (i + 1);
 	}
 	alpha_local_bar *= (theta * theta);

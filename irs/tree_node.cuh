@@ -27,9 +27,8 @@ public:
     int stars;
     int numstars;
 
-    int multipole_order;
+    int expansion_order;
     Complex<T> multipole_coeffs[21];
-    int taylor_order;
     Complex<T> taylor_coeffs[21];
 
 
@@ -61,8 +60,13 @@ public:
 
         stars = 0;
         numstars = 0;
-        multipole_order = 0;
-        taylor_order = 0;
+        expansion_order = 0;
+
+        for (int i = 0; i <= 20; i++)
+        {
+            multipole_coeffs[i] = Complex<T>();
+            taylor_coeffs[i] = Complex<T>();
+        }
 	}
     
     /******************************************************************************
@@ -94,14 +98,10 @@ public:
 
         stars = n.stars;
         numstars = n.numstars;
-        multipole_order = n.multipole_order;
-        for (int i = 0; i < multipole_order; i++)
+        expansion_order = n.expansion_order;
+        for (int i = 0; i <= 20; i++)
         {
             multipole_coeffs[i] = n.multipole_coeffs[i];
-        }
-        taylor_order = n.taylor_order;
-        for (int i = 0; i < taylor_order; i++)
-        {
             taylor_coeffs[i] = n.taylor_coeffs[i];
         }
 
@@ -178,7 +178,7 @@ public:
         {
             multipole_coeffs[i] = coeffs[i];
         }
-        multipole_order = power;
+        expansion_order = (expansion_order > power ? expansion_order : power);
     }
     
     __host__ __device__ void add_multipole_coeffs(Complex<T>* coeffs, int power)
@@ -187,6 +187,7 @@ public:
         {
             multipole_coeffs[i] += coeffs[i];
         }
+        expansion_order = (expansion_order > power ? expansion_order : power);
     }
 
     __host__ __device__ void set_taylor_coeffs(Complex<T>* coeffs, int power)
@@ -195,7 +196,7 @@ public:
         {
             taylor_coeffs[i] = coeffs[i];
         }
-        taylor_order = power;
+        expansion_order = (expansion_order > power ? expansion_order : power);
     }
 
     __host__ __device__ void add_taylor_coeffs(Complex<T>* coeffs, int power)
@@ -204,6 +205,7 @@ public:
         {
             taylor_coeffs[i] += coeffs[i];
         }
+        expansion_order = (expansion_order > power ? expansion_order : power);
     }
 
 };
@@ -382,7 +384,7 @@ __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars,
 #pragma unroll
             for (int i = 1; i < 4; i++)
             {
-                node->children[i]->stars = node->children[i - 1]->stars + n_stars_children[i - 1];
+                node->children[i]->stars = node->children[i - 1]->stars + node->children[i - 1]->numstars;
                 node->children[i]->numstars = n_stars_children[i];
             }
         }
@@ -471,7 +473,7 @@ __device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int p
 }
 
 template <typename T>
-__global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int* binomcoeffs)
+__global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
 {
     /******************************************************************************
     each block is a node, and each thread calculates a multipole coefficient
@@ -493,9 +495,10 @@ __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int* 
 
         for (int i = y_index; i < 4; i += y_stride)
         {
-            for (int j = x_index; j <= node->multipole_order; j += x_stride)
+            TreeNode<T>* child = node->children[i];
+            for (int j = x_index; j <= power; j += x_stride)
             {
-                calculate_M2M_coeff(node->children[i], &coeffs[(node->multipole_order + 1) * i], j, binomcoeffs);
+                calculate_M2M_coeff(child, &coeffs[(power + 1) * i], j, binomcoeffs);
             }
         }
         __syncthreads();
@@ -503,7 +506,7 @@ __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int* 
         {
             for (int i = 0; i < 4; i++)
             {
-                node->add_multipole_coeffs(&coeffs[(node->multipole_order + 1) * i], node->multipole_order);
+                node->add_multipole_coeffs(&coeffs[(power + 1) * i], power);
             }
         }
     }
@@ -526,7 +529,7 @@ __device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int p
 }
 
 template <typename T>
-__global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int* binomcoeffs)
+__global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
 {
     /******************************************************************************
     each block is a node, and each thread calculates a multipole coefficient
@@ -544,14 +547,14 @@ __global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int* 
     {
         TreeNode<T>* node = &nodes[min_index + node_index];
 
-        for (int i = x_index; i <= node->parent->taylor_order; i += x_stride)
+        for (int i = x_index; i <= power; i += x_stride)
         {
-            calculate_L2L_coeff(node, coeffs, i, node->parent->taylor_order, binomcoeffs);
+            calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
         }
         __syncthreads();
         if (threadIdx.x == 0)
         {
-            node->set_taylor_coeffs(coeffs, node->parent->taylor_order);
+            node->set_taylor_coeffs(coeffs, power);
         }
     }
 }
@@ -586,7 +589,7 @@ __device__ void calculate_M2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to
 }
 
 template <typename T>
-__global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int* binomcoeffs)
+__global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
 {
     /******************************************************************************
     each block is a node, and each thread calculates a Taylor coefficient
@@ -608,9 +611,9 @@ __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int* 
 
         for (int i = y_index; i < node->numinterlist; i += y_stride)
         {
-            for (int j = x_index; j <= node->multipole_order; j += x_stride)
+            for (int j = x_index; j <= power; j += x_stride)
             {
-                calculate_M2L_coeff(node->interactionlist[i], node, &coeffs[(node->multipole_order + 1) * i], j, node->multipole_order, binomcoeffs);
+                calculate_M2L_coeff(node->interactionlist[i], node, &coeffs[(power + 1) * i], j, power, binomcoeffs);
             }
         }
         __syncthreads();
@@ -618,7 +621,7 @@ __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int* 
         {
             for (int i = 0; i < node->numinterlist; i++)
             {
-                node->add_taylor_coeffs(&coeffs[(node->multipole_order + 1) * i], node->multipole_order);
+                node->add_taylor_coeffs(&coeffs[(power + 1) * i], power);
             }
         }
     }

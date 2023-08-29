@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "complex.cuh"
 #include "star.cuh"
@@ -60,7 +60,7 @@ __device__ Complex<T> taylor_deflection(Complex<T> z, T theta, TreeNode<T>* node
 {
 	Complex<T> alpha_taylor_bar;
 
-	for (int i = node->taylor_order; i >= 1; i--)
+	for (int i = node->expansion_order; i >= 1; i--)
 	{
 		alpha_taylor_bar += node->taylor_coeffs[i] * i;
 		alpha_taylor_bar *= (z - node->center);

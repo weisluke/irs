@@ -10,6 +10,8 @@
 #include <string>
 
 
+const int NUM_RESAMPLED_RAYS = 30;
+
 /******************************************************************************
 calculate the deflection angle due to nearby stars for a node
 
@@ -238,10 +240,10 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			TreeNode<T>* node = get_nearest_node(z, nodes, level);
 
 			/******************************************************************************
-			shooting more rays in image plane at center +/- 1/3 * distance to next central
-			ray in x1 and x2 direction
+			shooting rays in image plane at center +/- 1/2 * distance to next central ray
+			in x1 and x2 direction
 			******************************************************************************/
-			T dx = raysep / 3;
+			T dx = raysep / 2;
 
 			x[0] = z + Complex<T>(dx, dx);
 			x[1] = z + Complex<T>(-dx, dx);
@@ -279,25 +281,27 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
 
 			/******************************************************************************
-			divide distance between rays again, by 9
-			this gives us an increase in ray density of 27 (our initial division of 3,
-			 times this one of 9) per unit length, so 27^2 per unit area
+			divide distance between rays by (2 * NUM_RESAMPLED_RAYS + 1) 
+			this gives us an increase in ray density of (2 * NUM_RESAMPLED_RAYS + 1) per
+			 unit length, so (2 * NUM_RESAMPLED_RAYS + 1)^2 per unit area
 			these rays will use Taylor coefficients rather than being directly shot
 			******************************************************************************/
-			dx = dx / 9;
+			dx = raysep / (2 * NUM_RESAMPLED_RAYS + 1);
 
+			T dx1;
+			T dx2;
 			T y1;
 			T y2;
 			T invmag11;
 			T invmag12;
 			T invmag;
 			Complex<int> ypix;
-			for (int k = -13; k <= 13; k++)
+			for (int k = -NUM_RESAMPLED_RAYS; k <= NUM_RESAMPLED_RAYS; k++)
 			{
-				for (int l = -13; l <= 13; l++)
+				for (int l = -NUM_RESAMPLED_RAYS; l <= NUM_RESAMPLED_RAYS; l++)
 				{
-					T dx1 = dx * k;
-					T dx2 = dx * l;
+					dx1 = dx * k;
+					dx2 = dx * l;
 
 					y1 = dx1 - l_p1 - (l_p11 * dx1 + l_p12 * dx2)
 						- (l_p111 * (dx1 * dx1 - dx2 * dx2) + 2 * l_p112 * dx1 * dx2) / 2

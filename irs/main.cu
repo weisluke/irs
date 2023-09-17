@@ -744,7 +744,7 @@ int main(int argc, char* argv[])
 	source plane, further subdivisions are made that multiply the effective number
 	of rays in the image plane by 27^2
 	******************************************************************************/
-	dtype num_rays_lens = num_rays / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length * 2 * half_length) * 1 / (27 * 27);
+	dtype num_rays_lens = num_rays / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length * 2 * half_length) / ((2 * NUM_RESAMPLED_RAYS + 1) * (2 * NUM_RESAMPLED_RAYS + 1));
 
 	/******************************************************************************
 	average separation between rays in one dimension is 1/sqrt(number density)

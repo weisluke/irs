@@ -69,7 +69,6 @@ const std::map<std::string, enumMassFunction> MASS_FUNCTIONS{
 	{"kroupa", kroupa}
 };
 const int MAX_NUM_STARS_DIRECT = 32;
-const int MAX_EXPANSION_ORDER = 20;
 
 
 /******************************************************************************

@@ -4,6 +4,9 @@
 #include "complex.cuh"
 #include "star.cuh"
 
+
+const int MAX_EXPANSION_ORDER = 25;
+
 /******************************************************************************
 template class for handling nodes of a tree
 ******************************************************************************/
@@ -28,8 +31,8 @@ public:
     int numstars;
 
     int expansion_order;
-    Complex<T> multipole_coeffs[21];
-    Complex<T> local_coeffs[21];
+    Complex<T> multipole_coeffs[MAX_EXPANSION_ORDER + 1];
+    Complex<T> local_coeffs[MAX_EXPANSION_ORDER + 1];
 
 
     /******************************************************************************
@@ -62,7 +65,7 @@ public:
         numstars = 0;
         expansion_order = 0;
 
-        for (int i = 0; i <= 20; i++)
+        for (int i = 0; i <= MAX_EXPANSION_ORDER; i++)
         {
             multipole_coeffs[i] = Complex<T>();
             local_coeffs[i] = Complex<T>();
@@ -99,7 +102,7 @@ public:
         stars = n.stars;
         numstars = n.numstars;
         expansion_order = n.expansion_order;
-        for (int i = 0; i <= 20; i++)
+        for (int i = 0; i <= MAX_EXPANSION_ORDER; i++)
         {
             multipole_coeffs[i] = n.multipole_coeffs[i];
             local_coeffs[i] = n.local_coeffs[i];

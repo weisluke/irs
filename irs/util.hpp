@@ -81,7 +81,7 @@ function to set a parameter value and print message if necessary
 template <typename T, typename U>
 void set_param(const std::string& name, T& param, U what, bool verbose, bool newline = false)
 {
-	param = what;
+	param = static_cast<T>(what);
 	if (verbose)
 	{
 		std::cout << name << " set to: " << param << "\n";

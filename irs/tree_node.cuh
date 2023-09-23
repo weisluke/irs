@@ -5,7 +5,13 @@
 #include "star.cuh"
 
 
-const int MAX_EXPANSION_ORDER = 25;
+/******************************************************************************
+maximum expansion order for the fast multipole method
+******************************************************************************/
+namespace treenode
+{
+    const int MAX_EXPANSION_ORDER = 25;
+}
 
 /******************************************************************************
 template class for handling nodes of a tree
@@ -31,14 +37,14 @@ public:
     int numstars;
 
     int expansion_order;
-    Complex<T> multipole_coeffs[MAX_EXPANSION_ORDER + 1];
-    Complex<T> local_coeffs[MAX_EXPANSION_ORDER + 1];
+    Complex<T> multipole_coeffs[treenode::MAX_EXPANSION_ORDER + 1];
+    Complex<T> local_coeffs[treenode::MAX_EXPANSION_ORDER + 1];
 
 
     /******************************************************************************
 	default constructor
 	******************************************************************************/
-	__host__ __device__ TreeNode(Complex<T> ctr, T hl, T lvl, int idx, TreeNode* p = nullptr)
+	__host__ __device__ TreeNode(Complex<T> ctr, T hl, int lvl, int idx, TreeNode* p = nullptr)
 	{
         center = ctr;
         half_length = hl;
@@ -65,7 +71,7 @@ public:
         numstars = 0;
         expansion_order = 0;
 
-        for (int i = 0; i <= MAX_EXPANSION_ORDER; i++)
+        for (int i = 0; i <= treenode::MAX_EXPANSION_ORDER; i++)
         {
             multipole_coeffs[i] = Complex<T>();
             local_coeffs[i] = Complex<T>();
@@ -102,7 +108,7 @@ public:
         stars = n.stars;
         numstars = n.numstars;
         expansion_order = n.expansion_order;
-        for (int i = 0; i <= MAX_EXPANSION_ORDER; i++)
+        for (int i = 0; i <= treenode::MAX_EXPANSION_ORDER; i++)
         {
             multipole_coeffs[i] = n.multipole_coeffs[i];
             local_coeffs[i] = n.local_coeffs[i];
@@ -229,574 +235,273 @@ public:
 };
 
 
-/******************************************************************************
-get the minimum index for a level
-
-\param level -- what level in the tree to get the minimum index for
-
-\return ( 4 ^ n - 1 ) / 3 = ( 2 ^ (2n) - 1) / 3
-******************************************************************************/
-__host__ __device__ int get_min_index(int level)
+namespace treenode
 {
-    int min_index = 1;
-    min_index = min_index << (2 * level);
-    min_index = (min_index - 1) / 3;
-    return min_index;
-}
 
-/******************************************************************************
-get the maximum index for a level
-
-\param level -- what level in the tree to get the maximum index for
-
-\return ( 4 ^ (n + 1) - 4 ) / 3 = ( 4 * 2 ^ (2n) - 4) / 3
-******************************************************************************/
-__host__ __device__ int get_max_index(int level)
-{
-    int max_index = 4;
-    max_index = max_index << (2 * level);
-    max_index = (max_index - 4) / 3;
-    return max_index;
-}
-
-/******************************************************************************
-get the number of nodes for a level
-
-\param level -- what level in the tree to get the number of nodes for
-
-\return max_level - min_level + 1
-******************************************************************************/
-__host__ __device__ int get_num_nodes(int level)
-{
-    int min_index = get_min_index(level);
-    int max_index = get_max_index(level);
-    return max_index - min_index + 1;
-}
-
-/******************************************************************************
-create the children for nodes at a given level
-
-\param nodes -- pointer to tree
-\param level -- what level in the tree to make the children of
-******************************************************************************/
-template <typename T>
-__global__ void create_children_kernel(TreeNode<T>* nodes, int level)
-{
-    int x_index = blockIdx.x * blockDim.x + threadIdx.x;
-    int x_stride = blockDim.x * gridDim.x;
-
-    int min_index = get_min_index(level);
-
-    for (int i = x_index; i < get_num_nodes(level); i += x_stride)
-    {
-        nodes[min_index + i].make_children(nodes);
-    }
-}
-
-/******************************************************************************
-set the neighbors for nodes at a given level
-
-\param nodes -- pointer to tree
-\param level -- what level in the tree to set the neighbors of
-******************************************************************************/
-template <typename T>
-__global__ void set_neighbors_kernel(TreeNode<T>* nodes, int level)
-{
-    int x_index = blockIdx.x * blockDim.x + threadIdx.x;
-    int x_stride = blockDim.x * gridDim.x;
-
-    int min_index = get_min_index(level);
-
-    for (int i = x_index; i < get_num_nodes(level); i += x_stride)
-    {
-        nodes[min_index + i].set_neighbors();
-    }
-}
-
-/******************************************************************************
-get the minimum and maximum number of stars contained within a node and its
-neighbors
-
-\param nodes -- pointer to tree
-\param level -- what level in the tree to get the number of stars for
-\param min_n_stars -- pointer to minimum number of stars
-\param max_n_stars -- pointer to maximum number of stars
-******************************************************************************/
-template <typename T>
-__global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int level, int* min_n_stars, int* max_n_stars)
-{
-	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
-	int x_stride = blockDim.x * gridDim.x;
-
-    int min_index = get_min_index(level);
-
-	for (int i = x_index; i < get_num_nodes(level); i += x_stride)
-	{
-        TreeNode<T>* node = &nodes[min_index + i];
-        int nstars = node->numstars;
-        for (int j = 0; j < node->numneighbors; j++)
-        {
-            nstars += node->neighbors[j]->numstars;
-        }
-        atomicMin(min_n_stars, nstars);
-        atomicMax(max_n_stars, nstars);
-	}
-}
-
-/******************************************************************************
-sort the stars into each node for a given level
-
-\param nodes -- pointer to tree
-\param level -- what level in the tree to sort the stars
-\param stars -- pointer to array of point mass lenses
-\param temp_stars -- pointer to temp array of point mass lenses, used for
-                     swapping
-******************************************************************************/
-template <typename T>
-__global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars, star<T>* temp_stars)
-{
     /******************************************************************************
-    each block is a node, and each thread is a star within the parent node
+    get the minimum index for a level
+
+    \param level -- what level in the tree to get the minimum index for
+
+    \return ( 4 ^ n - 1 ) / 3 = ( 2 ^ (2n) - 1) / 3
     ******************************************************************************/
-    int node_index = blockIdx.x;
-
-	int x_index = threadIdx.x;
-	int x_stride = blockDim.x;
-
-    __shared__ int n_stars_top;
-    __shared__ int n_stars_bottom;
-    __shared__ int n_stars_children[4];
-
-    if (threadIdx.x == 0)
+    __host__ __device__ int get_min_index(int level)
     {
-        n_stars_top = 0;
-        n_stars_bottom = 0;
-        n_stars_children[0] = 0;
-        n_stars_children[1] = 0;
-        n_stars_children[2] = 0;
-        n_stars_children[3] = 0;
+        int min_index = 1;
+        min_index = min_index << (2 * level);
+        min_index = (min_index - 1) / 3;
+        return min_index;
     }
-    __syncthreads();
 
-    int min_index = get_min_index(level);
+    /******************************************************************************
+    get the maximum index for a level
 
-    if (node_index < get_num_nodes(level))
+    \param level -- what level in the tree to get the maximum index for
+
+    \return ( 4 ^ (n + 1) - 4 ) / 3 = ( 4 * 2 ^ (2n) - 4) / 3
+    ******************************************************************************/
+    __host__ __device__ int get_max_index(int level)
     {
-        TreeNode<T>* node = &nodes[min_index + node_index];
+        int max_index = 4;
+        max_index = max_index << (2 * level);
+        max_index = (max_index - 4) / 3;
+        return max_index;
+    }
 
-        /******************************************************************************
-        in the first pass, figure out whether the star is above or below the center
-        ******************************************************************************/
-        for (int i = x_index; i < node->numstars; i += x_stride)
+    /******************************************************************************
+    get the number of nodes for a level
+
+    \param level -- what level in the tree to get the number of nodes for
+
+    \return max_level - min_level + 1
+    ******************************************************************************/
+    __host__ __device__ int get_num_nodes(int level)
+    {
+        int min_index = get_min_index(level);
+        int max_index = get_max_index(level);
+        return max_index - min_index + 1;
+    }
+
+    /******************************************************************************
+    create the children for nodes at a given level
+
+    \param nodes -- pointer to tree
+    \param level -- what level in the tree to make the children of
+    ******************************************************************************/
+    template <typename T>
+    __global__ void create_children_kernel(TreeNode<T>* nodes, int level)
+    {
+        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+        int x_stride = blockDim.x * gridDim.x;
+
+        int min_index = get_min_index(level);
+
+        for (int i = x_index; i < get_num_nodes(level); i += x_stride)
         {
-            if (stars[node->stars + i].position.im >= node->center.im)
+            nodes[min_index + i].make_children(nodes);
+        }
+    }
+
+    /******************************************************************************
+    set the neighbors for nodes at a given level
+
+    \param nodes -- pointer to tree
+    \param level -- what level in the tree to set the neighbors of
+    ******************************************************************************/
+    template <typename T>
+    __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int level)
+    {
+        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+        int x_stride = blockDim.x * gridDim.x;
+
+        int min_index = get_min_index(level);
+
+        for (int i = x_index; i < get_num_nodes(level); i += x_stride)
+        {
+            nodes[min_index + i].set_neighbors();
+        }
+    }
+
+    /******************************************************************************
+    find the node nearest to a given position at a given level
+
+    \param z -- position to find the nearest node to
+    \param nodes -- pointer to tree
+    \param level -- what level in the tree to find the nearest node
+
+    \return pointer to nearest node
+    ******************************************************************************/
+    template <typename T>
+    __device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* nodes, int level)
+    {
+        TreeNode<T>* node = &nodes[0];
+        for (int i = 1; i <= level; i++)
+        {
+            if (z.re >= node->center.re && z.im >= node->center.im)
+            {
+                node = nodes->children[0];
+            }
+            else if (z.re < node->center.re && z.im >= node->center.im)
+            {
+                node = nodes->children[1];
+            }
+            else if (z.re < node->center.re && z.im < node->center.im)
+            {
+                node = nodes->children[2];
+            }
+            else
+            {
+                node = nodes->children[3];
+            }
+        }
+        return node;
+    }
+
+    /******************************************************************************
+    get the minimum and maximum number of stars contained within a node and its
+    neighbors
+
+    \param nodes -- pointer to tree
+    \param level -- what level in the tree to get the number of stars for
+    \param min_n_stars -- pointer to minimum number of stars
+    \param max_n_stars -- pointer to maximum number of stars
+    ******************************************************************************/
+    template <typename T>
+    __global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int level, int* min_n_stars, int* max_n_stars)
+    {
+        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+        int x_stride = blockDim.x * gridDim.x;
+
+        int min_index = get_min_index(level);
+
+        for (int i = x_index; i < get_num_nodes(level); i += x_stride)
+        {
+            TreeNode<T>* node = &nodes[min_index + i];
+            int nstars = node->numstars;
+            for (int j = 0; j < node->numneighbors; j++)
+            {
+                nstars += node->neighbors[j]->numstars;
+            }
+            atomicMin(min_n_stars, nstars);
+            atomicMax(max_n_stars, nstars);
+        }
+    }
+
+    /******************************************************************************
+    sort the stars into each node for a given level
+
+    \param nodes -- pointer to tree
+    \param level -- what level in the tree to sort the stars
+    \param stars -- pointer to array of point mass lenses
+    \param temp_stars -- pointer to temp array of point mass lenses, used for
+                         swapping
+    ******************************************************************************/
+    template <typename T>
+    __global__ void sort_stars_kernel(TreeNode<T>* nodes, int level, star<T>* stars, star<T>* temp_stars)
+    {
+        /******************************************************************************
+        each block is a node, and each thread is a star within the parent node
+        ******************************************************************************/
+        int node_index = blockIdx.x;
+
+        int x_index = threadIdx.x;
+        int x_stride = blockDim.x;
+
+        __shared__ int n_stars_top;
+        __shared__ int n_stars_bottom;
+        __shared__ int n_stars_children[4];
+
+        if (threadIdx.x == 0)
+        {
+            n_stars_top = 0;
+            n_stars_bottom = 0;
+            n_stars_children[0] = 0;
+            n_stars_children[1] = 0;
+            n_stars_children[2] = 0;
+            n_stars_children[3] = 0;
+        }
+        __syncthreads();
+
+        int min_index = get_min_index(level);
+
+        if (node_index < get_num_nodes(level))
+        {
+            TreeNode<T>* node = &nodes[min_index + node_index];
+
+            /******************************************************************************
+            in the first pass, figure out whether the star is above or below the center
+            ******************************************************************************/
+            for (int i = x_index; i < node->numstars; i += x_stride)
+            {
+                if (stars[node->stars + i].position.im >= node->center.im)
+                {
+                    /******************************************************************************
+                    atomic addition returns the old value, so this is guaranteed to copy the star
+                    to a unique location in the temp array
+                    ******************************************************************************/
+                    temp_stars[node->stars + atomicAdd(&n_stars_top, 1)] = stars[node->stars + i];
+                }
+                else
+                {
+                    temp_stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_bottom, 1)] = stars[node->stars + i];
+                }
+            }
+            __syncthreads();
+
+            /******************************************************************************
+            in the second pass, figure out whether the star is left or right of the center
+            ******************************************************************************/
+            for (int i = x_index; i < node->numstars; i += x_stride)
             {
                 /******************************************************************************
-                atomic addition returns the old value, so this is guaranteed to copy the star
-                to a unique location in the temp array
+                if the star was in the top, then sort left and right
                 ******************************************************************************/
-                temp_stars[node->stars + atomicAdd(&n_stars_top, 1)] = stars[node->stars + i];
-            }
-            else
-            {
-                temp_stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_bottom, 1)] = stars[node->stars + i];
-            }
-        }
-        __syncthreads();
-
-        /******************************************************************************
-        in the second pass, figure out whether the star is left or right of the center
-        ******************************************************************************/
-        for (int i = x_index; i < node->numstars; i += x_stride)
-        {
-            /******************************************************************************
-            if the star was in the top, then sort left and right
-            ******************************************************************************/
-            if (i < n_stars_top)
-            {
-                if (temp_stars[node->stars + i].position.re >= node->center.re)
+                if (i < n_stars_top)
                 {
-                    stars[node->stars + atomicAdd(&n_stars_children[0], 1)] = temp_stars[node->stars + i];
+                    if (temp_stars[node->stars + i].position.re >= node->center.re)
+                    {
+                        stars[node->stars + atomicAdd(&n_stars_children[0], 1)] = temp_stars[node->stars + i];
+                    }
+                    else
+                    {
+                        stars[node->stars + n_stars_top - 1 - atomicAdd(&n_stars_children[1], 1)] = temp_stars[node->stars + i];
+                    }
                 }
+                /******************************************************************************
+                if the star was in the bottom, then sort left and right
+                ******************************************************************************/
                 else
                 {
-                    stars[node->stars + n_stars_top - 1 - atomicAdd(&n_stars_children[1], 1)] = temp_stars[node->stars + i];
+                    if (temp_stars[node->stars + i].position.re < node->center.re)
+                    {
+                        stars[node->stars + n_stars_top + atomicAdd(&n_stars_children[2], 1)] = temp_stars[node->stars + i];
+                    }
+                    else
+                    {
+                        stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_children[3], 1)] = temp_stars[node->stars + i];
+                    }
                 }
             }
-            /******************************************************************************
-            if the star was in the bottom, then sort left and right
-            ******************************************************************************/
-            else
-            {
-                if (temp_stars[node->stars + i].position.re < node->center.re)
-                {
-                    stars[node->stars + n_stars_top + atomicAdd(&n_stars_children[2], 1)] = temp_stars[node->stars + i];
-                }
-                else
-                {
-                    stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_children[3], 1)] = temp_stars[node->stars + i];
-                }
-            }
-        }
-        __syncthreads();
+            __syncthreads();
 
-        /******************************************************************************
-        once the sorting is done, assign the starting position of stars to the children
-        along with the number of stars
-        ******************************************************************************/
-        if (threadIdx.x == 0)
-        {
-            node->children[0]->stars = node->stars;
-            node->children[0]->numstars = n_stars_children[0];
+            /******************************************************************************
+            once the sorting is done, assign the starting position of stars to the children
+            along with the number of stars
+            ******************************************************************************/
+            if (threadIdx.x == 0)
+            {
+                node->children[0]->stars = node->stars;
+                node->children[0]->numstars = n_stars_children[0];
 
 #pragma unroll
-            for (int i = 1; i < 4; i++)
-            {
-                node->children[i]->stars = node->children[i - 1]->stars + node->children[i - 1]->numstars;
-                node->children[i]->numstars = n_stars_children[i];
+                for (int i = 1; i < 4; i++)
+                {
+                    node->children[i]->stars = node->children[i - 1]->stars + node->children[i - 1]->numstars;
+                    node->children[i]->numstars = n_stars_children[i];
+                }
             }
         }
     }
-}
 
-/******************************************************************************
-find the node nearest to a given position at a given level
-
-\param z -- position to find the nearest node to
-\param nodes -- pointer to tree
-\param level -- what level in the tree to find the nearest node
-
-\return pointer to nearest node
-******************************************************************************/
-template <typename T>
-__device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* nodes, int level)
-{
-    TreeNode<T>* node = &nodes[0];
-    for (int i = 1; i <= level; i++)
-    {
-        if (z.re >= node->center.re && z.im >= node->center.im)
-        {
-            node = nodes->children[0];
-        }
-        else if (z.re < node->center.re && z.im >= node->center.im)
-        {
-            node = nodes->children[1];
-        }
-        else if (z.re < node->center.re && z.im < node->center.im)
-        {
-            node = nodes->children[2];
-        }
-        else
-        {
-            node = nodes->children[3];
-        }
-    }
-    return node;
-}
-
-
-/******************************************************************************
-calculate the multipole coefficient for a given power
-
-\param node -- pointer to node
-\param coeffs -- pointer to array of multipole coefficients
-\param power -- what order to find the multipole coefficient of
-\param stars -- pointer to array of point mass lenses
-******************************************************************************/
-template <typename T>
-__device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, star<T>* stars)
-{
-    Complex<T> result;
-
-    if (power == 0)
-    {
-        for (int i = 0; i < node->numstars; i++)
-        {
-            result += stars[node->stars + i].mass;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < node->numstars; i++)
-        {
-            result -= (stars[node->stars + i].position - node->center).pow(power) * stars[node->stars + i].mass;
-        }
-        result /= power;
-    }
-
-    coeffs[power] = result;
-}
-
-/******************************************************************************
-calculate the multipole coefficients for a given power
-
-\param nodes -- pointer to tree
-\param level -- level of the tree to calculate the multipole coefficients at
-\param power -- maximum expansion order to find the multipole coefficients of
-\param stars -- pointer to array of point mass lenses
-******************************************************************************/
-template <typename T>
-__global__ void calculate_multipole_coeffs_kernel(TreeNode<T>* nodes, int level, int power, star<T>* stars)
-{
-    /******************************************************************************
-    each block is a node, and each thread calculates a multipole coefficient
-    ******************************************************************************/
-    int node_index = blockIdx.x;
-
-	int x_index = threadIdx.x;
-	int x_stride = blockDim.x;
-
-    extern __shared__ Complex<T> coeffs[];
-
-    int min_index = get_min_index(level);
-
-    if (node_index < get_num_nodes(level))
-    {
-        TreeNode<T>* node = &nodes[min_index + node_index];
-
-        for (int i = x_index; i <= power; i += x_stride)
-        {
-            calculate_multipole_coeff(node, coeffs, i, stars);
-        }
-        __syncthreads();
-        if (threadIdx.x == 0)
-        {
-            node->set_multipole_coeffs(coeffs, power);
-        }
-    }
-}
-
-/******************************************************************************
-calculate the shifted multipole coefficient for a given power
-assumes that the expansion is being shifted to the center of the parent node
-
-\param node -- pointer to node
-\param coeffs -- pointer to array of multipole coefficients
-\param power -- what order to find the multipole coefficient of
-\param binomcoeffs -- pointer to array of binomial coefficients
-******************************************************************************/
-template <typename T>
-__device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int* binomcoeffs)
-{
-    Complex<T> result;
-
-    if (power == 0)
-    {
-        result = node->multipole_coeffs[0];
-    }
-    else
-    {
-        Complex<T> dz = node->center - node->parent->center;
-        for (int i = power; i >= 1; i--)
-        {
-            result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power - 1, i - 1);
-            result /= dz;
-        }
-        result -= node->multipole_coeffs[0] / power;
-        result *= dz.pow(power);
-    }
-
-    coeffs[power] = result;
-}
-
-/******************************************************************************
-calculate the shifted multipole coefficients for a given power
-
-\param nodes -- pointer to tree
-\param level -- level of the tree to calculate the multipole coefficients at
-\param power -- maximum expansion order to find the multipole coefficients of
-\param binomcoeffs -- pointer to array of binomial coefficients
-******************************************************************************/
-template <typename T>
-__global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
-{
-    /******************************************************************************
-    each block is a node, and each thread calculates a multipole coefficient
-    ******************************************************************************/
-    int node_index = blockIdx.x;
-
-    int x_index = threadIdx.x;
-    int x_stride = blockDim.x;
-    int y_index = threadIdx.y;
-    int y_stride = blockDim.y;
-
-    extern __shared__ Complex<T> coeffs[];
-
-    int min_index = get_min_index(level);
-
-    if (node_index < get_num_nodes(level))
-    {
-        TreeNode<T>* node = &nodes[min_index + node_index];
-
-        for (int i = y_index; i < 4; i += y_stride)
-        {
-            TreeNode<T>* child = node->children[i];
-            for (int j = x_index; j <= power; j += x_stride)
-            {
-                calculate_M2M_coeff(child, &coeffs[(power + 1) * i], j, binomcoeffs);
-            }
-        }
-        __syncthreads();
-        if (threadIdx.x == 0 && threadIdx.y == 0)
-        {
-            for (int i = 0; i < 4; i++)
-            {
-                node->add_multipole_coeffs(&coeffs[(power + 1) * i], power);
-            }
-        }
-    }
-}
-
-/******************************************************************************
-calculate the shifted local coefficient for a given power
-assumes that the expansion is being shifted to the center of the child node
-
-\param node -- pointer to node
-\param coeffs -- pointer to array of local coefficients
-\param power -- what order to find the local coefficient of
-\param maxpower -- maximum order to find the local coefficient of
-\param binomcoeffs -- pointer to array of binomial coefficients
-******************************************************************************/
-template <typename T>
-__device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
-{
-    Complex<T> result;
-    Complex<T> dz = node->center - node->parent->center;
-
-    for (int i = maxpower; i >= 1; i--)
-    {
-        result += node->parent->local_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
-        result *= dz;
-    }
-    result /= dz.pow(power);
-
-    coeffs[power] = result;
-}
-
-/******************************************************************************
-calculate the shifted local coefficients for a given power
-
-\param nodes -- pointer to tree
-\param level -- level of the tree to calculate the local coefficients at
-\param power -- maximum expansion order to find the local coefficients of
-\param binomcoeffs -- pointer to array of binomial coefficients
-******************************************************************************/
-template <typename T>
-__global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
-{
-    /******************************************************************************
-    each block is a node, and each thread calculates a multipole coefficient
-    ******************************************************************************/
-    int node_index = blockIdx.x;
-
-    int x_index = threadIdx.x;
-    int x_stride = blockDim.x;
-
-    extern __shared__ Complex<T> coeffs[];
-
-    int min_index = get_min_index(level);
-
-    if (node_index < get_num_nodes(level))
-    {
-        TreeNode<T>* node = &nodes[min_index + node_index];
-
-        for (int i = x_index; i <= power; i += x_stride)
-        {
-            calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
-        }
-        __syncthreads();
-        if (threadIdx.x == 0)
-        {
-            node->set_local_coeffs(coeffs, power);
-        }
-    }
-}
-
-/******************************************************************************
-calculate the local coefficient for a given power from the multipole
-coefficient of a far node
-
-\param node_from -- pointer to node whose multipole expansion is being used
-\param node_to -- pointer to node whose local expansion is being calculated
-\param coeffs -- pointer to array of local coefficients
-\param power -- what order to find the local coefficient of
-\param maxpower -- maximum order to find the local coefficient of
-\param binomcoeffs -- pointer to array of binomial coefficients
-******************************************************************************/
-template <typename T>
-__device__ void calculate_M2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
-{
-    Complex<T> result;
-    Complex<T> dz = node_from->center - node_to->center;
-
-    if (power == 0)
-    {
-        for (int i = maxpower; i >= 1; i--)
-        {
-            result += node_from->multipole_coeffs[i];
-            result /= -dz;
-        }
-        result += node_from->multipole_coeffs[0] * (-dz).log();
-    }
-    else
-    {
-        for (int i = maxpower; i >= 1; i--)
-        {
-            result += node_from->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power + i - 1, i - 1);
-            result /= -dz;
-        }
-        result -= node_from->multipole_coeffs[0] / power;
-        result /= dz.pow(power);
-    }
-
-    coeffs[power] = result;
-}
-
-/******************************************************************************
-calculate the local coefficients for a given power from the multipole
-coefficients of far nodes
-
-\param nodes -- pointer to tree
-\param level -- level of the tree to calculate the local coefficients at
-\param power -- maximum expansion order to find the local coefficients of
-\param binomcoeffs -- pointer to array of binomial coefficients
-******************************************************************************/
-template <typename T>
-__global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int level, int power, int* binomcoeffs)
-{
-    /******************************************************************************
-    each block is a node, and each thread calculates a local coefficient
-    ******************************************************************************/
-    int node_index = blockIdx.x;
-
-    int x_index = threadIdx.x;
-    int x_stride = blockDim.x;
-    int y_index = threadIdx.y;
-    int y_stride = blockDim.y;
-
-    extern __shared__ Complex<T> coeffs[];
-
-    int min_index = get_min_index(level);
-
-    if (node_index < get_num_nodes(level))
-    {
-        TreeNode<T>* node = &nodes[min_index + node_index];
-
-        for (int i = y_index; i < node->numinterlist; i += y_stride)
-        {
-            for (int j = x_index; j <= power; j += x_stride)
-            {
-                calculate_M2L_coeff(node->interactionlist[i], node, &coeffs[(power + 1) * i], j, power, binomcoeffs);
-            }
-        }
-        __syncthreads();
-        if (threadIdx.x == 0 && threadIdx.y == 0)
-        {
-            for (int i = 0; i < node->numinterlist; i++)
-            {
-                node->add_local_coeffs(&coeffs[(power + 1) * i], power);
-            }
-        }
-    }
 }
 

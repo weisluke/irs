@@ -277,9 +277,7 @@ namespace treenode
     ******************************************************************************/
     __host__ __device__ int get_num_nodes(int level)
     {
-        int min_index = get_min_index(level);
-        int max_index = get_max_index(level);
-        return max_index - min_index + 1;
+        return get_max_index(level) - get_min_index(level) + 1;
     }
 
     /******************************************************************************

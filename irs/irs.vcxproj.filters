@@ -38,5 +38,11 @@
     <ClInclude Include="stopwatch.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="microlensing.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="fmm.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

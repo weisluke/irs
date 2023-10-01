@@ -337,19 +337,19 @@ namespace treenode
         {
             if (z.re >= node->center.re && z.im >= node->center.im)
             {
-                node = nodes->children[0];
+                node = node->children[0];
             }
             else if (z.re < node->center.re && z.im >= node->center.im)
             {
-                node = nodes->children[1];
+                node = node->children[1];
             }
             else if (z.re < node->center.re && z.im < node->center.im)
             {
-                node = nodes->children[2];
+                node = node->children[2];
             }
             else
             {
-                node = nodes->children[3];
+                node = node->children[3];
             }
         }
         return node;

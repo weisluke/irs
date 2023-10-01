@@ -496,48 +496,23 @@ bool write_array(T* vals, int nrows, int ncols, const std::string& fname)
 {
 	std::filesystem::path fpath = fname;
 
-	std::ofstream outfile;
-
-	if (fpath.extension() == ".txt")
+	if (fpath.extension() != ".bin")
 	{
-		outfile.precision(9);
-		outfile.open(fname);
-
-		if (!outfile.is_open())
-		{
-			std::cerr << "Error. Failed to open file " << fname << "\n";
-			return false;
-		}
-		for (int i = 0; i < nrows; i++)
-		{
-			for (int j = 0; j < ncols; j++)
-			{
-				outfile << vals[i * ncols + j] << " ";
-			}
-			outfile << "\n";
-		}
-		outfile.close();
-	}
-	else if (fpath.extension() == ".bin")
-	{
-		outfile.open(fname, std::ios_base::binary);
-
-		if (!outfile.is_open())
-		{
-			std::cerr << "Error. Failed to open file " << fname << "\n";
-			return false;
-		}
-
-		outfile.write((char*)(&nrows), sizeof(int));
-		outfile.write((char*)(&ncols), sizeof(int));
-		outfile.write((char*)vals, nrows * ncols * sizeof(T));
-		outfile.close();
-	}
-	else
-	{
-		std::cerr << "Error. File " << fname << " is not a .bin or .txt file.\n";
+		std::cerr << "Error. File " << fname << " is not a .bin file.\n";
 		return false;
 	}
+
+	outfile.open(fname, std::ios_base::binary);
+
+	if (!outfile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << fname << "\n";
+		return false;
+	}
+	outfile.write((char*)(&nrows), sizeof(int));
+	outfile.write((char*)(&ncols), sizeof(int));
+	outfile.write((char*)vals, nrows * ncols * sizeof(T));
+	outfile.close();
 
 	return true;
 }

@@ -7,7 +7,6 @@ Email: weisluke@alum.mit.edu
 
 
 #include "microlensing.cuh"
-#include "stopwatch.hpp"
 #include "util.hpp"
 
 #include <iostream>
@@ -16,6 +15,7 @@ Email: weisluke@alum.mit.edu
 
 
 using dtype = float; //type to be used throughout this program. int, float, or double
+Microlensing<dtype> microlensing;
 
 /******************************************************************************
 constants to be used
@@ -49,9 +49,6 @@ const std::string OPTS[OPTS_SIZE] =
 	"-ot", "--outfile_type",
 	"-o", "--outfile_prefix"
 };
-
-
-Microlensing<dtype> microlensing;
 
 /******************************************************************************
 default input option values

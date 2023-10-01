@@ -2,7 +2,7 @@
 
 #include <cmath>
 #include <iostream>
-#include <stdexcept>
+#include <stdexcept> //for std::logic_error
 
 
 /******************************************************************************
@@ -25,13 +25,13 @@ public:
 	}
 	template <typename U> __host__ __device__ Complex(U real)
 	{
-		re = real;
+		re = static_cast<T>(real);
 		im = 0;
 	}
 	template <typename U, typename V> __host__ __device__ Complex(U real, V imag)
 	{
-		re = real;
-		im = imag;
+		re = static_cast<T>(real);
+		im = static_cast<T>(imag);
 	}
 
 	/******************************************************************************
@@ -39,8 +39,8 @@ public:
 	******************************************************************************/
 	template <typename U> __host__ __device__ Complex(const Complex<U>& c1)
 	{
-		re = c1.re;
-		im = c1.im;
+		re = static_cast<T>(c1.re);
+		im = static_cast<T>(c1.im);
 	}
 
 	/******************************************************************************
@@ -48,14 +48,14 @@ public:
 	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator=(const Complex<U>& c1)
 	{
-		re = c1.re;
-		im = c1.im;
+		re = static_cast<T>(c1.re);
+		im = static_cast<T>(c1.im);
 		return *this;
 	}
 	template <typename U> __host__ __device__ Complex& operator=(const U& num)
 	{
-		re = num;
-		im = 0;
+		re = static_cast<T>(num);
+		im = static_cast<T>(0);
 		return *this;
 	}
 

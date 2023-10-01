@@ -1,23 +1,38 @@
 #pragma once
 
 #include <cmath>
+#include <map>
+#include <string>
 
 
-/******************************************************************************
-enum to hold type of mass function
-
-equal -- all objects of an equal mass
-uniform -- objects distributed uniformly in some range
-salpeter -- objects follow a Salpeter mass distribution in some range
-kroupa -- objects follow a Kroupa mass distribution in some range
-******************************************************************************/
-enum enumMassFunction
+namespace massfunctions
 {
-	equal,
-	uniform,
-	salpeter,
-	kroupa,
-};
+
+	/******************************************************************************
+	enum to hold type of mass function
+
+	equal -- all objects of an equal mass
+	uniform -- objects distributed uniformly in some range
+	salpeter -- objects follow a Salpeter mass distribution in some range
+	kroupa -- objects follow a Kroupa mass distribution in some range
+	******************************************************************************/
+	enum massfunction
+	{
+		equal,
+		uniform,
+		salpeter,
+		kroupa,
+	};
+
+	const std::map<std::string, massfunction> MASS_FUNCTIONS
+	{
+		{"equal", equal},
+		{"uniform", uniform},
+		{"salpeter", salpeter},
+		{"kroupa", kroupa}
+	};
+
+}
 
 
 /******************************************************************************
@@ -101,12 +116,12 @@ class MassFunction
 	}
 
 public:
-	enumMassFunction mass_function;
+	massfunctions::massfunction mass_function;
 
 	/******************************************************************************
 	default constructor initializes the mass function to equal
 	******************************************************************************/
-	__host__ __device__ MassFunction(enumMassFunction mf = equal)
+	__host__ __device__ MassFunction(massfunctions::massfunction mf = massfunctions::equal)
 	{
 		mass_function = mf;
 	}
@@ -884,13 +899,13 @@ public:
 	{
 		switch (mass_function)
 		{
-		case equal:
+		case massfunctions::equal:
 			return equal_mass(p);
-		case uniform:
+		case massfunctions::uniform:
 			return uniform_mass(p, mL, mH);
-		case salpeter:
+		case massfunctions::salpeter:
 			return salpeter_mass(p, msolar, mL, mH);
-		case kroupa:
+		case massfunctions::kroupa:
 			return kroupa_mass(p, msolar, mL, mH);
 		default:
 			return equal_mass(p);
@@ -909,13 +924,13 @@ public:
 	{
 		switch (mass_function)
 		{
-		case equal:
+		case massfunctions::equal:
 			return mean_equal_mass();
-		case uniform:
+		case massfunctions::uniform:
 			return mean_uniform_mass(mL, mH);
-		case salpeter:
+		case massfunctions::salpeter:
 			return mean_salpeter_mass(msolar, mL, mH);
-		case kroupa:
+		case massfunctions::kroupa:
 			return mean_kroupa_mass(msolar, mL, mH);
 		default:
 			return mean_equal_mass();
@@ -933,13 +948,13 @@ public:
 	{
 		switch (mass_function)
 		{
-		case equal:
+		case massfunctions::equal:
 			return mean_equal_mass2();
-		case uniform:
+		case massfunctions::uniform:
 			return mean_uniform_mass2(mL, mH);
-		case salpeter:
+		case massfunctions::salpeter:
 			return mean_salpeter_mass2(msolar, mL, mH);
-		case kroupa:
+		case massfunctions::kroupa:
 			return mean_kroupa_mass2(msolar, mL, mH);
 		default:
 			return mean_equal_mass2();

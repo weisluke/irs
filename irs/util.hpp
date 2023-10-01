@@ -1,9 +1,9 @@
 #pragma once
 
-#include <algorithm>
-#include <cctype>
-#include <iostream>
-#include <string>
+#include <algorithm> //for std::find, std::transform
+#include <cctype> //for std::tolower
+#include <iostream> 
+#include <string> 
 
 
 /******************************************************************************
@@ -75,13 +75,13 @@ function to set a parameter value and print message if necessary
 \param name -- name of the parameter
 \param param -- reference to the parameter
 \param what -- value to set the parameter equal to
-\verbose -- whether to print message or not
-\newline -- whether to add an extra newline to the end or not
+\param verbose -- whether to print message or not
+\param newline -- whether to add an extra newline to the end or not
 ******************************************************************************/
 template <typename T, typename U>
 void set_param(const std::string& name, T& param, U what, bool verbose, bool newline = false)
 {
-	param = what;
+	param = static_cast<T>(what);
 	if (verbose)
 	{
 		std::cout << name << " set to: " << param << "\n";
@@ -137,7 +137,7 @@ CUDA error checking
 
 \param name -- to print in error msg
 \param sync -- boolean of whether device needs synchronized or not
-\param name -- the file being run
+\param file -- the file being run
 \param line -- line number of the source code where the error is given
 
 \return bool -- true for error, false for no error
@@ -196,9 +196,9 @@ set the number of blocks for the kernel
 ******************************************************************************/
 void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
 {
-	blocks.x = static_cast<int>((x - 1) / threads.x) + 1;
-	blocks.y = static_cast<int>((y - 1) / threads.y) + 1;
-	blocks.z = static_cast<int>((z - 1) / threads.z) + 1;
+	blocks.x = (x - 1) / threads.x + 1;
+	blocks.y = (y - 1) / threads.y + 1;
+	blocks.z = (z - 1) / threads.z + 1;
 }
 
 /******************************************************************************

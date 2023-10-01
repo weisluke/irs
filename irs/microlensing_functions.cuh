@@ -10,7 +10,12 @@
 #include <string>
 
 
-const int NUM_RESAMPLED_RAYS = 30;
+/******************************************************************************
+number of rays that will be shot in each x1 and x2 direction using taylor
+coefficients is equal to 2 * HALF_NUM_RESAMPLED_RAYS + 1
+******************************************************************************/
+const int HALF_NUM_RESAMPLED_RAYS = 30;
+const int NUM_RESAMPLED_RAYS = 2 * HALF_NUM_RESAMPLED_RAYS + 1;
 
 /******************************************************************************
 calculate the deflection angle due to nearby stars for a node
@@ -82,12 +87,13 @@ calculate the deflection angle due to smooth matter
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
 \param approx -- whether the smooth matter deflection is approximate or not
-\param taylor -- degree of the taylor series for alpha_smooth if approximate
+\param taylor_smooth -- degree of the taylor series for alpha_smooth if
+                        approximate
 
 \return alpha_smooth
 ******************************************************************************/
 template <typename T>
-__device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor)
+__device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor_smooth)
 {
 	T PI = 3.1415926535898;
 	Complex<T> alpha_smooth;
@@ -101,7 +107,7 @@ __device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangul
 			Complex<T> s3;
 			Complex<T> s4;
 
-			for (int i = 1; i <= taylor; i++)
+			for (int i = 1; i <= taylor_smooth; i++)
 			{
 				s1 += (z.conj() / corner).pow(i) / i;
 				s2 += (z.conj() / corner.conj()).pow(i) / i;
@@ -152,18 +158,19 @@ lens equation from image plane to source plane
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
 \param approx -- whether the smooth matter deflection is approximate or not
-\param taylor -- degree of the taylor series for alpha_smooth if approximate
+\param taylor_smooth -- degree of the taylor series for alpha_smooth if
+                        approximate
 
 \return w = (1 - kappa) * z + gamma * z_bar 
             - alpha_star - alpha_local - alpha_smooth
 ******************************************************************************/
 template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* node,
-	int rectangular, Complex<T> corner, int approx, int taylor)
+	int rectangular, Complex<T> corner, int approx, int taylor_smooth)
 {
 	Complex<T> alpha_star = star_deflection(z, theta, stars, node);
-	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, rectangular, corner, approx, taylor);
 	Complex<T> alpha_local = local_deflection(z, theta, node);
+	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, rectangular, corner, approx, taylor_smooth);
 
 	/******************************************************************************
 	(1 - kappa) * z + gamma * z_bar - alpha_star - alpha_local - alpha_smooth
@@ -202,9 +209,10 @@ shoot rays from image plane to source plane
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
 \param approx -- whether the smooth matter deflection is approximate or not
-\param taylor -- degree of the taylor series for alpha_smooth if approximate
-\param hlx1 -- half length of the image plane shooting region x1 size
-\param hlx2 -- half length of the image plane shooting region x2 size
+\param taylor_smooth -- degree of the taylor series for alpha_smooth if 
+                        approximate
+\param hlx -- half length of the image plane shooting region
+\param numrayblocks -- number of ray blocks for the image plane shooting region
 \param raysep -- separation between central rays of shooting squares
 \param hly -- half length of the source plane receiving region
 \param pixmin -- pointer to array of positive parity pixels
@@ -214,8 +222,8 @@ shoot rays from image plane to source plane
 ******************************************************************************/
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* nodes, int level,
-	int rectangular, Complex<T> corner, int approx, int taylor,
-	T hlx1, T hlx2, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
+	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
+	Complex<T> hlx, Complex<int> numrayblocks, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -223,9 +231,9 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
 	int y_stride = blockDim.y * gridDim.y;
 
-	for (int i = x_index; i < 2 * hlx1 / raysep; i += x_stride)
+	for (int i = x_index; i < numrayblocks.re; i += x_stride)
 	{
-		for (int j = y_index; j < 2 * hlx2 / raysep; j += y_stride)
+		for (int j = y_index; j < numrayblocks.im; j += y_stride)
 		{
 			/******************************************************************************
 			x = image plane, y = source plane
@@ -234,10 +242,10 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			Complex<T> y[4];
 
 			/******************************************************************************
-			location of central ray in image plane
+			location of central ray in image plane and nearest node
 			******************************************************************************/
-			Complex<T> z(-hlx1 + raysep / 2 + raysep * i, -hlx2 + raysep / 2 + raysep * j);
-			TreeNode<T>* node = get_nearest_node(z, nodes, level);
+			Complex<T> z = -hlx + raysep / 2 * Complex<T>(1, 1) + raysep * Complex<T>(i, j);
+			TreeNode<T>* node = treenode::get_nearest_node(z, nodes, level);
 
 			/******************************************************************************
 			shooting rays in image plane at center +/- 1/2 * distance to next central ray
@@ -256,7 +264,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 #pragma unroll
 			for (int k = 0; k < 4; k++)
 			{
-				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, kappastar, node, rectangular, corner, approx, taylor);
+				y[k] = complex_image_to_source(x[k], kappa, gamma, theta, stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
 			}
 
 			/******************************************************************************
@@ -281,12 +289,12 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			T l_p1112 = -3 * (y[0].re + y[1].re - y[2].re - y[3].re - y[0].im + y[1].im + y[2].im - y[3].im) / (8 * dx * dx * dx);
 
 			/******************************************************************************
-			divide distance between rays by (2 * NUM_RESAMPLED_RAYS + 1) 
-			this gives us an increase in ray density of (2 * NUM_RESAMPLED_RAYS + 1) per
-			 unit length, so (2 * NUM_RESAMPLED_RAYS + 1)^2 per unit area
+			divide distance between rays by NUM_RESAMPLED_RAYS
+			this gives us an increase in ray density of NUM_RESAMPLED_RAYS per unit length,
+			 so NUM_RESAMPLED_RAYS^2 per unit area
 			these rays will use Taylor coefficients rather than being directly shot
 			******************************************************************************/
-			dx = raysep / (2 * NUM_RESAMPLED_RAYS + 1);
+			dx = raysep / NUM_RESAMPLED_RAYS;
 
 			T dx1;
 			T dx2;
@@ -296,9 +304,9 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			T invmag12;
 			T invmag;
 			Complex<int> ypix;
-			for (int k = -NUM_RESAMPLED_RAYS; k <= NUM_RESAMPLED_RAYS; k++)
+			for (int k = -HALF_NUM_RESAMPLED_RAYS; k <= HALF_NUM_RESAMPLED_RAYS; k++)
 			{
-				for (int l = -NUM_RESAMPLED_RAYS; l <= NUM_RESAMPLED_RAYS; l++)
+				for (int l = -HALF_NUM_RESAMPLED_RAYS; l <= HALF_NUM_RESAMPLED_RAYS; l++)
 				{
 					dx1 = dx * k;
 					dx2 = dx * l;
@@ -321,12 +329,15 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					ypix = point_to_pixel<int, T>(Complex<T>(y1, y2), hly, npixels);
 
 					/******************************************************************************
-					reverse y coordinate so array forms image in correct orientation
+					account for possible rounding issues when converting to integer pixels
 					******************************************************************************/
-					ypix.im = npixels - 1 - ypix.im;
-					if (ypix.re < 0 || ypix.re >= npixels || ypix.im < 0 || ypix.im >= npixels)
+					if (ypix.re == npixels)
 					{
-						continue;
+						ypix.re--;
+					}
+					if (ypix.im == npixels)
+					{
+						ypix.im--;
 					}
 
 					invmag11 = 1 - l_p11 - (l_p111 * dx1 + l_p112 * dx2)
@@ -334,6 +345,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					invmag12 = -l_p12 - (l_p112 * dx1 - l_p111 * dx2)
 						- (l_p1112 * (dx1 * dx1 - dx2 * dx2) - 2 * l_p1111 * dx1 * dx2) / 2;
 					invmag = invmag11 * (2 * (1 - kappa + kappastar) - invmag11) - invmag12 * invmag12;
+
+					/******************************************************************************
+					reverse y coordinate so array forms image in correct orientation
+					******************************************************************************/
+					ypix.im = npixels - 1 - ypix.im;
 
 					if (invmag > 0)
 					{
@@ -480,48 +496,25 @@ bool write_array(T* vals, int nrows, int ncols, const std::string& fname)
 {
 	std::filesystem::path fpath = fname;
 
-	std::ofstream outfile;
-
-	if (fpath.extension() == ".txt")
+	if (fpath.extension() != ".bin")
 	{
-		outfile.precision(9);
-		outfile.open(fname);
-
-		if (!outfile.is_open())
-		{
-			std::cerr << "Error. Failed to open file " << fname << "\n";
-			return false;
-		}
-		for (int i = 0; i < nrows; i++)
-		{
-			for (int j = 0; j < ncols; j++)
-			{
-				outfile << vals[i * ncols + j] << " ";
-			}
-			outfile << "\n";
-		}
-		outfile.close();
-	}
-	else if (fpath.extension() == ".bin")
-	{
-		outfile.open(fname, std::ios_base::binary);
-
-		if (!outfile.is_open())
-		{
-			std::cerr << "Error. Failed to open file " << fname << "\n";
-			return false;
-		}
-
-		outfile.write((char*)(&nrows), sizeof(int));
-		outfile.write((char*)(&ncols), sizeof(int));
-		outfile.write((char*)vals, nrows * ncols * sizeof(T));
-		outfile.close();
-	}
-	else
-	{
-		std::cerr << "Error. File " << fname << " is not a .bin or .txt file.\n";
+		std::cerr << "Error. File " << fname << " is not a .bin file.\n";
 		return false;
 	}
+
+	std::ofstream outfile;
+
+	outfile.open(fname, std::ios_base::binary);
+
+	if (!outfile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << fname << "\n";
+		return false;
+	}
+	outfile.write((char*)(&nrows), sizeof(int));
+	outfile.write((char*)(&ncols), sizeof(int));
+	outfile.write((char*)vals, nrows * ncols * sizeof(T));
+	outfile.close();
 
 	return true;
 }

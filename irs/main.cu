@@ -583,8 +583,11 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if ((cmd_option_exists(argv, argv + argc, "-s") || cmd_option_exists(argv, argv + argc, "--smooth_fraction")) &&
-		!(cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star")))
+	if (cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star"))
+	{
+		set_param("smooth_fraction", microlensing.smooth_fraction, 1 - microlensing.kappa_star / microlensing.kappa_tot, verbose);
+	}
+	else
 	{
 		set_param("kappa_star", microlensing.kappa_star, (1 - microlensing.smooth_fraction) * microlensing.kappa_tot, verbose);
 	}
@@ -638,51 +641,8 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaSetDevice", false, __FILE__, __LINE__)) return -1;
 
 
-	/******************************************************************************
-	stopwatch for timing purposes
-	******************************************************************************/
-	Stopwatch stopwatch;
-	
-	/******************************************************************************
-	variables for kernel threads and blocks
-	******************************************************************************/
-	dim3 threads;
-	dim3 blocks;
+	if (!microlensing.run(verbose)) return -1;	
 
-
-	if (!microlensing.calculate_derived_params(verbose)) return -1;
-	if (!microlensing.allocate_initialize_memory(verbose)) return -1;
-	if (!microlensing.populate_star_array(verbose)) return -1;
-	if (!microlensing.create_tree(verbose)) return -1;
-
-
-	/******************************************************************************
-	redefine thread and block size to maximize parallelization
-	******************************************************************************/
-	set_threads(threads, 16, 16);
-	set_blocks(threads, blocks, 
-		static_cast<int>(2 * microlensing.half_length_image.re / microlensing.ray_sep), 
-		static_cast<int>(2 * microlensing.half_length_image.im / microlensing.ray_sep)
-	);
-
-	/******************************************************************************
-	shoot rays and calculate time taken in seconds
-	******************************************************************************/
-	std::cout << "Shooting rays...\n";
-	stopwatch.start();
-	shoot_rays_kernel<dtype> <<<blocks, threads>>> (microlensing.kappa_tot, microlensing.shear, microlensing.theta_e,
-		microlensing.stars, microlensing.kappa_star, microlensing.tree, microlensing.tree_levels,
-		microlensing.rectangular, microlensing.corner, microlensing.approx, microlensing.taylor_smooth, 
-		microlensing.half_length_image.re, microlensing.half_length_image.im, microlensing.ray_sep, 
-		microlensing.half_length_source, microlensing.pixels_minima, microlensing.pixels_saddles, microlensing.pixels, microlensing.num_pixels);
-	if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return -1;
-	double t_ray_shoot = stopwatch.stop();
-	std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
-
-
-	if (!microlensing.create_histograms(verbose)) return -1;
-	if (!microlensing.write_files(verbose, t_ray_shoot)) return -1;
-	
 
 	std::cout << "Done.\n";
 

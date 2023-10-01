@@ -46,7 +46,7 @@ public:
 	Stopwatch stopwatch;
 
 
-	const T PI = 3.1415926535898;
+	const T PI = static_cast<T>(3.1415926535898);
 
 	/******************************************************************************
 	default variables
@@ -95,7 +95,6 @@ public:
 	Complex<T> half_length_image;
 	Complex<T> corner;
 	int taylor_smooth;
-	T rad;
 
 	int tree_size;
 	int tree_levels;
@@ -211,21 +210,29 @@ public:
 			{
 				set_param("num_stars", num_stars, static_cast<int>((safety_scale * 2 * half_length_image.re) * (safety_scale * 2 * half_length_image.im)
 					* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1, verbose);
+
+				set_param("corner", corner,
+					std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
+					* Complex<T>(
+						std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))),
+						std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
+						),
+					verbose);
 			}
 			else
 			{
 				set_param("num_stars", num_stars, static_cast<int>(safety_scale * safety_scale * half_length_image.abs() * half_length_image.abs()
 					* kappa_star / (theta_e * theta_e * mean_mass)) + 1, verbose);
+
+				set_param("corner", corner,
+					std::sqrt(theta_e * theta_e * num_stars * mean_mass / (kappa_star * 2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
+					* Complex<T>(
+						std::sqrt(std::abs(1 - kappa_tot - shear)),
+						std::sqrt(std::abs(1 - kappa_tot + shear))
+						),
+					verbose);
 			}
 		}
-
-		set_param("corner", corner,
-			std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
-			* Complex<T>(
-				std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))),
-				std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
-				),
-			verbose && rectangular);
 
 		set_param("taylor_smooth", taylor_smooth,
 			std::max(
@@ -233,12 +240,12 @@ public:
 				1),
 			verbose && rectangular && approx);
 
-		set_param("rad", rad, std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star), verbose && !rectangular);
-
 		if (rectangular)
 		{
-			set_param("tree_levels", tree_levels, static_cast<int>(
-				std::log2(num_stars * 9 / MAX_NUM_STARS_DIRECT * (corner.re > corner.im ? corner.re / corner.im : corner.im / corner.re)) / 2) + 1,
+			set_param("tree_levels", tree_levels, 
+				static_cast<int>(
+					std::log2(num_stars * 9 / MAX_NUM_STARS_DIRECT * (corner.re > corner.im ? corner.re / corner.im : corner.im / corner.re)) / 2
+					) + 1,
 				verbose);
 		}
 		else
@@ -246,10 +253,7 @@ public:
 			set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars * 9 / MAX_NUM_STARS_DIRECT / PI * 4) / 2) + 1, verbose);
 		}
 
-		tree_size = 1;
-		tree_size <<= (2 * tree_levels + 2);
-		tree_size -= 1;
-		set_param("tree_size", tree_size, tree_size / 3, verbose);
+		set_param("tree_size", tree_size, ((1 << (2 * tree_levels + 2)) - 1) / 3, verbose);
 
 		set_param("expansion_order", expansion_order,
 			static_cast<int>(std::log2(theta_e * theta_e * m_upper * num_pixels / (2 * half_length_source) * MAX_NUM_STARS_DIRECT / 9)) + 1, verbose);
@@ -277,8 +281,11 @@ public:
 		******************************************************************************/
 		cudaMallocManaged(&states, num_stars * sizeof(curandState));
 		if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return false;
-		cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
-		if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
+		if (starfile == "")
+		{
+			cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
+			if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
+		}
 		cudaMallocManaged(&temp_stars, num_stars * sizeof(star<T>));
 		if (cuda_error("cudaMallocManaged(*temp_stars)", false, __FILE__, __LINE__)) return false;
 
@@ -365,15 +372,6 @@ public:
 			******************************************************************************/
 			calculate_star_params<T>(num_stars, rectangular, corner, theta_e, stars, 
 				kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
-			if (rectangular)
-			{
-				kappa_star_actual = PI * theta_e * theta_e
-					* num_stars * mean_mass_actual / (4 * corner.re * corner.im);
-			}
-			else
-			{
-				kappa_star_actual = theta_e * theta_e * num_stars * mean_mass_actual / (rad * rad);
-			}
 		}
 		else
 		{
@@ -426,7 +424,7 @@ public:
 		}
 		else
 		{
-			root_half_length = rad;
+			root_half_length = corner.abs();
 		}
 		root_half_length /= (1 << tree_levels);
 		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
@@ -688,7 +686,7 @@ public:
 		}
 		else
 		{
-			outfile << "rad " << rad << "\n";
+			outfile << "rad " << corner.abs() << "\n";
 		}
 		outfile << "safety_scale " << safety_scale << "\n";
 		outfile << "half_length " << half_length_source << "\n";

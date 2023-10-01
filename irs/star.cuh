@@ -68,7 +68,7 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
 
-	const T PI = 3.1415926535898;
+	const T PI = static_cast<T>(3.1415926535898);
 
 	for (int i = x_index; i < nstars; i += x_stride)
 	{
@@ -123,7 +123,7 @@ template <typename T>
 void calculate_star_params(int nstars, int rectangular, Complex<T> corner, T theta, star<T>* stars,
 	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2)
 {
-	const T PI = 3.1415926535898;
+	const T PI = static_cast<T>(3.1415926535898);
 
 	m_low = std::numeric_limits<T>::max();
 	m_up = std::numeric_limits<T>::min();
@@ -239,7 +239,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 
 			float temp_theta;
 			infile.read((char*)(&temp_theta), sizeof(float));
-			theta = temp_theta;
+			theta = static_cast<T>(temp_theta);
 
 			star<float>* temp_stars = new (std::nothrow) star<float>[nstars];
 			if (!temp_stars)
@@ -250,7 +250,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 			infile.read((char*)temp_stars, nstars * sizeof(star<float>));
 			for (int i = 0; i < nstars; i++)
 			{
-				stars[i].position = Complex<T>(temp_stars[i].position.re, temp_stars[i].position.im);
+				stars[i].position = temp_stars[i].position;
 				stars[i].mass = temp_stars[i].mass;
 			}
 			delete[] temp_stars;
@@ -264,7 +264,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 
 			double temp_theta;
 			infile.read((char*)(&temp_theta), sizeof(double));
-			theta = temp_theta;
+			theta = static_cast<T>(temp_theta);
 
 			star<double>* temp_stars = new (std::nothrow) star<double>[nstars];
 			if (!temp_stars)
@@ -275,7 +275,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 			infile.read((char*)temp_stars, nstars * sizeof(star<double>));
 			for (int i = 0; i < nstars; i++)
 			{
-				stars[i].position = Complex<T>(temp_stars[i].position.re, temp_stars[i].position.im);
+				stars[i].position = temp_stars[i].position;
 				stars[i].mass = static_cast<T>(temp_stars[i].mass);
 			}
 			delete[] temp_stars;
@@ -290,7 +290,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 
 		infile.close();
 
-		calculate_star_params<T>(nstars, rectangular, corner, theta, stars,  kappastar, m_low, m_up, meanmass, meanmass2);
+		calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, m_low, m_up, meanmass, meanmass2);
 	}
 	else
 	{

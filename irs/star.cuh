@@ -209,11 +209,13 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	}
 
 	/******************************************************************************
-	allocate memory for stars
+	allocate memory for stars if needed
 	******************************************************************************/
-	cudaMallocManaged(&stars, nstars * sizeof(star<T>));
-	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
-
+	if (stars == nullptr)
+	{
+		cudaMallocManaged(&stars, nstars * sizeof(star<T>));
+		if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
+	}
 
 	/******************************************************************************
 	second item in the file is whether the star field is rectangular

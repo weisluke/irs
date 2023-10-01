@@ -152,11 +152,6 @@ private:
 		******************************************************************************/
 		if (starfile != "")
 		{
-			/******************************************************************************
-			ensure random seed is 0 to denote that stars come from external file
-			******************************************************************************/
-			set_param("random_seed", random_seed, 0, verbose);
-
 			std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
 
 			if (!read_star_file<T>(num_stars, rectangular, corner, theta_e, stars, 
@@ -286,11 +281,8 @@ private:
 		******************************************************************************/
 		cudaMallocManaged(&states, num_stars * sizeof(curandState));
 		if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return false;
-		if (starfile == "")
-		{
-			cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
-			if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
-		}
+		cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
+		if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
 		cudaMallocManaged(&temp_stars, num_stars * sizeof(star<T>));
 		if (cuda_error("cudaMallocManaged(*temp_stars)", false, __FILE__, __LINE__)) return false;
 
@@ -376,6 +368,20 @@ private:
 
 			t_elapsed = stopwatch.stop();
 			std::cout << "Done generating star field. Elapsed time: " << t_elapsed << " seconds.\n\n";
+		}
+		else
+		{
+			/******************************************************************************
+			ensure random seed is 0 to denote that stars come from external file
+			******************************************************************************/
+			set_param("random_seed", random_seed, 0, verbose);
+
+			if (!read_star_file<T>(num_stars, rectangular, corner, theta_e, stars,
+				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, starfile))
+			{
+				std::cerr << "Error. Unable to read star field parameters from file " << starfile << "\n";
+				return false;
+			}
 		}
 
 		/******************************************************************************

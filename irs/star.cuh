@@ -175,128 +175,126 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 {
 	std::filesystem::path starpath = starfile;
 
-	if (starpath.extension() == ".bin")
-	{
-		std::error_code err;
-		std::uintmax_t fsize = std::filesystem::file_size(starfile, err);
-
-		if (err)
-		{
-			std::cerr << "Error determining size of star input file " << starfile << "\n";
-			return false;
-		}
-
-		std::ifstream infile;
-		infile.open(starfile, std::ios_base::binary);
-		if (!infile.is_open())
-		{
-			std::cerr << "Error. Failed to open file " << starfile << "\n";
-			return false;
-		}
-
-		/******************************************************************************
-		first item in the file is the number of stars
-		******************************************************************************/
-		infile.read((char*)(&nstars), sizeof(int));
-		if (nstars < 1)
-		{
-			std::cerr << "Error. No valid star information found in file " << starfile << "\n";
-			return false;
-		}
-
-		/******************************************************************************
-		allocate memory for stars
-		******************************************************************************/
-		cudaMallocManaged(&stars, nstars * sizeof(star<T>));
-		if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
-
-
-		/******************************************************************************
-		second item in the file is whether the star field is rectangular
-		******************************************************************************/
-		infile.read((char*)(&rectangular), sizeof(int));
-
-
-		if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) +  nstars * sizeof(star<T>))
-		{
-			/******************************************************************************
-			third item in the file is the corner of the star field
-			******************************************************************************/
-			infile.read((char*)(&corner), sizeof(Complex<T>));
-			/******************************************************************************
-			fourth item in the file is the size of the Einstein radius of a unit mass point
-			lens
-			******************************************************************************/
-			infile.read((char*)(&theta), sizeof(T));
-
-			infile.read((char*)stars, nstars * sizeof(star<T>));
-		}
-		else if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<float>) + sizeof(float) + nstars * sizeof(star<float>))
-		{
-			Complex<float> temp_corner;
-			infile.read((char*)(&temp_corner), sizeof(Complex<float>));
-			corner = temp_corner;
-
-			float temp_theta;
-			infile.read((char*)(&temp_theta), sizeof(float));
-			theta = static_cast<T>(temp_theta);
-
-			star<float>* temp_stars = new (std::nothrow) star<float>[nstars];
-			if (!temp_stars)
-			{
-				std::cerr << "Error. Memory allocation for *temp_stars failed.\n";
-				return false;
-			}
-			infile.read((char*)temp_stars, nstars * sizeof(star<float>));
-			for (int i = 0; i < nstars; i++)
-			{
-				stars[i].position = temp_stars[i].position;
-				stars[i].mass = temp_stars[i].mass;
-			}
-			delete[] temp_stars;
-			temp_stars = nullptr;
-		}
-		else if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<double>) + sizeof(double) + nstars * sizeof(star<double>))
-		{
-			Complex<double> temp_corner;
-			infile.read((char*)(&temp_corner), sizeof(Complex<double>));
-			corner = temp_corner;
-
-			double temp_theta;
-			infile.read((char*)(&temp_theta), sizeof(double));
-			theta = static_cast<T>(temp_theta);
-
-			star<double>* temp_stars = new (std::nothrow) star<double>[nstars];
-			if (!temp_stars)
-			{
-				std::cerr << "Error. Memory allocation for *temp_stars failed.\n";
-				return false;
-			}
-			infile.read((char*)temp_stars, nstars * sizeof(star<double>));
-			for (int i = 0; i < nstars; i++)
-			{
-				stars[i].position = temp_stars[i].position;
-				stars[i].mass = static_cast<T>(temp_stars[i].mass);
-			}
-			delete[] temp_stars;
-			temp_stars = nullptr;
-		}
-		else
-		{
-			std::cerr << "Error. Star input file " << starfile << " does not contain validly formatted single or double precision stars and accompanying information.\n";
-			infile.close();
-			return false;
-		}
-
-		infile.close();
-
-		calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, m_low, m_up, meanmass, meanmass2);
-	}
-	else
+	if (starpath.extension() != ".bin")
 	{
 		std::cerr << "Error. Star input file " << starfile << " is not a .bin file.\n";
 		return false;
 	}
+
+	std::error_code err;
+	std::uintmax_t fsize = std::filesystem::file_size(starfile, err);
+
+	if (err)
+	{
+		std::cerr << "Error determining size of star input file " << starfile << "\n";
+		return false;
+	}
+
+	std::ifstream infile;
+	infile.open(starfile, std::ios_base::binary);
+	if (!infile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << starfile << "\n";
+		return false;
+	}
+
+	/******************************************************************************
+	first item in the file is the number of stars
+	******************************************************************************/
+	infile.read((char*)(&nstars), sizeof(int));
+	if (nstars < 1)
+	{
+		std::cerr << "Error. No valid star information found in file " << starfile << "\n";
+		return false;
+	}
+
+	/******************************************************************************
+	allocate memory for stars
+	******************************************************************************/
+	cudaMallocManaged(&stars, nstars * sizeof(star<T>));
+	if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
+
+
+	/******************************************************************************
+	second item in the file is whether the star field is rectangular
+	******************************************************************************/
+	infile.read((char*)(&rectangular), sizeof(int));
+
+
+	if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) +  nstars * sizeof(star<T>))
+	{
+		/******************************************************************************
+		third item in the file is the corner of the star field
+		******************************************************************************/
+		infile.read((char*)(&corner), sizeof(Complex<T>));
+		/******************************************************************************
+		fourth item in the file is the size of the Einstein radius of a unit mass point
+		lens
+		******************************************************************************/
+		infile.read((char*)(&theta), sizeof(T));
+
+		infile.read((char*)stars, nstars * sizeof(star<T>));
+	}
+	else if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<float>) + sizeof(float) + nstars * sizeof(star<float>))
+	{
+		Complex<float> temp_corner;
+		infile.read((char*)(&temp_corner), sizeof(Complex<float>));
+		corner = temp_corner;
+
+		float temp_theta;
+		infile.read((char*)(&temp_theta), sizeof(float));
+		theta = static_cast<T>(temp_theta);
+
+		star<float>* temp_stars = new (std::nothrow) star<float>[nstars];
+		if (!temp_stars)
+		{
+			std::cerr << "Error. Memory allocation for *temp_stars failed.\n";
+			return false;
+		}
+		infile.read((char*)temp_stars, nstars * sizeof(star<float>));
+		for (int i = 0; i < nstars; i++)
+		{
+			stars[i].position = temp_stars[i].position;
+			stars[i].mass = temp_stars[i].mass;
+		}
+		delete[] temp_stars;
+		temp_stars = nullptr;
+	}
+	else if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<double>) + sizeof(double) + nstars * sizeof(star<double>))
+	{
+		Complex<double> temp_corner;
+		infile.read((char*)(&temp_corner), sizeof(Complex<double>));
+		corner = temp_corner;
+
+		double temp_theta;
+		infile.read((char*)(&temp_theta), sizeof(double));
+		theta = static_cast<T>(temp_theta);
+
+		star<double>* temp_stars = new (std::nothrow) star<double>[nstars];
+		if (!temp_stars)
+		{
+			std::cerr << "Error. Memory allocation for *temp_stars failed.\n";
+			return false;
+		}
+		infile.read((char*)temp_stars, nstars * sizeof(star<double>));
+		for (int i = 0; i < nstars; i++)
+		{
+			stars[i].position = temp_stars[i].position;
+			stars[i].mass = static_cast<T>(temp_stars[i].mass);
+		}
+		delete[] temp_stars;
+		temp_stars = nullptr;
+	}
+	else
+	{
+		std::cerr << "Error. Star input file " << starfile << " does not contain validly formatted single or double precision stars and accompanying information.\n";
+		infile.close();
+		return false;
+	}
+
+	infile.close();
+
+	calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, m_low, m_up, meanmass, meanmass2);
 
 	return true;
 }
@@ -319,29 +317,27 @@ bool write_star_file(int nstars, int rectangular, Complex<T> corner, T theta, st
 {
 	std::filesystem::path starpath = starfile;
 
-	if (starpath.extension() == ".bin")
-	{
-		std::ofstream outfile;
-		outfile.open(starfile, std::ios_base::binary);
-
-		if (!outfile.is_open())
-		{
-			std::cerr << "Error. Failed to open file " << starfile << "\n";
-			return false;
-		}
-
-		outfile.write((char*)(&nstars), sizeof(int));
-		outfile.write((char*)(&rectangular), sizeof(int));
-		outfile.write((char*)(&corner), sizeof(Complex<T>));
-		outfile.write((char*)(&theta), sizeof(T));
-		outfile.write((char*)stars, nstars * sizeof(star<T>));
-		outfile.close();
-	}
-	else
+	if (starpath.extension() != ".bin")
 	{
 		std::cerr << "Error. Star file " << starfile << " is not a .bin file.\n";
 		return false;
 	}
+
+	std::ofstream outfile;
+	outfile.open(starfile, std::ios_base::binary);
+
+	if (!outfile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << starfile << "\n";
+		return false;
+	}
+
+	outfile.write((char*)(&nstars), sizeof(int));
+	outfile.write((char*)(&rectangular), sizeof(int));
+	outfile.write((char*)(&corner), sizeof(Complex<T>));
+	outfile.write((char*)(&theta), sizeof(T));
+	outfile.write((char*)stars, nstars * sizeof(star<T>));
+	outfile.close();
 
 	return true;
 }

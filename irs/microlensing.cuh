@@ -44,6 +44,8 @@ public:
 	stopwatch for timing purposes
 	******************************************************************************/
 	Stopwatch stopwatch;
+	double t_elapsed;
+	double t_ray_shoot;
 
 
 	const T PI = static_cast<T>(3.1415926535898);
@@ -51,21 +53,21 @@ public:
 	/******************************************************************************
 	default variables
 	******************************************************************************/
-	T kappa_tot = 0.3;
-	T shear = 0.3;
-	T smooth_fraction = 0.1;
-	T kappa_star = 0.27;
-	T theta_e = 1;
+	T kappa_tot = static_cast<T>(0.3);
+	T shear = static_cast<T>(0.3);
+	T smooth_fraction = static_cast<T>(0.1);
+	T kappa_star = static_cast<T>(0.27);
+	T theta_e = static_cast<T>(1);
 	std::string mass_function_str = "equal";
-	T m_solar = 1;
-	T m_lower = 0.01;
-	T m_upper = 50;
-	T light_loss = 0.01;
+	T m_solar = static_cast<T>(1);
+	T m_lower = static_cast<T>(0.01);
+	T m_upper = static_cast<T>(50);
+	T light_loss = static_cast<T>(0.01);
 	int rectangular = 1;
 	int approx = 1;
-	T safety_scale = 1.37;
+	T safety_scale = static_cast<T>(1.37);
 	std::string starfile = "";
-	T half_length_source = 5;
+	T half_length_source = static_cast<T>(5);
 	int num_pixels = 1000;
 	int num_rays_source = 100;
 	int random_seed = 0;
@@ -92,6 +94,7 @@ public:
 	T mu_ave;
 	T num_rays_lens;
 	T ray_sep;
+	Complex<int> num_ray_blocks;
 	Complex<T> half_length_image;
 	Complex<T> corner;
 	int taylor_smooth;
@@ -127,10 +130,11 @@ public:
 
 	}
 
+
+private:
+
 	bool calculate_derived_params(bool verbose)
 	{
-		double t_elapsed;
-
 		std::cout << "Calculating derived parameters...\n";
 		stopwatch.start();
 
@@ -143,26 +147,26 @@ public:
 
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
-		m_lower_actual, m_upper_actual, mean_mass_actual, and mean_mass2_actual based
-		on star information
+		rectangular, corner, theta_e, stars, m_lower_actual, m_upper_actual, 
+		mean_mass_actual, and mean_mass2_actual based on star information
 		******************************************************************************/
 		if (starfile != "")
 		{
+			/******************************************************************************
+			ensure random seed is 0 to denote that stars come from external file
+			******************************************************************************/
+			set_param("random_seed", random_seed, 0, verbose);
+
 			std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
 
 			if (!read_star_file<T>(num_stars, rectangular, corner, theta_e, stars, 
-				kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual, starfile))
+				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, starfile))
 			{
 				std::cerr << "Error. Unable to read star field parameters from file " << starfile << "\n";
 				return false;
 			}
 
 			std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n\n";
-
-			set_param("m_lower", m_lower, m_lower_actual, verbose);
-			set_param("m_upper", m_upper, m_upper_actual, verbose);
-			set_param("mean_mass", mean_mass, mean_mass_actual, verbose);
-			set_param("mean_mass2", mean_mass2, mean_mass2_actual, verbose);
 		}
 
 		/******************************************************************************
@@ -195,10 +199,13 @@ public:
 			(half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) / std::abs(1 - kappa_tot - shear)
 			);
 
+		num_ray_blocks = Complex<int>(half_length_image / ray_sep) + Complex<int>(1, 1);
+
 		/******************************************************************************
 		make shooting region a multiple of the ray separation
 		******************************************************************************/
-		set_param("half_length_image", half_length_image, Complex<T>(ray_sep) * (Complex<int>(half_length_image / ray_sep) + Complex<int>(1, 1)), verbose);
+		set_param("half_length_image", half_length_image, Complex<T>(ray_sep) * num_ray_blocks, verbose);
+		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose);
 
 		/******************************************************************************
 		if stars are not drawn from external file, calculate final number of stars to
@@ -227,8 +234,8 @@ public:
 				set_param("corner", corner,
 					std::sqrt(theta_e * theta_e * num_stars * mean_mass / (kappa_star * 2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
 					* Complex<T>(
-						std::sqrt(std::abs(1 - kappa_tot - shear)),
-						std::sqrt(std::abs(1 - kappa_tot + shear))
+						std::abs(1 - kappa_tot - shear),
+						std::abs(1 - kappa_tot + shear)
 						),
 					verbose);
 			}
@@ -271,8 +278,6 @@ public:
 
 	bool allocate_initialize_memory(bool verbose)
 	{
-		double t_elapsed;
-
 		std::cout << "Allocating memory...\n";
 		stopwatch.start();
 
@@ -317,6 +322,9 @@ public:
 		/******************************************************************************
 		initialize pixel values
 		******************************************************************************/
+		set_threads(threads, 16, 16);
+		set_blocks(threads, blocks, num_ray_blocks.re, num_ray_blocks.im);
+
 		std::cout << "Initializing pixel values...\n";
 		stopwatch.start();
 
@@ -342,6 +350,9 @@ public:
 		BEGIN populating star array
 		******************************************************************************/
 
+		set_threads(threads, 512);
+		set_blocks(threads, blocks, num_stars);
+
 		if (starfile == "")
 		{
 			std::cout << "Generating star field...\n";
@@ -363,37 +374,16 @@ public:
 			generate_star_field_kernel<T> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, mass_function, m_solar, m_lower, m_upper);
 			if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return false;
 
-			double t_elapsed = stopwatch.stop();
+			t_elapsed = stopwatch.stop();
 			std::cout << "Done generating star field. Elapsed time: " << t_elapsed << " seconds.\n\n";
-
-			/******************************************************************************
-			calculate kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual,
-			and mean_mass2_actual based on star information
-			******************************************************************************/
-			calculate_star_params<T>(num_stars, rectangular, corner, theta_e, stars, 
-				kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
 		}
-		else
-		{
-			/******************************************************************************
-			ensure random seed is 0 to denote that stars come from external file
-			******************************************************************************/
-			set_param("random_seed", random_seed, 0, verbose);
 
-			std::cout << "Reading star field from file " << starfile << "\n";
-
-			/******************************************************************************
-			reading star field from external file
-			******************************************************************************/
-			if (!read_star_file<T>(num_stars, rectangular, corner, theta_e, stars, 
-				kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual, starfile))
-			{
-				std::cerr << "Error. Unable to read star field from file " << starfile << "\n";
-				return false;
-			}
-
-			std::cout << "Done reading star field from file " << starfile << "\n\n";
-		}
+		/******************************************************************************
+		calculate kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual,
+		and mean_mass2_actual based on star information
+		******************************************************************************/
+		calculate_star_params<T>(num_stars, rectangular, corner, theta_e, stars,
+			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
 
 		/******************************************************************************
 		END populating star array
@@ -404,16 +394,6 @@ public:
 
 	bool create_tree(bool verbose)
 	{
-		/******************************************************************************
-		number of threads per block, and number of blocks per grid
-		uses 512 for number of threads in x dimension, as 1024 is the maximum allowable
-		number of threads per block but is too large for some memory allocation, and
-		512 is next power of 2 smaller
-		******************************************************************************/
-		set_threads(threads, 512);
-		set_blocks(threads, blocks, num_stars);
-
-
 		/******************************************************************************
 		BEGIN create root node, then create children and sort stars
 		******************************************************************************/
@@ -476,9 +456,9 @@ public:
 				print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
 			}
 		}
-		print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
+		t_elapsed = stopwatch.stop();
+		print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
 
-		set_threads(threads, 512);
 		for (int i = 0; i <= tree_levels; i++)
 		{
 			set_blocks(threads, blocks, treenode::get_num_nodes(i));
@@ -520,8 +500,28 @@ public:
 			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree, i, expansion_order, binomial_coeffs);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
+		t_elapsed = stopwatch.stop();
+		print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
 
-		print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n", verbose);
+		return true;
+	}
+
+	bool shoot_rays(bool verbose)
+	{
+		set_threads(threads, 16, 16);
+		set_blocks(threads, blocks, num_ray_blocks.re, num_ray_blocks.im);
+
+		/******************************************************************************
+		shoot rays and calculate time taken in seconds
+		******************************************************************************/
+		std::cout << "Shooting rays...\n";
+		stopwatch.start();
+		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree, tree_levels, 
+			rectangular, corner, approx, taylor_smooth, half_length_image.re, half_length_image.im, ray_sep,
+			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
+		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
+		t_ray_shoot = stopwatch.stop();
+		std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 		return true;
 	}
@@ -605,8 +605,8 @@ public:
 				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, *min_rays, histogram_saddles);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
-
-			std::cout << "Done creating histograms. Elapsed time: " + std::to_string(stopwatch.stop()) + " seconds.\n\n";
+			t_elapsed = stopwatch.stop();
+			std::cout << "Done creating histograms. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n";
 		}
 		/******************************************************************************
 		done creating histograms of pixel values
@@ -615,7 +615,7 @@ public:
 		return true;
 	}
 
-	bool write_files(bool verbose, double t_ray_shoot)
+	bool write_files(bool verbose)
 	{
 		/******************************************************************************
 		stream for writing output files
@@ -689,12 +689,12 @@ public:
 			outfile << "rad " << corner.abs() << "\n";
 		}
 		outfile << "safety_scale " << safety_scale << "\n";
-		outfile << "half_length " << half_length_source << "\n";
+		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
 		outfile << "random_seed " << random_seed << "\n";
-		outfile << "lens_hl_x1 " << half_length_image.re << "\n";
-		outfile << "lens_hl_x2 " << half_length_image.im << "\n";
+		outfile << "half_length_image_x1 " << half_length_image.re << "\n";
+		outfile << "half_length_image_x2 " << half_length_image.im << "\n";
 		outfile << "ray_sep " << ray_sep << "\n";
 		outfile << "t_ray_shoot " << t_ray_shoot << "\n";
 		outfile.close();
@@ -784,5 +784,22 @@ public:
 
 		return true;
 	}
+
+
+public:
+
+	bool run(bool verbose)
+	{
+		if (!calculate_derived_params(verbose)) return false;
+		if (!allocate_initialize_memory(verbose)) return false;
+		if (!populate_star_array(verbose)) return false;
+		if (!create_tree(verbose)) return false;
+		if (!shoot_rays(verbose)) return false;
+		if (!create_histograms(verbose)) return false;
+		if (!write_files(verbose)) return false;
+
+		return true;
+	}
+
 };
 

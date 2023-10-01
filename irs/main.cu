@@ -638,6 +638,9 @@ int main(int argc, char* argv[])
 	if (cuda_error("cudaSetDevice", false, __FILE__, __LINE__)) return -1;
 
 
+	/******************************************************************************
+	run microlensing 
+	******************************************************************************/
 	if (!microlensing.run(verbose)) return -1;	
 
 

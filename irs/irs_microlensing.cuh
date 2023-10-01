@@ -502,6 +502,8 @@ bool write_array(T* vals, int nrows, int ncols, const std::string& fname)
 		return false;
 	}
 
+	std::ofstream outfile;
+
 	outfile.open(fname, std::ios_base::binary);
 
 	if (!outfile.is_open())

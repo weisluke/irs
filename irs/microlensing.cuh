@@ -3,7 +3,7 @@
 #include "binomial_coefficients.cuh"
 #include "complex.cuh"
 #include "fmm.cuh"
-#include "irs_microlensing.cuh"
+#include "microlensing_functions.cuh"
 #include "mass_function.cuh"
 #include "star.cuh"
 #include "stopwatch.hpp"
@@ -523,7 +523,7 @@ private:
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
 		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree, tree_levels, 
-			rectangular, corner, approx, taylor_smooth, half_length_image.re, half_length_image.im, ray_sep,
+			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks, ray_sep,
 			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();

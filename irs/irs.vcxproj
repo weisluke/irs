@@ -14,7 +14,7 @@
     <ClInclude Include="binomial_coefficients.cuh" />
     <ClInclude Include="complex.cuh" />
     <ClInclude Include="fmm.cuh" />
-    <ClInclude Include="irs_microlensing.cuh" />
+    <ClInclude Include="microlensing_functions.cuh" />
     <ClInclude Include="mass_function.cuh" />
     <ClInclude Include="microlensing.cuh" />
     <ClInclude Include="stopwatch.hpp" />

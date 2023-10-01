@@ -211,8 +211,8 @@ shoot rays from image plane to source plane
 \param approx -- whether the smooth matter deflection is approximate or not
 \param taylor_smooth -- degree of the taylor series for alpha_smooth if 
                         approximate
-\param hlx1 -- half length of the image plane shooting region x1 size
-\param hlx2 -- half length of the image plane shooting region x2 size
+\param hlx -- half length of the image plane shooting region
+\param numrayblocks -- number of ray blocks for the image plane shooting region
 \param raysep -- separation between central rays of shooting squares
 \param hly -- half length of the source plane receiving region
 \param pixmin -- pointer to array of positive parity pixels
@@ -223,7 +223,7 @@ shoot rays from image plane to source plane
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* nodes, int level,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
-	T hlx1, T hlx2, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
+	Complex<T> hlx, Complex<int> numrayblocks, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -231,9 +231,9 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
 	int y_stride = blockDim.y * gridDim.y;
 
-	for (int i = x_index; i < 2 * hlx1 / raysep; i += x_stride)
+	for (int i = x_index; i < numrayblocks.re; i += x_stride)
 	{
-		for (int j = y_index; j < 2 * hlx2 / raysep; j += y_stride)
+		for (int j = y_index; j < numrayblocks.im; j += y_stride)
 		{
 			/******************************************************************************
 			x = image plane, y = source plane
@@ -242,9 +242,9 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			Complex<T> y[4];
 
 			/******************************************************************************
-			location of central ray in image plane
+			location of central ray in image plane and nearest node
 			******************************************************************************/
-			Complex<T> z(-hlx1 + raysep / 2 + raysep * i, -hlx2 + raysep / 2 + raysep * j);
+			Complex<T> z = -hlx + raysep / 2 * Complex<T>(1, 1) + raysep * Complex<T>(i, j);
 			TreeNode<T>* node = treenode::get_nearest_node(z, nodes, level);
 
 			/******************************************************************************

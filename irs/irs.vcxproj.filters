@@ -20,7 +20,7 @@
     <ClInclude Include="complex.cuh">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="irs_microlensing.cuh">
+    <ClInclude Include="microlensing_functions.cuh">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="mass_function.cuh">

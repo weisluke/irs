@@ -331,11 +331,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					/******************************************************************************
 					account for possible rounding issues when converting to integer pixels
 					******************************************************************************/
-					if (ypix.re >= npixels)
+					if (ypix.re == npixels)
 					{
 						ypix.re--;
 					}
-					if (ypix.im >= npixels)
+					if (ypix.im == npixels)
 					{
 						ypix.im--;
 					}

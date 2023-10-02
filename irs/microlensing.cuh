@@ -289,7 +289,7 @@ private:
 		/******************************************************************************
 		allocate memory for tree
 		******************************************************************************/
-		cudaMallocManaged(&binomial_coeffs, 2 * expansion_order * (2 * expansion_order + 3) / 2 * sizeof(int));
+		cudaMallocManaged(&binomial_coeffs, (2 * expansion_order * (2 * expansion_order + 3) / 2 + 1) * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return false;
 		cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<T>));
 		if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;

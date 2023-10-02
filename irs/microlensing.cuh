@@ -19,6 +19,7 @@
 #include <iostream>
 #include <limits> //for std::numeric_limits
 #include <string>
+#include <vector>
 
 
 /******************************************************************************
@@ -290,14 +291,6 @@ private:
 		if (cuda_error("cudaMallocManaged(*temp_stars)", false, __FILE__, __LINE__)) return false;
 
 		/******************************************************************************
-		allocate memory for tree
-		******************************************************************************/
-		cudaMallocManaged(&binomial_coeffs, (2 * expansion_order * (2 * expansion_order + 3) / 2 + 1) * sizeof(int));
-		if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return false;
-		cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<T>));
-		if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
-
-		/******************************************************************************
 		allocate memory for pixels
 		******************************************************************************/
 		cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
@@ -397,6 +390,17 @@ private:
 	bool create_tree(bool verbose)
 	{
 		/******************************************************************************
+		allocate memory for tree
+		******************************************************************************/
+		cudaMallocManaged(&binomial_coeffs, (2 * expansion_order * (2 * expansion_order + 3) / 2 + 1) * sizeof(int));
+		if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return false;
+		cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<T>));
+		if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
+
+		std::vector<TreeNode<T>*> tmp_tree = {};
+		std::vector<int> tmp_num_nodes = {};
+
+		/******************************************************************************
 		BEGIN create root node, then create children and sort stars
 		******************************************************************************/
 		T root_half_length;
@@ -411,6 +415,96 @@ private:
 		root_half_length /= (1 << tree_levels);
 		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
 		set_param("root_half_length", root_half_length, root_half_length * (1 << tree_levels), verbose);
+
+		tmp_tree.push_back(nullptr);
+		tmp_num_nodes.push_back(1);
+		cudaMallocManaged(&tmp_tree.back(), tmp_num_nodes.back() * sizeof(TreeNode<T>));
+		if (cuda_error("cudaMallocManaged(*tmp_tree)", false, __FILE__, __LINE__)) return false;
+
+		*tmp_tree[0] = TreeNode<T>(Complex<T>(0, 0), root_half_length, 0, 0);
+
+
+		int* max_num_stars_in_level;
+		int* min_num_stars_in_level;
+		int* num_overfull_nodes;
+		cudaMallocManaged(&max_num_stars_in_level, sizeof(int));
+		if (cuda_error("cudaMallocManaged(*max_num_stars_in_level)", false, __FILE__, __LINE__)) return false;
+		cudaMallocManaged(&min_num_stars_in_level, sizeof(int));
+		if (cuda_error("cudaMallocManaged(*min_num_stars_in_level)", false, __FILE__, __LINE__)) return false;
+		cudaMallocManaged(&num_overfull_nodes, sizeof(int));
+		if (cuda_error("cudaMallocManaged(*num_overfull_nodes)", false, __FILE__, __LINE__)) return false;
+
+		print_verbose("Creating children and sorting stars...\n", verbose);
+		stopwatch.start();
+		set_threads(threads, 512);
+		do
+		{
+			*max_num_stars_in_level = 0;
+			*min_num_stars_in_level = num_stars;
+			*num_overfull_nodes = 0;
+
+			set_blocks(threads, blocks, tmp_num_nodes.back());
+			treenode::get_min_max_stars_kernel<T> <<<blocks, threads>>> (tree, tmp_num_nodes.back(), 
+				min_num_stars_in_level, max_num_stars_in_level, num_overfull_nodes, MAX_NUM_STARS_DIRECT);
+
+			if (*num_overfull_nodes > 0)
+			{
+				tree_levels++;
+				tmp_tree.push_back(nullptr);
+				tmp_num_nodes.push_back(*num_overfull_nodes * 4);
+				cudaMallocManaged(&tmp_tree.back(), tmp_num_nodes.back() * sizeof(TreeNode<T>));
+				if (cuda_error("cudaMallocManaged(*tmp_tree)", false, __FILE__, __LINE__)) return false;
+			
+
+				treenode::create_children_kernel<T> <<<blocks, threads>>> (tmp_tree[tree_levels - 1], tmp_num_nodes[tree_levels - 1],
+					tmp_tree[tree_levels], tmp_num_nodes[tree_levels], MAX_NUM_STARS_DIRECT);
+				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
+
+				set_blocks(threads, blocks, 512 * tmp_num_nodes.back());
+				treenode::sort_stars_kernel<T> <<<blocks, threads>>> (tree, i, stars, temp_stars);
+				if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return false;
+			
+			
+			}
+
+
+
+
+
+			set_blocks(threads, blocks, treenode::get_num_nodes(i));
+			treenode::get_min_max_stars_kernel<T> << <blocks, threads >> > (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
+			if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return false;
+
+			if (*max_num_stars_in_level <= MAX_NUM_STARS_DIRECT)
+			{
+				print_verbose("Necessary recursion limit reached.\n", verbose);
+				print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+				print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+				set_param("tree_levels", tree_levels, i + 1, verbose);
+				break;
+			}
+			else
+			{
+				print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+				print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+			}
+		} while (*num_overfull_nodes > 0);
+
+
+		t_elapsed = stopwatch.stop();
+		print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
+
+
+
+
+
+
+
+
+
+
+
+
 		tree[0] = TreeNode<T>(Complex<T>(0, 0), root_half_length, 0, 0);
 		tree[0].numstars = num_stars;
 

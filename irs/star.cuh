@@ -170,7 +170,7 @@ read star field file
 \return bool -- true if file is successfully read, false if not
 ******************************************************************************/
 template <typename T>
-bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>* stars,
+bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars,
 	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, const std::string& starfile)
 {
 	std::filesystem::path starpath = starfile;

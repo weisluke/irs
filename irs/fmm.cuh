@@ -112,7 +112,10 @@ namespace fmm
                 result /= dz;
             }
             result -= node->multipole_coeffs[0] / power;
-            result *= dz.pow(power);
+            for (int i = 0; i < power; i++)
+            {
+                result *= dz;
+            }
         }
 
         coeffs[power] = result;

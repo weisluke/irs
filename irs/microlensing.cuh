@@ -506,6 +506,12 @@ private:
 			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree, i, expansion_order, binomial_coeffs);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
+
+		set_threads(threads, 32, expansion_order + 1);
+		set_blocks(threads, blocks, treenode::get_num_nodes(tree_levels));
+		fmm::normalize_local_coeffs_kernel<T> <<<blocks, threads>>> (tree, tree_levels, expansion_order);
+		if (cuda_error("normalize_local_coeffs_kernel", true, __FILE__, __LINE__)) return false;
+
 		t_elapsed = stopwatch.stop();
 		print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
 

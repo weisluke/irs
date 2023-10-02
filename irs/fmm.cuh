@@ -13,12 +13,14 @@ namespace fmm
     calculate the multipole coefficient for a given power
 
     \param node -- pointer to node
+    \param unit_length -- unit distance for the tree structure (length of the root
+                          node)
     \param coeffs -- pointer to array of multipole coefficients
     \param power -- what order to find the multipole coefficient of
     \param stars -- pointer to array of point mass lenses
     ******************************************************************************/
     template <typename T>
-    __device__ void calculate_multipole_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, star<T>* stars)
+    __device__ void calculate_multipole_coeff(TreeNode<T>* node, T unit_length, Complex<T>* coeffs, int power, star<T>* stars)
     {
         Complex<T> result;
 
@@ -33,7 +35,7 @@ namespace fmm
         {
             for (int i = 0; i < node->numstars; i++)
             {
-                result -= (stars[node->stars + i].position - node->center).pow(power) * stars[node->stars + i].mass;
+                result -= ((stars[node->stars + i].position - node->center) / unit_length).pow(power) * stars[node->stars + i].mass;
             }
             result /= power;
         }
@@ -71,7 +73,7 @@ namespace fmm
 
             for (int i = x_index; i <= power; i += x_stride)
             {
-                calculate_multipole_coeff(node, coeffs, i, stars);
+                calculate_multipole_coeff(node, 2 * nodes[0].half_length, coeffs, i, stars);
             }
             __syncthreads();
             if (threadIdx.x == 0)
@@ -86,12 +88,14 @@ namespace fmm
     assumes that the expansion is being shifted to the center of the parent node
 
     \param node -- pointer to node
+    \param unit_length -- unit distance for the tree structure (length of the root
+                          node)
     \param coeffs -- pointer to array of multipole coefficients
     \param power -- what order to find the multipole coefficient of
     \param binomcoeffs -- pointer to array of binomial coefficients
     ******************************************************************************/
     template <typename T>
-    __device__ void calculate_M2M_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int* binomcoeffs)
+    __device__ void calculate_M2M_coeff(TreeNode<T>* node, T unit_length, Complex<T>* coeffs, int power, int* binomcoeffs)
     {
         Complex<T> result;
 
@@ -101,7 +105,7 @@ namespace fmm
         }
         else
         {
-            Complex<T> dz = node->center - node->parent->center;
+            Complex<T> dz = (node->center - node->parent->center) / unit_length;
             for (int i = power; i >= 1; i--)
             {
                 result += node->multipole_coeffs[i] * get_binomial_coeff(binomcoeffs, power - 1, i - 1);
@@ -151,7 +155,7 @@ namespace fmm
                 TreeNode<T>* child = node->children[i];
                 for (int j = x_index; j <= power; j += x_stride)
                 {
-                    calculate_M2M_coeff(child, &coeffs[(power + 1) * i], j, binomcoeffs);
+                    calculate_M2M_coeff(child, 2 * nodes[0].half_length, &coeffs[(power + 1) * i], j, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -174,16 +178,18 @@ namespace fmm
     assumes that the expansion is being shifted from the center of the parent node
 
     \param node -- pointer to node
+    \param unit_length -- unit distance for the tree structure (length of the root
+                          node)
     \param coeffs -- pointer to array of local coefficients
     \param power -- what order to find the local coefficient of
     \param maxpower -- maximum order to find the local coefficient of
     \param binomcoeffs -- pointer to array of binomial coefficients
     ******************************************************************************/
     template <typename T>
-    __device__ void calculate_L2L_coeff(TreeNode<T>* node, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
+    __device__ void calculate_L2L_coeff(TreeNode<T>* node, T unit_length, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
     {
         Complex<T> result;
-        Complex<T> dz = node->center - node->parent->center;
+        Complex<T> dz = (node->center - node->parent->center) / unit_length;
 
         for (int i = maxpower; i >= 1; i--)
         {
@@ -227,7 +233,7 @@ namespace fmm
 
             for (int i = x_index; i <= power; i += x_stride)
             {
-                calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
+                calculate_L2L_coeff(node, 2 * nodes[0].half_length, coeffs, i, power, binomcoeffs);
             }
             __syncthreads();
             if (threadIdx.x == 0)
@@ -243,16 +249,18 @@ namespace fmm
 
     \param node_from -- pointer to node whose multipole expansion is being used
     \param node_to -- pointer to node whose local expansion is being calculated
+    \param unit_length -- unit distance for the tree structure (length of the root
+                          node)
     \param coeffs -- pointer to array of local coefficients
     \param power -- what order to find the local coefficient of
     \param maxpower -- maximum order to find the local coefficient of
     \param binomcoeffs -- pointer to array of binomial coefficients
     ******************************************************************************/
     template <typename T>
-    __device__ void calculate_M2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
+    __device__ void calculate_M2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to, T unit_length, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs)
     {
         Complex<T> result;
-        Complex<T> dz = node_from->center - node_to->center;
+        Complex<T> dz = (node_from->center - node_to->center) / unit_length;
 
         if (power == 0)
         {
@@ -313,7 +321,7 @@ namespace fmm
             {
                 for (int j = x_index; j <= power; j += x_stride)
                 {
-                    calculate_M2L_coeff(node->interactionlist[i], node, &coeffs[(power + 1) * i], j, power, binomcoeffs);
+                    calculate_M2L_coeff(node->interactionlist[i], node, 2 * nodes[0].half_length, &coeffs[(power + 1) * i], j, power, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -331,5 +339,39 @@ namespace fmm
         }
     }
 
+    /******************************************************************************
+    normalize the local coefficients
+
+    \param nodes -- pointer to tree
+    \param level -- level of the tree to normalize the local coefficients at
+    \param power -- maximum expansion order to normalize the local coefficients of
+    ******************************************************************************/
+    template <typename T>
+    __global__ void normalize_local_coeffs_kernel(TreeNode<T>* nodes, int level, int power)
+    {
+        /******************************************************************************
+        each thread normalizes the local coefficient for a node in the x direction for
+         a power in the y direction
+        ******************************************************************************/
+        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+        int x_stride = blockDim.x * gridDim.x;
+
+        int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+        int y_stride = blockDim.y * gridDim.y;
+
+        int min_index = treenode::get_min_index(level);
+
+        for (int i = x_index; i < treenode::get_num_nodes(level); i += x_stride)
+        {
+            for (int j = y_index; j <= power; j += y_stride)
+            {
+                for (int k = 0; k < j; k++)
+                {
+                    nodes[min_index + i].local_coeffs[j] /= (2 * nodes[0].half_length);
+                }
+            }
+        }
+
+    }
 }
 

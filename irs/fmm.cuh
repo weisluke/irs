@@ -153,7 +153,7 @@ namespace fmm
         {
             TreeNode<T>* node = &nodes[node_index];
 
-            for (int i = y_index; i < 4; i += y_stride)
+            for (int i = y_index; i < node->numchildren; i += y_stride)
             {
                 TreeNode<T>* child = node->children[i];
                 for (int j = x_index; j <= power; j += x_stride)
@@ -168,7 +168,7 @@ namespace fmm
             ******************************************************************************/
             if (threadIdx.x == 0 && threadIdx.y == 0)
             {
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < node->numchildren; i++)
                 {
                     node->add_multipole_coeffs(&coeffs[(power + 1) * i], power);
                 }
@@ -306,7 +306,7 @@ namespace fmm
     \param binomcoeffs -- pointer to array of binomial coefficients
     ******************************************************************************/
     template <typename T>
-    __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int numnodes, int unit_length, int power, int* binomcoeffs)
+    __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int numnodes, T unit_length, int power, int* binomcoeffs)
     {
         /******************************************************************************
         each block is a node
@@ -376,7 +376,7 @@ namespace fmm
             {
                 for (int k = 0; k < j; k++)
                 {
-                    nodes[min_index + i].local_coeffs[j] /= unit_length;
+                    nodes[i].local_coeffs[j] /= unit_length;
                 }
             }
         }

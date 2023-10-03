@@ -223,6 +223,9 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	infile.read((char*)(&rectangular), sizeof(int));
 
 
+	/******************************************************************************
+	objects in the file are nstars + rectangular + corner + theta + stars
+	******************************************************************************/
 	if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) +  nstars * sizeof(star<T>))
 	{
 		/******************************************************************************
@@ -257,7 +260,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 		for (int i = 0; i < nstars; i++)
 		{
 			stars[i].position = temp_stars[i].position;
-			stars[i].mass = temp_stars[i].mass;
+			stars[i].mass = static_cast<T>(temp_stars[i].mass);
 		}
 		delete[] temp_stars;
 		temp_stars = nullptr;
@@ -290,7 +293,6 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	else
 	{
 		std::cerr << "Error. Star input file " << starfile << " does not contain validly formatted single or double precision stars and accompanying information.\n";
-		infile.close();
 		return false;
 	}
 

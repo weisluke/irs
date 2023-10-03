@@ -130,7 +130,8 @@ public:
 
         Complex<T> new_center = center + new_half_length * offsets[idx];
 
-        nodes[start + idx] = TreeNode(new_center, new_half_length, level + 1, this);
+        int new_index = start + idx;
+        nodes[new_index] = TreeNode(new_center, new_half_length, level + 1, this);
         children[idx] = &nodes[new_index];
     }
 
@@ -160,12 +161,16 @@ public:
         /******************************************************************************
         add parent's children as neighbors
         ******************************************************************************/
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < parent->numchildren; i++)
         {
-            if (parent->children[i] != this)
+            TreeNode* node = parent->children[i];
+            if (node->numstars == 0)
             {
-                neighbors[numneighbors] = parent->children[i];
-                numneighbors++;
+                continue;
+            }
+            if (node != this)
+            {
+                neighbors[numneighbors++] = node;
             }
         }
         /******************************************************************************
@@ -174,20 +179,24 @@ public:
         ******************************************************************************/
         for (int i = 0; i < parent->numneighbors; i++)
         {
-            for (int j = 0; j < 4; j++)
+            TreeNode* neighbor = parent->neighbors[i];
+            
+            for (int j = 0; j < neighbor->numchildren; j++)
             {
-                TreeNode* node = parent->neighbors[i]->children[j];
+                TreeNode* node = neighbor->children[j];
+                if (node->numstars == 0)
+                {
+                    continue;
+                }
 
                 if (fabs(node->center.re - center.re) < 3 * half_length
                     && fabs(node->center.im - center.im) < 3 * half_length)
                 {
-                    neighbors[numneighbors] = node;
-                    numneighbors++;
+                    neighbors[numneighbors++] = node;
                 }
                 else
                 {
-                    interactionlist[numinterlist] = node;
-                    numinterlist++;
+                    interactionlist[numinterlist++] = node;
                 }
             }
         }
@@ -236,16 +245,17 @@ namespace treenode
 {
 
     /******************************************************************************
-    get the minimum and maximum number of stars contained within a node and its
-    neighbors
+    get the number of non empty nodes, and the minimum and maximum number of stars
+    contained within a node and its neighbors
 
     \param nodes -- pointer to tree
-    \param level -- what level in the tree to get the number of stars for
+    \param numnodes -- number of nodes in the tree
+    \param num_nonempty_nodes -- pointer to number of non empty nodes
     \param min_n_stars -- pointer to minimum number of stars
     \param max_n_stars -- pointer to maximum number of stars
     ******************************************************************************/
     template <typename T>
-    __global__ void get_min_max_stars_kernel(TreeNode<T>* nodes, int numnodes, int* min_n_stars, int* max_n_stars, int* num_overfull_nodes, int MAX_NUM_STARS)
+    __global__ void get_node_star_info_kernel(TreeNode<T>* nodes, int numnodes, int* num_nonempty_nodes, int* min_n_stars, int* max_n_stars)
     {
         int x_index = blockIdx.x * blockDim.x + threadIdx.x;
         int x_stride = blockDim.x * gridDim.x;
@@ -254,16 +264,18 @@ namespace treenode
         {
             TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
+
+            if (nstars > 0)
+            {
+                atomicAdd(num_nonempty_nodes, 1);
+            }
+            
             for (int j = 0; j < node->numneighbors; j++)
             {
                 nstars += node->neighbors[j]->numstars;
             }
             atomicMin(min_n_stars, nstars);
             atomicMax(max_n_stars, nstars);
-            if (nstars > MAX_NUM_STARS)
-            {
-                atomicAdd(num_overfull_nodes, 1);
-            }
         }
     }
 
@@ -271,27 +283,24 @@ namespace treenode
     create the children for nodes at a given level
 
     \param nodes -- pointer to tree
-    \param level -- what level in the tree to make the children of
+    \param numnodes -- number of nodes in the tree
+    \param num_nonempty_nodes -- pointer to number of non empty nodes
+    \param children -- pointer to child nodes
     ******************************************************************************/
     template <typename T>
-    __global__ void create_children_kernel(TreeNode<T>* parents, int nparents, TreeNode<T>* children, int* nchildren, int MAX_NUM_STARS)
+    __global__ void create_children_kernel(TreeNode<T>* nodes, int numnodes, int* num_nonempty_nodes, TreeNode<T>* children)
     {
         int x_index = blockIdx.x * blockDim.x + threadIdx.x;
         int x_stride = blockDim.x * gridDim.x;
 
-        for (int i = x_index; i < nparents; i += x_stride)
+        for (int i = x_index; i < numnodes; i += x_stride)
         {
-            TreeNode<T>* node = &parents[i];
-
+            TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
-            for (int j = 0; j < node->numneighbors; j++)
-            {
-                nstars += node->neighbors[j]->numstars;
-            }
 
-            if (nstars > MAX_NUM_STARS)
+            if (nstars > 0)
             {
-                node->make_children(children, atomicAdd(nchildren));
+                node->make_children(children, 4 * atomicSub(num_nonempty_nodes, 1));
             }
         }
     }
@@ -300,13 +309,13 @@ namespace treenode
     sort the stars into each node for a given level
 
     \param nodes -- pointer to tree
-    \param level -- what level in the tree to sort the stars
+    \param numnodes -- number of nodes in the tree
     \param stars -- pointer to array of point mass lenses
     \param temp_stars -- pointer to temp array of point mass lenses, used for
                          swapping
     ******************************************************************************/
     template <typename T>
-    __global__ void sort_stars_kernel(TreeNode<T>* parents, int nparents, TreeNode<T>* children, int nchildren, star<T>* stars, star<T>* temp_stars)
+    __global__ void sort_stars_kernel(TreeNode<T>* nodes, int numnodes, star<T>* stars, star<T>* temp_stars)
     {
         /******************************************************************************
         each block is a node, and each thread is a star within the parent node
@@ -331,9 +340,9 @@ namespace treenode
         }
         __syncthreads();
 
-        if (node_index < nparents)
+        if (node_index < numnodes)
         {
-            TreeNode<T>* node = &parents[node_index];
+            TreeNode<T>* node = &nodes[node_index];
 
             /******************************************************************************
             in the first pass, figure out whether the star is above or below the center
@@ -414,19 +423,17 @@ namespace treenode
     set the neighbors for nodes at a given level
 
     \param nodes -- pointer to tree
-    \param level -- what level in the tree to set the neighbors of
+    \param numnodes -- number of nodes in the tree
     ******************************************************************************/
     template <typename T>
-    __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int level)
+    __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int numnodes)
     {
         int x_index = blockIdx.x * blockDim.x + threadIdx.x;
         int x_stride = blockDim.x * gridDim.x;
 
-        int min_index = get_min_index(level);
-
-        for (int i = x_index; i < get_num_nodes(level); i += x_stride)
+        for (int i = x_index; i < numnodes; i += x_stride)
         {
-            nodes[min_index + i].set_neighbors();
+            nodes[i].set_neighbors();
         }
     }
 
@@ -434,16 +441,15 @@ namespace treenode
     find the node nearest to a given position at a given level
 
     \param z -- position to find the nearest node to
-    \param nodes -- pointer to tree
-    \param level -- what level in the tree to find the nearest node
+    \param root -- pointer to root node
 
     \return pointer to nearest node
     ******************************************************************************/
     template <typename T>
-    __device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* nodes, int level)
+    __device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* root)
     {
-        TreeNode<T>* node = &nodes[0];
-        for (int i = 1; i <= level; i++)
+        TreeNode<T>* node = root;
+        while (node->numchildren > 0)
         {
             if (z.re >= node->center.re && z.im >= node->center.im)
             {
@@ -462,6 +468,7 @@ namespace treenode
                 node = node->children[3];
             }
         }
+        
         return node;
     }
 

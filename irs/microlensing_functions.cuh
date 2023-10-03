@@ -245,7 +245,15 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			location of central ray in image plane and nearest node
 			******************************************************************************/
 			Complex<T> z = -hlx + raysep / 2 * Complex<T>(1, 1) + raysep * Complex<T>(i, j);
-			TreeNode<T>* node = treenode::get_nearest_node(z, root);
+			TreeNode<double>* node = treenode::get_nearest_node(z, root);
+
+			if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 0 && threadIdx.y == 0)
+			{
+				for (int a = 0; a <= node->expansion_order; a++)
+				{
+					printf("local coeff: (%f, %f)\n", node->local_coeffs[a].re, node->local_coeffs[a].im);
+				}
+			}
 
 			/******************************************************************************
 			shooting rays in image plane at center +/- 1/2 * distance to next central ray

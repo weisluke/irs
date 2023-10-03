@@ -428,7 +428,7 @@ private:
 			*min_num_stars_in_level = num_stars;
 			*num_nonempty_nodes = 0;
 
-			set_blocks(threads, blocks, num_nodes.back());
+			set_blocks(threads, blocks, num_nodes[tree_levels]);
 			treenode::get_node_star_info_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels],
 				num_nonempty_nodes, min_num_stars_in_level, max_num_stars_in_level);
 			if (cuda_error("get_node_star_info_kernel", true, __FILE__, __LINE__)) return false;
@@ -447,19 +447,20 @@ private:
 				if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 
 				print_verbose("Creating children...\n", verbose);
-				(*num_nonempty_nodes)--;
+				(*num_nonempty_nodes)--; // subtract one since value is size of array, and instead needs to be the first allocatable element
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::create_children_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
 				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
 
 				print_verbose("Sorting stars...\n", verbose);
-				set_blocks(threads, blocks, 512 * num_nodes.back());
+				set_blocks(threads, blocks, 512 * num_nodes[tree_levels]);
 				treenode::sort_stars_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
 				if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return false;
 
 				tree_levels++;
 
 				print_verbose("Setting neighbors...\n", verbose);
+				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels]);
 				if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
 			}
@@ -504,7 +505,7 @@ private:
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 
-		for (int i = 0; i <= tree_levels; i++)
+		for (int i = 2; i <= tree_levels; i++)
 		{
 			set_threads(threads, 32, expansion_order + 1);
 			set_blocks(threads, blocks, num_nodes[i]);

@@ -26,15 +26,15 @@ public:
     int level;
 
     TreeNode* parent;
-    TreeNode* children[4];
+    TreeNode* children[4]; // a node has at most 4 children
     int numchildren;
-    TreeNode* neighbors[8];
+    TreeNode* neighbors[8]; // a node has at most 8 neighbors
     int numneighbors;
-    TreeNode* interactionlist[27];
+    TreeNode* interactionlist[27]; // a node has at most 27 elements in its interaction list
     int numinterlist;
 
-    int stars;
-    int numstars;
+    int stars; // position of this node's stars in array of stars
+    int numstars; // number of stars in this node
 
     int expansion_order;
     Complex<T> multipole_coeffs[treenode::MAX_EXPANSION_ORDER + 1];
@@ -116,6 +116,13 @@ public:
 		return *this;
 	}
 
+    /******************************************************************************
+    create a child node
+
+    \param nodes -- pointer to array of nodes for the next level
+    \param start -- where to begin placing children
+    \param idx -- index of the child to be created (0, 1, 2, or 3)
+    ******************************************************************************/
     __host__ __device__ void make_child(TreeNode* nodes, int start, int idx)
     {
         T new_half_length = half_length / 2;
@@ -164,10 +171,15 @@ public:
         for (int i = 0; i < parent->numchildren; i++)
         {
             TreeNode* node = parent->children[i];
+
+            /******************************************************************************
+            if node is empty, skip it
+            ******************************************************************************/
             if (node->numstars == 0)
             {
                 continue;
             }
+
             if (node != this)
             {
                 neighbors[numneighbors++] = node;
@@ -184,6 +196,10 @@ public:
             for (int j = 0; j < neighbor->numchildren; j++)
             {
                 TreeNode* node = neighbor->children[j];
+
+                /******************************************************************************
+                if node is empty, skip it
+                ******************************************************************************/
                 if (node->numstars == 0)
                 {
                     continue;
@@ -281,7 +297,7 @@ namespace treenode
     }
 
     /******************************************************************************
-    create the children for nodes at a given level
+    create the children for nodes 
 
     \param nodes -- pointer to tree
     \param numnodes -- number of nodes in the tree
@@ -301,31 +317,18 @@ namespace treenode
 
             if (nstars > 0)
             {
+                /******************************************************************************
+                assumes that array of child nodes has 4 * num_nonempty_nodes at the start
+                every 4 elements are the children of this node then
+                atomicSub ensures that children are placed at unique locations
+                ******************************************************************************/
                 node->make_children(children, 4 * atomicSub(num_nonempty_nodes, 1));
             }
         }
     }
 
     /******************************************************************************
-    set the neighbors for nodes at a given level
-
-    \param nodes -- pointer to tree
-    \param numnodes -- number of nodes in the tree
-    ******************************************************************************/
-    template <typename T>
-    __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int numnodes)
-    {
-        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
-        int x_stride = blockDim.x * gridDim.x;
-
-        for (int i = x_index; i < numnodes; i += x_stride)
-        {
-            nodes[i].set_neighbors();
-        }
-    }
-
-    /******************************************************************************
-    sort the stars into each node for a given level
+    sort the stars into the children of each node
 
     \param nodes -- pointer to tree
     \param numnodes -- number of nodes in the tree
@@ -363,6 +366,9 @@ namespace treenode
         {
             TreeNode<T>* node = &nodes[node_index];
 
+            /******************************************************************************
+            if node is empty, skip it
+            ******************************************************************************/
             if (node->numstars == 0)
             {
                 return;
@@ -440,6 +446,24 @@ namespace treenode
                     node->children[i]->numstars = n_stars_children[i];
                 }
             }
+        }
+    }
+
+    /******************************************************************************
+    set the neighbors for nodes
+
+    \param nodes -- pointer to tree
+    \param numnodes -- number of nodes in the tree
+    ******************************************************************************/
+    template <typename T>
+    __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int numnodes)
+    {
+        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+        int x_stride = blockDim.x * gridDim.x;
+
+        for (int i = x_index; i < numnodes; i += x_stride)
+        {
+            nodes[i].set_neighbors();
         }
     }
 

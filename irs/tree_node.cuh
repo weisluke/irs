@@ -274,6 +274,7 @@ namespace treenode
             {
                 nstars += node->neighbors[j]->numstars;
             }
+
             atomicMin(min_n_stars, nstars);
             atomicMax(max_n_stars, nstars);
         }
@@ -302,6 +303,24 @@ namespace treenode
             {
                 node->make_children(children, 4 * atomicSub(num_nonempty_nodes, 1));
             }
+        }
+    }
+
+    /******************************************************************************
+    set the neighbors for nodes at a given level
+
+    \param nodes -- pointer to tree
+    \param numnodes -- number of nodes in the tree
+    ******************************************************************************/
+    template <typename T>
+    __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int numnodes)
+    {
+        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+        int x_stride = blockDim.x * gridDim.x;
+
+        for (int i = x_index; i < numnodes; i += x_stride)
+        {
+            nodes[i].set_neighbors();
         }
     }
 
@@ -343,6 +362,11 @@ namespace treenode
         if (node_index < numnodes)
         {
             TreeNode<T>* node = &nodes[node_index];
+
+            if (node->numstars == 0)
+            {
+                return;
+            }
 
             /******************************************************************************
             in the first pass, figure out whether the star is above or below the center
@@ -416,24 +440,6 @@ namespace treenode
                     node->children[i]->numstars = n_stars_children[i];
                 }
             }
-        }
-    }
-
-    /******************************************************************************
-    set the neighbors for nodes at a given level
-
-    \param nodes -- pointer to tree
-    \param numnodes -- number of nodes in the tree
-    ******************************************************************************/
-    template <typename T>
-    __global__ void set_neighbors_kernel(TreeNode<T>* nodes, int numnodes)
-    {
-        int x_index = blockIdx.x * blockDim.x + threadIdx.x;
-        int x_stride = blockDim.x * gridDim.x;
-
-        for (int i = x_index; i < numnodes; i += x_stride)
-        {
-            nodes[i].set_neighbors();
         }
     }
 

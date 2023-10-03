@@ -245,7 +245,7 @@ private:
 			verbose && rectangular && approx);
 
 		set_param("expansion_order", expansion_order,
-			static_cast<int>(std::log2(theta_e * theta_e * m_upper * num_pixels / (2 * half_length_source) * MAX_NUM_STARS_DIRECT / 9)) + 1, verbose);
+			static_cast<int>(std::log2(theta_e * theta_e * m_upper * 100 * num_pixels / (2 * half_length_source) * MAX_NUM_STARS_DIRECT / 9)) + 1, verbose);
 		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
 		{
 			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
@@ -482,26 +482,28 @@ private:
 		print_verbose("Calculating multipole and local coefficients...\n", verbose);
 		stopwatch.start();
 
+		T normalizing_distance = root_half_length / std::pow(2.0, 30.0 / expansion_order);
+
 		set_threads(threads, expansion_order + 1);
 		set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[tree_levels]);
-		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[tree_levels], num_nodes[tree_levels], 2 * root_half_length, expansion_order, stars);
+		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[tree_levels], num_nodes[tree_levels], normalizing_distance, expansion_order, stars);
 
 		set_threads(threads, expansion_order + 1, 4);
 		for (int i = tree_levels - 1; i >= 0; i--)
 		{
 			set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[i], 4);
-			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], 2 * root_half_length, expansion_order, binomial_coeffs);
+			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], normalizing_distance, expansion_order, binomial_coeffs);
 		}
 
 		for (int i = 2; i <= tree_levels; i++)
 		{
 			set_threads(threads, expansion_order + 1);
 			set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[i]);
-			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], 2 * root_half_length, expansion_order, binomial_coeffs);
+			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], normalizing_distance, expansion_order, binomial_coeffs);
 
 			set_threads(threads, expansion_order + 1, 27);
 			set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[i], 27);
-			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], 2 * root_half_length, expansion_order, binomial_coeffs);
+			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], normalizing_distance, expansion_order, binomial_coeffs);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 
@@ -509,7 +511,7 @@ private:
 		{
 			set_threads(threads, 32, expansion_order + 1);
 			set_blocks(threads, blocks, num_nodes[i]);
-			fmm::normalize_local_coeffs_kernel<T> <<<blocks, threads>>> (tree[i], num_nodes[i], 2 * root_half_length, expansion_order);
+			fmm::normalize_local_coeffs_kernel<T> <<<blocks, threads>>> (tree[i], num_nodes[i], normalizing_distance, expansion_order);
 			if (cuda_error("normalize_local_coeffs_kernel", true, __FILE__, __LINE__)) return false;
 		}
 		

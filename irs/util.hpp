@@ -2,8 +2,8 @@
 
 #include <algorithm> //for std::find, std::transform
 #include <cctype> //for std::tolower
-#include <iostream> 
-#include <string> 
+#include <iostream>
+#include <string>
 
 
 /******************************************************************************

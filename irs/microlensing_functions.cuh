@@ -245,7 +245,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			location of central ray in image plane and nearest node
 			******************************************************************************/
 			Complex<T> z = -hlx + raysep / 2 * Complex<T>(1, 1) + raysep * Complex<T>(i, j);
-			TreeNode<double>* node = treenode::get_nearest_node(z, root);
+			TreeNode<T>* node = treenode::get_nearest_node(z, root);
 
 			if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 0 && threadIdx.y == 0)
 			{

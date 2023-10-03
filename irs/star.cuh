@@ -2,7 +2,7 @@
 
 #include "complex.cuh"
 #include "mass_function.cuh"
-#include "util.cuh"
+#include "util.hpp"
 
 #include <curand_kernel.h>
 

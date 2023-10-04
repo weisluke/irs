@@ -60,13 +60,14 @@ calculate the deflection angle due to far away stars for a node
 \param node -- node within which to calculate the deflection angle
 
 \return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
-           where a_i are coefficients of the lensing potential
+           where a_i are coefficients of the lensing potential in units of the
+           node size
 ******************************************************************************/
 template <typename T>
 __device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
 {
 	Complex<T> alpha_local_bar;
-	Complex<T> dz = (z - node->center);
+	Complex<T> dz = (z - node->center) / node->half_length;
 
 	for (int i = node->expansion_order - 1; i >= 0; i--)
 	{
@@ -74,6 +75,10 @@ __device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
 		alpha_local_bar += node->local_coeffs[i + 1] * (i + 1);
 	}
 	alpha_local_bar *= (theta * theta);
+	/******************************************************************************
+	account for node size 
+	******************************************************************************/
+	alpha_local_bar /= node->half_length;
 
 	return alpha_local_bar.conj();
 }
@@ -251,7 +256,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			{
 				for (int a = 0; a <= node->expansion_order; a++)
 				{
-					printf("local coeff: (%f, %f)\n", node->local_coeffs[a].re, node->local_coeffs[a].im);
+					printf("local coeff: (%.9f, %.9f)\n", node->local_coeffs[a].re, node->local_coeffs[a].im);
 				}
 			}
 

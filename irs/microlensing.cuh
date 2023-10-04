@@ -303,7 +303,7 @@ private:
 		initialize pixel values
 		******************************************************************************/
 		set_threads(threads, 16, 16);
-		set_blocks(threads, blocks, num_ray_blocks.re, num_ray_blocks.im);
+		set_blocks(threads, blocks, num_pixels, num_pixels);
 
 		std::cout << "Initializing pixel values...\n";
 		stopwatch.start();

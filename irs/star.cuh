@@ -78,6 +78,9 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 
 		if (rectangular)
 		{
+			/******************************************************************************
+			random positions in the range [-corner, corner]
+			******************************************************************************/
 			x1 = curand_uniform_double(&states[i]) * 2 * corner.re - corner.re;
 			x2 = curand_uniform_double(&states[i]) * 2 * corner.im - corner.im;
 		}

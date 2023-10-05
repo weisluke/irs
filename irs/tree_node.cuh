@@ -318,7 +318,7 @@ namespace treenode
             {
                 /******************************************************************************
                 assumes that array of child nodes has 4 * num_nonempty_nodes at the start
-                every 4 elements are the children of this node then
+                every 4 elements are then the children of this node
                 atomicSub ensures that children are placed at unique locations
                 ******************************************************************************/
                 node->make_children(children, 4 * atomicSub(num_nonempty_nodes, 1));

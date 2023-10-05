@@ -1,6 +1,5 @@
 #pragma once
 
-#include "binomial_coefficients.cuh"
 #include "complex.cuh"
 #include "star.cuh"
 

@@ -149,8 +149,8 @@ private:
 
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
-		rectangular, corner, theta_e, stars, m_lower_actual, m_upper_actual, 
-		mean_mass_actual, and mean_mass2_actual based on star information
+		rectangular, corner, theta_e, stars, kappa_star, m_lower, m_upper, mean_mass,
+		and mean_mass2 based on star information
 		******************************************************************************/
 		if (starfile != "")
 		{
@@ -175,7 +175,7 @@ private:
 		number density of rays in the lens plane
 		uses the fact that for a given user specified number density of rays in the
 		source plane, further subdivisions are made that multiply the effective number
-		of rays in the image plane by 27^2
+		of rays in the image plane by NUM_RESAMPLED_RAYS^2
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens, 
 			num_rays_source / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source) / (NUM_RESAMPLED_RAYS * NUM_RESAMPLED_RAYS),
@@ -191,9 +191,10 @@ private:
 		the region of images visible for a macro-image which on average loses no more
 		than the desired amount of flux
 		******************************************************************************/
-		half_length_image = Complex<T>(
-			(half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) / std::abs(1 - kappa_tot + shear),
-			(half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) / std::abs(1 - kappa_tot - shear)
+		half_length_image = (half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) 
+			* Complex<T>(
+				1 / std::abs(1 - kappa_tot + shear),
+				1 / std::abs(1 - kappa_tot - shear)
 			);
 
 		num_ray_blocks = Complex<int>(half_length_image / ray_sep) + Complex<int>(1, 1);
@@ -245,7 +246,7 @@ private:
 			verbose && rectangular && approx);
 
 		set_param("expansion_order", expansion_order,
-			static_cast<int>(std::log2(theta_e * theta_e * m_upper * 100 * num_pixels / (2 * half_length_source) * MAX_NUM_STARS_DIRECT / 9)) + 1, verbose);
+			static_cast<int>(std::log2(theta_e * theta_e * m_upper * MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1, verbose);
 		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
 		{
 			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
@@ -268,7 +269,7 @@ private:
 		******************************************************************************/
 		cudaMallocManaged(&states, num_stars * sizeof(curandState));
 		if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return false;
-		if (stars == nullptr)
+		if (stars == nullptr) // if memory wasn't allocated already due to reading a star file
 		{
 			cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
 			if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
@@ -394,14 +395,23 @@ private:
 		{
 			root_half_length = corner.abs();
 		}
+		/******************************************************************************
+		upscale root half length so it is a power of 2 multiple of the ray separation
+		******************************************************************************/
 		int root_size_factor = static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1;
 		set_param("root_half_length", root_half_length, ray_sep * (1 << root_size_factor), verbose);
 
+		/******************************************************************************
+		push empty pointer into tree, add 1 to number of nodes, and allocate memory
+		******************************************************************************/
 		tree.push_back(nullptr);
 		num_nodes.push_back(1);
 		cudaMallocManaged(&tree.back(), num_nodes.back() * sizeof(TreeNode<T>));
 		if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 
+		/******************************************************************************
+		initialize root node
+		******************************************************************************/
 		tree[0][0] = TreeNode<T>(Complex<T>(0, 0), root_half_length, 0);
 		tree[0][0].numstars = num_stars;
 
@@ -478,6 +488,10 @@ private:
 		print_verbose("Done calculating binomial coefficients.\n\n", verbose);
 
 
+		/******************************************************************************
+		BEGIN calculating multipole and local coefficients
+		******************************************************************************/
+
 		print_verbose("Calculating multipole and local coefficients...\n", verbose);
 		stopwatch.start();
 
@@ -492,6 +506,9 @@ private:
 			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 
+		/******************************************************************************
+		local coefficients are non zero only starting at the second level
+		******************************************************************************/
 		for (int i = 2; i <= tree_levels; i++)
 		{
 			set_threads(threads, expansion_order + 1);
@@ -506,6 +523,10 @@ private:
 
 		t_elapsed = stopwatch.stop();
 		print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
+		
+		/******************************************************************************
+		END calculating multipole and local coefficients
+		******************************************************************************/
 
 		return true;
 	}
@@ -536,7 +557,6 @@ private:
 		create histograms of pixel values
 		******************************************************************************/
 
-
 		if (write_histograms)
 		{
 			std::cout << "Creating histograms...\n";
@@ -550,9 +570,7 @@ private:
 			*min_rays = std::numeric_limits<int>::max();
 			*max_rays = 0;
 
-			/******************************************************************************
-			redefine thread and block size to maximize parallelization
-			******************************************************************************/
+
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
@@ -578,9 +596,7 @@ private:
 				if (cuda_error("cudaMallocManaged(*histogram_saddles)", false, __FILE__, __LINE__)) return false;
 			}
 
-			/******************************************************************************
-			redefine thread and block size to maximize parallelization
-			******************************************************************************/
+			
 			set_threads(threads, 512);
 			set_blocks(threads, blocks, histogram_length);
 
@@ -594,9 +610,7 @@ private:
 				if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 
-			/******************************************************************************
-			redefine thread and block size to maximize parallelization
-			******************************************************************************/
+			
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
@@ -612,6 +626,7 @@ private:
 			t_elapsed = stopwatch.stop();
 			std::cout << "Done creating histograms. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n";
 		}
+
 		/******************************************************************************
 		done creating histograms of pixel values
 		******************************************************************************/
@@ -648,6 +663,7 @@ private:
 			outfile << "kappa_star_actual " << kappa_star_actual << "\n";
 		}
 		outfile << "theta_e " << theta_e << "\n";
+		outfile << "random_seed " << random_seed << "\n";
 		if (starfile == "")
 		{
 			outfile << "mass_function " << mass_function_str << "\n";
@@ -655,20 +671,14 @@ private:
 			{
 				outfile << "m_solar " << m_solar << "\n";
 			}
-			if (mass_function_str != "equal")
-			{
-				outfile << "m_lower " << m_lower << "\n";
-				outfile << "m_upper " << m_upper << "\n";
-				outfile << "m_lower_actual " << m_lower_actual << "\n";
-				outfile << "m_upper_actual " << m_upper_actual << "\n";
-			}
+			outfile << "m_lower " << m_lower << "\n";
+			outfile << "m_upper " << m_upper << "\n";
+			outfile << "m_lower_actual " << m_lower_actual << "\n";
+			outfile << "m_upper_actual " << m_upper_actual << "\n";
 			outfile << "mean_mass " << mean_mass << "\n";
 			outfile << "mean_mass2 " << mean_mass2 << "\n";
-			if (mass_function_str != "equal")
-			{
-				outfile << "mean_mass_actual " << mean_mass_actual << "\n";
-				outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
-			}
+			outfile << "mean_mass_actual " << mean_mass_actual << "\n";
+			outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
 		}
 		else
 		{
@@ -696,7 +706,6 @@ private:
 		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
-		outfile << "random_seed " << random_seed << "\n";
 		outfile << "half_length_image_x1 " << half_length_image.re << "\n";
 		outfile << "half_length_image_x2 " << half_length_image.im << "\n";
 		outfile << "ray_sep " << ray_sep << "\n";
@@ -799,6 +808,12 @@ public:
 		if (!populate_star_array(verbose)) return false;
 		if (!create_tree(verbose)) return false;
 		if (!shoot_rays(verbose)) return false;
+
+		return true;
+	}
+
+	bool save(bool verbose)
+	{
 		if (!create_histograms(verbose)) return false;
 		if (!write_files(verbose)) return false;
 

@@ -394,9 +394,8 @@ private:
 		{
 			root_half_length = corner.abs();
 		}
-		root_half_length /= (1 << tree_levels);
-		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
-		set_param("root_half_length", root_half_length, root_half_length * (1 << tree_levels), verbose);
+		int root_size_factor = static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1;
+		set_param("root_half_length", root_half_length, ray_sep * (1 << root_size_factor), verbose);
 
 		tree.push_back(nullptr);
 		num_nodes.push_back(1);

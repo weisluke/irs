@@ -106,11 +106,7 @@ namespace fmm
                 result /= dz;
             }
             result -= node->multipole_coeffs[0] / power;
-            for (int i = 0; i < power; i++)
-            {
-                result *= dz;
-                result /= 2;
-            }
+            result *= (dz / 2).pow(power);
         }
 
         coeffs[power] = result;
@@ -190,11 +186,7 @@ namespace fmm
             result += node->parent->local_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
             result *= dz;
         }
-        for (int i = 0; i < power; i++)
-        {
-            result /= dz;
-            result /= 2;
-        }
+        result /= (2 * dz).pow(power);
 
         coeffs[power] = result;
     }
@@ -277,10 +269,7 @@ namespace fmm
                 result /= -dz;
             }
             result -= node_from->multipole_coeffs[0] / power;
-            for (int i = 0; i < power; i++)
-            {
-                result /= dz;
-            }
+            result /= dz.pow(power);
         }
 
         coeffs[power] = result;

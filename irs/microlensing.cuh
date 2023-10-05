@@ -426,7 +426,7 @@ private:
 		cudaMallocManaged(&num_nonempty_nodes, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*num_nonempty_nodes)", false, __FILE__, __LINE__)) return false;
 
-		print_verbose("Creating children and sorting stars...\n", verbose);
+		std::cout << "Creating children and sorting stars...\n";
 		stopwatch.start();
 		set_threads(threads, 512);
 		do
@@ -477,7 +477,7 @@ private:
 		set_param("tree_levels", tree_levels, tree_levels, verbose);
 
 		t_elapsed = stopwatch.stop();
-		print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
+		std::cout << "Done creating children and sorting stars. Elapsed time: " << t_elapsed << " seconds.\n\n";
 
 		/******************************************************************************
 		END create root node, then create children and sort stars
@@ -492,7 +492,7 @@ private:
 		BEGIN calculating multipole and local coefficients
 		******************************************************************************/
 
-		print_verbose("Calculating multipole and local coefficients...\n", verbose);
+		std::cout << "Calculating multipole and local coefficients...\n";
 		stopwatch.start();
 
 		set_threads(threads, expansion_order + 1);
@@ -522,7 +522,7 @@ private:
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 
 		t_elapsed = stopwatch.stop();
-		print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
+		std::cout << "Done calculating multipole and local coefficients. Elapsed time: " << t_elapsed << " seconds.\n\n";
 		
 		/******************************************************************************
 		END calculating multipole and local coefficients

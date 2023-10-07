@@ -78,6 +78,9 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 
 		if (rectangular)
 		{
+			/******************************************************************************
+			random positions in the range [-corner, corner]
+			******************************************************************************/
 			x1 = curand_uniform_double(&states[i]) * 2 * corner.re - corner.re;
 			x2 = curand_uniform_double(&states[i]) * 2 * corner.im - corner.im;
 		}
@@ -171,7 +174,7 @@ read star field file
 \return bool -- true if file is successfully read, false if not
 ******************************************************************************/
 template <typename T>
-bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>* stars,
+bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars,
 	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, const std::string& starfile)
 {
 	std::filesystem::path starpath = starfile;
@@ -224,6 +227,9 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	infile.read((char*)(&rectangular), sizeof(int));
 
 
+	/******************************************************************************
+	objects in the file are nstars + rectangular + corner + theta + stars
+	******************************************************************************/
 	if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) +  nstars * sizeof(star<T>))
 	{
 		/******************************************************************************
@@ -258,7 +264,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 		for (int i = 0; i < nstars; i++)
 		{
 			stars[i].position = temp_stars[i].position;
-			stars[i].mass = temp_stars[i].mass;
+			stars[i].mass = static_cast<T>(temp_stars[i].mass);
 		}
 		delete[] temp_stars;
 		temp_stars = nullptr;
@@ -291,7 +297,6 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	else
 	{
 		std::cerr << "Error. Star input file " << starfile << " does not contain validly formatted single or double precision stars and accompanying information.\n";
-		infile.close();
 		return false;
 	}
 

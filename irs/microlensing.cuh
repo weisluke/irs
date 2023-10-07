@@ -19,6 +19,7 @@
 #include <iostream>
 #include <limits> //for std::numeric_limits
 #include <string>
+#include <vector>
 
 
 /******************************************************************************
@@ -99,9 +100,11 @@ public:
 	Complex<T> corner;
 	int taylor_smooth;
 
-	int tree_size;
-	int tree_levels;
 	int expansion_order;
+
+	int tree_levels = 0;
+	std::vector<TreeNode<T>*> tree = {};
+	std::vector<int> num_nodes = {};
 
 	/******************************************************************************
 	dynamic memory
@@ -111,7 +114,6 @@ public:
 	star<T>* temp_stars = nullptr;
 
 	int* binomial_coeffs = nullptr;
-	TreeNode<T>* tree = nullptr;
 
 	int* pixels = nullptr;
 	int* pixels_minima = nullptr;
@@ -147,8 +149,8 @@ private:
 
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
-		rectangular, corner, theta_e, stars, m_lower_actual, m_upper_actual, 
-		mean_mass_actual, and mean_mass2_actual based on star information
+		rectangular, corner, theta_e, stars, kappa_star, m_lower, m_upper, mean_mass,
+		and mean_mass2 based on star information
 		******************************************************************************/
 		if (starfile != "")
 		{
@@ -173,7 +175,7 @@ private:
 		number density of rays in the lens plane
 		uses the fact that for a given user specified number density of rays in the
 		source plane, further subdivisions are made that multiply the effective number
-		of rays in the image plane by 27^2
+		of rays in the image plane by NUM_RESAMPLED_RAYS^2
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens, 
 			num_rays_source / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source) / (NUM_RESAMPLED_RAYS * NUM_RESAMPLED_RAYS),
@@ -189,9 +191,10 @@ private:
 		the region of images visible for a macro-image which on average loses no more
 		than the desired amount of flux
 		******************************************************************************/
-		half_length_image = Complex<T>(
-			(half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) / std::abs(1 - kappa_tot + shear),
-			(half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) / std::abs(1 - kappa_tot - shear)
+		half_length_image = (half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss))) 
+			* Complex<T>(
+				1 / std::abs(1 - kappa_tot + shear),
+				1 / std::abs(1 - kappa_tot - shear)
 			);
 
 		num_ray_blocks = Complex<int>(half_length_image / ray_sep) + Complex<int>(1, 1);
@@ -242,23 +245,8 @@ private:
 				1),
 			verbose && rectangular && approx);
 
-		if (rectangular)
-		{
-			set_param("tree_levels", tree_levels, 
-				static_cast<int>(
-					std::log2(num_stars * 9 / MAX_NUM_STARS_DIRECT * (corner.re > corner.im ? corner.re / corner.im : corner.im / corner.re)) / 2
-					) + 1,
-				verbose);
-		}
-		else
-		{
-			set_param("tree_levels", tree_levels, static_cast<int>(std::log2(num_stars * 9 / MAX_NUM_STARS_DIRECT / PI * 4) / 2) + 1, verbose);
-		}
-
-		set_param("tree_size", tree_size, ((1 << (2 * tree_levels + 2)) - 1) / 3, verbose);
-
 		set_param("expansion_order", expansion_order,
-			static_cast<int>(std::log2(theta_e * theta_e * m_upper * num_pixels / (2 * half_length_source) * MAX_NUM_STARS_DIRECT / 9)) + 1, verbose);
+			static_cast<int>(std::log2(theta_e * theta_e * m_upper * MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1, verbose);
 		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
 		{
 			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
@@ -281,18 +269,19 @@ private:
 		******************************************************************************/
 		cudaMallocManaged(&states, num_stars * sizeof(curandState));
 		if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return false;
-		cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
-		if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
+		if (stars == nullptr) // if memory wasn't allocated already due to reading a star file
+		{
+			cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
+			if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
+		}
 		cudaMallocManaged(&temp_stars, num_stars * sizeof(star<T>));
 		if (cuda_error("cudaMallocManaged(*temp_stars)", false, __FILE__, __LINE__)) return false;
 
 		/******************************************************************************
-		allocate memory for tree
+		allocate memory for binomial coefficients
 		******************************************************************************/
 		cudaMallocManaged(&binomial_coeffs, (2 * expansion_order * (2 * expansion_order + 3) / 2 + 1) * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return false;
-		cudaMallocManaged(&tree, tree_size * sizeof(TreeNode<T>));
-		if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 
 		/******************************************************************************
 		allocate memory for pixels
@@ -315,7 +304,7 @@ private:
 		initialize pixel values
 		******************************************************************************/
 		set_threads(threads, 16, 16);
-		set_blocks(threads, blocks, num_ray_blocks.re, num_ray_blocks.im);
+		set_blocks(threads, blocks, num_pixels, num_pixels);
 
 		std::cout << "Initializing pixel values...\n";
 		stopwatch.start();
@@ -375,13 +364,6 @@ private:
 			ensure random seed is 0 to denote that stars come from external file
 			******************************************************************************/
 			set_param("random_seed", random_seed, 0, verbose);
-
-			if (!read_star_file<T>(num_stars, rectangular, corner, theta_e, stars,
-				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, starfile))
-			{
-				std::cerr << "Error. Unable to read star field parameters from file " << starfile << "\n";
-				return false;
-			}
 		}
 
 		/******************************************************************************
@@ -403,6 +385,7 @@ private:
 		/******************************************************************************
 		BEGIN create root node, then create children and sort stars
 		******************************************************************************/
+
 		T root_half_length;
 		if (rectangular)
 		{
@@ -412,65 +395,89 @@ private:
 		{
 			root_half_length = corner.abs();
 		}
-		root_half_length /= (1 << tree_levels);
-		root_half_length = ray_sep * (static_cast<int>(root_half_length / ray_sep) + 1);
-		set_param("root_half_length", root_half_length, root_half_length * (1 << tree_levels), verbose);
-		tree[0] = TreeNode<T>(Complex<T>(0, 0), root_half_length, 0, 0);
-		tree[0].numstars = num_stars;
+		/******************************************************************************
+		upscale root half length so it is a power of 2 multiple of the ray separation
+		******************************************************************************/
+		int root_size_factor = static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1;
+		set_param("root_half_length", root_half_length, ray_sep * (1 << root_size_factor), verbose);
+
+		/******************************************************************************
+		push empty pointer into tree, add 1 to number of nodes, and allocate memory
+		******************************************************************************/
+		tree.push_back(nullptr);
+		num_nodes.push_back(1);
+		cudaMallocManaged(&tree.back(), num_nodes.back() * sizeof(TreeNode<T>));
+		if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
+
+		/******************************************************************************
+		initialize root node
+		******************************************************************************/
+		tree[0][0] = TreeNode<T>(Complex<T>(0, 0), root_half_length, 0);
+		tree[0][0].numstars = num_stars;
+
 
 		int* max_num_stars_in_level;
 		int* min_num_stars_in_level;
+		int* num_nonempty_nodes;
 		cudaMallocManaged(&max_num_stars_in_level, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*max_num_stars_in_level)", false, __FILE__, __LINE__)) return false;
 		cudaMallocManaged(&min_num_stars_in_level, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*min_num_stars_in_level)", false, __FILE__, __LINE__)) return false;
+		cudaMallocManaged(&num_nonempty_nodes, sizeof(int));
+		if (cuda_error("cudaMallocManaged(*num_nonempty_nodes)", false, __FILE__, __LINE__)) return false;
 
-		print_verbose("Creating children and sorting stars...\n", verbose);
+		std::cout << "Creating children and sorting stars...\n";
 		stopwatch.start();
 		set_threads(threads, 512);
-		for (int i = 0; i < tree_levels; i++)
+		do
 		{
-			print_verbose("Loop " + std::to_string(i + 1) + " /  " + std::to_string(tree_levels) + "\n", verbose);
-
-			set_blocks(threads, blocks, treenode::get_num_nodes(i));
-			treenode::create_children_kernel<T> <<<blocks, threads>>> (tree, i);
-			if (cuda_error("create_tree_kernel", true, __FILE__, __LINE__)) return false;
-
-			set_blocks(threads, blocks, 512 * treenode::get_num_nodes(i));
-			treenode::sort_stars_kernel<T> <<<blocks, threads>>> (tree, i, stars, temp_stars);
-			if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return false;
-
+			print_verbose("\nProcessing level " + std::to_string(tree_levels) + "\n", verbose);
 
 			*max_num_stars_in_level = 0;
 			*min_num_stars_in_level = num_stars;
+			*num_nonempty_nodes = 0;
 
-			set_blocks(threads, blocks, treenode::get_num_nodes(i));
-			treenode::get_min_max_stars_kernel<T> <<<blocks, threads>>> (tree, i + 1, min_num_stars_in_level, max_num_stars_in_level);
-			if (cuda_error("get_min_max_stars_kernel", true, __FILE__, __LINE__)) return false;
+			set_blocks(threads, blocks, num_nodes[tree_levels]);
+			treenode::get_node_star_info_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels],
+				num_nonempty_nodes, min_num_stars_in_level, max_num_stars_in_level);
+			if (cuda_error("get_node_star_info_kernel", true, __FILE__, __LINE__)) return false;
 
-			if (*max_num_stars_in_level <= MAX_NUM_STARS_DIRECT)
+			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
+			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+
+			if (*max_num_stars_in_level > MAX_NUM_STARS_DIRECT)
 			{
-				print_verbose("Necessary recursion limit reached.\n", verbose);
-				print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
-				print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
-				set_param("tree_levels", tree_levels, i + 1, verbose);
-				break;
+				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * 4) + "\n", verbose);
+
+				print_verbose("Allocating memory for children...\n", verbose);
+				tree.push_back(nullptr);
+				num_nodes.push_back(*num_nonempty_nodes * 4);
+				cudaMallocManaged(&tree.back(), num_nodes.back() * sizeof(TreeNode<T>));
+				if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
+
+				print_verbose("Creating children...\n", verbose);
+				(*num_nonempty_nodes)--; // subtract one since value is size of array, and instead needs to be the first allocatable element
+				set_blocks(threads, blocks, num_nodes[tree_levels]);
+				treenode::create_children_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
+				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
+
+				print_verbose("Sorting stars...\n", verbose);
+				set_blocks(threads, blocks, 512 * num_nodes[tree_levels]);
+				treenode::sort_stars_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
+				if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return false;
+
+				tree_levels++;
+
+				print_verbose("Setting neighbors...\n", verbose);
+				set_blocks(threads, blocks, num_nodes[tree_levels]);
+				treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels]);
+				if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
 			}
-			else
-			{
-				print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
-				print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
-			}
-		}
+		} while (*max_num_stars_in_level > MAX_NUM_STARS_DIRECT);
+		set_param("tree_levels", tree_levels, tree_levels, verbose);
+
 		t_elapsed = stopwatch.stop();
-		print_verbose("Done creating children and sorting stars. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
-
-		for (int i = 0; i <= tree_levels; i++)
-		{
-			set_blocks(threads, blocks, treenode::get_num_nodes(i));
-			treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree, i);
-			if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
-		}
+		std::cout << "Done creating children and sorting stars. Elapsed time: " << t_elapsed << " seconds.\n\n";
 
 		/******************************************************************************
 		END create root node, then create children and sort stars
@@ -481,39 +488,45 @@ private:
 		print_verbose("Done calculating binomial coefficients.\n\n", verbose);
 
 
-		print_verbose("Calculating multipole and local coefficients...\n", verbose);
+		/******************************************************************************
+		BEGIN calculating multipole and local coefficients
+		******************************************************************************/
+
+		std::cout << "Calculating multipole and local coefficients...\n";
 		stopwatch.start();
 
 		set_threads(threads, expansion_order + 1);
-		set_blocks(threads, blocks, (expansion_order + 1) * treenode::get_num_nodes(tree_levels));
-		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree, tree_levels, expansion_order, stars);
+		set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[tree_levels]);
+		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[tree_levels], num_nodes[tree_levels], expansion_order, stars);
 
 		set_threads(threads, expansion_order + 1, 4);
 		for (int i = tree_levels - 1; i >= 0; i--)
 		{
-			set_blocks(threads, blocks, (expansion_order + 1) * treenode::get_num_nodes(i), 4);
-			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree, i, expansion_order, binomial_coeffs);
+			set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[i], 4);
+			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 
+		/******************************************************************************
+		local coefficients are non zero only starting at the second level
+		******************************************************************************/
 		for (int i = 2; i <= tree_levels; i++)
 		{
 			set_threads(threads, expansion_order + 1);
-			set_blocks(threads, blocks, (expansion_order + 1) * treenode::get_num_nodes(i));
-			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree, i, expansion_order, binomial_coeffs);
+			set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[i]);
+			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 
 			set_threads(threads, expansion_order + 1, 27);
-			set_blocks(threads, blocks, (expansion_order + 1) * treenode::get_num_nodes(i), 27);
-			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree, i, expansion_order, binomial_coeffs);
+			set_blocks(threads, blocks, (expansion_order + 1) * num_nodes[i], 27);
+			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 
-		set_threads(threads, 32, expansion_order + 1);
-		set_blocks(threads, blocks, treenode::get_num_nodes(tree_levels));
-		fmm::normalize_local_coeffs_kernel<T> <<<blocks, threads>>> (tree, tree_levels, expansion_order);
-		if (cuda_error("normalize_local_coeffs_kernel", true, __FILE__, __LINE__)) return false;
-
 		t_elapsed = stopwatch.stop();
-		print_verbose("Done calculating multipole and local coefficients. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n", verbose);
+		std::cout << "Done calculating multipole and local coefficients. Elapsed time: " << t_elapsed << " seconds.\n\n";
+		
+		/******************************************************************************
+		END calculating multipole and local coefficients
+		******************************************************************************/
 
 		return true;
 	}
@@ -528,7 +541,7 @@ private:
 		******************************************************************************/
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree, tree_levels, 
+		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0],
 			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks, ray_sep,
 			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
@@ -544,7 +557,6 @@ private:
 		create histograms of pixel values
 		******************************************************************************/
 
-
 		if (write_histograms)
 		{
 			std::cout << "Creating histograms...\n";
@@ -558,9 +570,7 @@ private:
 			*min_rays = std::numeric_limits<int>::max();
 			*max_rays = 0;
 
-			/******************************************************************************
-			redefine thread and block size to maximize parallelization
-			******************************************************************************/
+
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
@@ -586,9 +596,7 @@ private:
 				if (cuda_error("cudaMallocManaged(*histogram_saddles)", false, __FILE__, __LINE__)) return false;
 			}
 
-			/******************************************************************************
-			redefine thread and block size to maximize parallelization
-			******************************************************************************/
+			
 			set_threads(threads, 512);
 			set_blocks(threads, blocks, histogram_length);
 
@@ -602,9 +610,7 @@ private:
 				if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 
-			/******************************************************************************
-			redefine thread and block size to maximize parallelization
-			******************************************************************************/
+			
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
@@ -620,6 +626,7 @@ private:
 			t_elapsed = stopwatch.stop();
 			std::cout << "Done creating histograms. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n";
 		}
+
 		/******************************************************************************
 		done creating histograms of pixel values
 		******************************************************************************/
@@ -656,6 +663,7 @@ private:
 			outfile << "kappa_star_actual " << kappa_star_actual << "\n";
 		}
 		outfile << "theta_e " << theta_e << "\n";
+		outfile << "random_seed " << random_seed << "\n";
 		if (starfile == "")
 		{
 			outfile << "mass_function " << mass_function_str << "\n";
@@ -663,20 +671,14 @@ private:
 			{
 				outfile << "m_solar " << m_solar << "\n";
 			}
-			if (mass_function_str != "equal")
-			{
-				outfile << "m_lower " << m_lower << "\n";
-				outfile << "m_upper " << m_upper << "\n";
-				outfile << "m_lower_actual " << m_lower_actual << "\n";
-				outfile << "m_upper_actual " << m_upper_actual << "\n";
-			}
+			outfile << "m_lower " << m_lower << "\n";
+			outfile << "m_lower_actual " << m_lower_actual << "\n";
+			outfile << "m_upper " << m_upper << "\n";
+			outfile << "m_upper_actual " << m_upper_actual << "\n";
 			outfile << "mean_mass " << mean_mass << "\n";
+			outfile << "mean_mass_actual " << mean_mass_actual << "\n";
 			outfile << "mean_mass2 " << mean_mass2 << "\n";
-			if (mass_function_str != "equal")
-			{
-				outfile << "mean_mass_actual " << mean_mass_actual << "\n";
-				outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
-			}
+			outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
 		}
 		else
 		{
@@ -704,7 +706,6 @@ private:
 		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
-		outfile << "random_seed " << random_seed << "\n";
 		outfile << "half_length_image_x1 " << half_length_image.re << "\n";
 		outfile << "half_length_image_x2 " << half_length_image.im << "\n";
 		outfile << "ray_sep " << ray_sep << "\n";
@@ -807,6 +808,12 @@ public:
 		if (!populate_star_array(verbose)) return false;
 		if (!create_tree(verbose)) return false;
 		if (!shoot_rays(verbose)) return false;
+
+		return true;
+	}
+
+	bool save(bool verbose)
+	{
 		if (!create_histograms(verbose)) return false;
 		if (!write_files(verbose)) return false;
 

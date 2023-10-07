@@ -10,14 +10,18 @@ assumes this function will be called once, otherwise the recursion is redundant
 ******************************************************************************/
 void calculate_binomial_coeffs(int* binom_coeffs, int n)
 {
-	/*recursion limit*/
+	/******************************************************************************
+	recursion limit
+	******************************************************************************/
 	if (n == 0)
 	{
 		binom_coeffs[0] = 1;
 		return;
 	}
 
-	/*rows of Pascal's triangle*/
+	/******************************************************************************
+	rows of Pascal's triangl
+	******************************************************************************/
 	int row_start = n * (n + 1) / 2;
 	int prev_row_start = (n - 1) * n / 2;
 

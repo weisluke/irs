@@ -2,8 +2,8 @@
 
 #include <algorithm> //for std::find, std::transform
 #include <cctype> //for std::tolower
-#include <iostream> 
-#include <string> 
+#include <iostream>
+#include <string>
 
 
 /******************************************************************************
@@ -47,7 +47,11 @@ assumed to be placed immediately after the option in some range
 char* cmd_option_value(char** begin, char** end, const std::string& option)
 {
 	char** itr = std::find(begin, end, option);
-	/*if found option doesn't equal end and there is something in the following position*/
+
+	/******************************************************************************
+	if found option doesn't equal end and there is something in the following
+	position (uses ++itr to increment before checking)
+	******************************************************************************/
 	if (itr != end && ++itr != end)
 	{
 		return *itr;
@@ -145,8 +149,11 @@ CUDA error checking
 bool cuda_error(const char* name, bool sync, const char* file, const int line)
 {
 	cudaError_t err = cudaGetLastError();
-	/*if the last error message is not a success, print the error code and msg
-	and return true (i.e., an error occurred)*/
+
+	/******************************************************************************
+	if the last error message is not a success, print the error code and msg and
+	return true (i.e., an error occurred)
+	******************************************************************************/
 	if (err != cudaSuccess)
 	{
 		const char* errMsg = cudaGetErrorString(err);
@@ -154,10 +161,15 @@ bool cuda_error(const char* name, bool sync, const char* file, const int line)
 		std::cerr << "Error code: " << err << " (" << errMsg << ")\n";
 		return true;
 	}
-	/*if a device synchronization is also to be done*/
+
+	/******************************************************************************
+	if a device synchronization is also to be done
+	******************************************************************************/
 	if (sync)
 	{
-		/*perform the same error checking as initially*/
+		/******************************************************************************
+		perform the same error checking as initially
+		******************************************************************************/
 		err = cudaDeviceSynchronize();
 		if (err != cudaSuccess)
 		{

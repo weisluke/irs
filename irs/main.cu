@@ -639,9 +639,10 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
-	run microlensing 
+	run microlensing and save files
 	******************************************************************************/
-	if (!microlensing.run(verbose)) return -1;	
+	if (!microlensing.run(verbose)) return -1;
+	if (!microlensing.save(verbose)) return -1;
 
 
 	std::cout << "Done.\n";

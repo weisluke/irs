@@ -55,7 +55,7 @@ public:
 	template <typename U> __host__ __device__ Complex& operator=(const U& num)
 	{
 		re = static_cast<T>(num);
-		im = static_cast<T>(0);
+		im = 0;
 		return *this;
 	}
 

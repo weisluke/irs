@@ -672,12 +672,12 @@ private:
 				outfile << "m_solar " << m_solar << "\n";
 			}
 			outfile << "m_lower " << m_lower << "\n";
-			outfile << "m_upper " << m_upper << "\n";
 			outfile << "m_lower_actual " << m_lower_actual << "\n";
+			outfile << "m_upper " << m_upper << "\n";
 			outfile << "m_upper_actual " << m_upper_actual << "\n";
 			outfile << "mean_mass " << mean_mass << "\n";
-			outfile << "mean_mass2 " << mean_mass2 << "\n";
 			outfile << "mean_mass_actual " << mean_mass_actual << "\n";
+			outfile << "mean_mass2 " << mean_mass2 << "\n";
 			outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
 		}
 		else

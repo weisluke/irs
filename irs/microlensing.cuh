@@ -233,7 +233,7 @@ private:
 			verbose && rectangular && approx);
 
 		set_param("expansion_order", expansion_order,
-			static_cast<int>(std::log2(theta_e * theta_e * m_upper * MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1, verbose);
+			static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1, verbose);
 		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
 		{
 			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
@@ -431,7 +431,7 @@ private:
 			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
 			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
 
-			if (*max_num_stars_in_level > MAX_NUM_STARS_DIRECT)
+			if (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT)
 			{
 				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * 4) + "\n", verbose);
 
@@ -459,7 +459,7 @@ private:
 				treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels]);
 				if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
 			}
-		} while (*max_num_stars_in_level > MAX_NUM_STARS_DIRECT);
+		} while (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT);
 		set_param("tree_levels", tree_levels, tree_levels, verbose);
 
 		t_elapsed = stopwatch.stop();
@@ -526,8 +526,8 @@ private:
 
 	bool shoot_rays(bool verbose)
 	{
-		set_threads(threads, 16, 16);
-		set_blocks(threads, blocks, 16 * num_ray_blocks.re, 16 * num_ray_blocks.im);
+		set_threads(threads, 32, 32);
+		set_blocks(threads, blocks, 32 * num_ray_blocks.re, 32 * num_ray_blocks.im);
 
 		/******************************************************************************
 		shoot rays and calculate time taken in seconds

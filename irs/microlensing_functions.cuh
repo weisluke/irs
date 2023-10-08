@@ -11,20 +11,6 @@
 
 
 /******************************************************************************
-number of stars to use directly when shooting rays
-this helps determine the size of the tree
-******************************************************************************/
-const int MAX_NUM_STARS_DIRECT = 32;
-
-
-/******************************************************************************
-number of rays that will be shot in each x1 and x2 direction using taylor
-coefficients is equal to 2 * HALF_NUM_RESAMPLED_RAYS + 1
-******************************************************************************/
-const int HALF_NUM_RESAMPLED_RAYS = 30;
-const int NUM_RESAMPLED_RAYS = 2 * HALF_NUM_RESAMPLED_RAYS + 1;
-
-/******************************************************************************
 calculate the deflection angle due to nearby stars for a node
 
 \param z -- complex image plane position
@@ -238,17 +224,18 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	Complex<T> hlx, Complex<int> numrayblocks, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
 	__shared__ TreeNode<T> node[1];
+	__shared__ star<T> tmp_stars[treenode::MAX_NUM_STARS_DIRECT];
+	__shared__ int nstars;
+
 	Complex<T> half_length_image = Complex<T>(hlx.re / gridDim.x, hlx.im / gridDim.y);
 	Complex<T> center = -hlx + half_length_image + 2 * Complex<T>(half_length_image.re * blockIdx.x, half_length_image.im * blockIdx.y);
-	__shared__ int nstars;
+
 	if (threadIdx.x == 0 && threadIdx.y == 0)
 	{
 		nstars = 0;
 		*node = *(treenode::get_nearest_node(center, root));
 	}
-	__syncthreads(); 
-
-	__shared__ star<T> tmp_stars[MAX_NUM_STARS_DIRECT];
+	__syncthreads();
 	if (threadIdx.x == 0)
 	{
 		for (int j = threadIdx.y; j < node->numstars; j += blockDim.y)
@@ -256,7 +243,6 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			tmp_stars[atomicAdd(&nstars, 1)] = stars[node->stars + j];
 		}
 	}
-	__syncthreads();
 	for (int i = threadIdx.x; i < node->numneighbors; i += blockDim.x)
 	{
 		TreeNode<T>* neighbor = node->neighbors[i];
@@ -277,17 +263,6 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 
 	Complex<T> dx = half_length_image / (2 << num_rays_factor);
 	Complex<int> ypix;
-
-	if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-	//if (threadIdx.x == 0 && threadIdx.y == 0)
-	{
-		printf("center: (%f, %f)\nnode stars: %d, numstars: %d\nhalf_length_image: (%f, %f)\ndx: (%f, %f)\n%d\n\n",
-			center.re, center.im,
-			node->stars, node->numstars,
-			half_length_image.re, half_length_image.im,
-			dx.re, dx.im,
-			(1 << num_rays_factor));
-	}
 
 	for (int i = threadIdx.x; i < (2 << num_rays_factor); i += blockDim.x)
 	{
@@ -322,12 +297,6 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			reverse y coordinate so array forms image in correct orientation
 			******************************************************************************/
 			ypix.im = npixels - 1 - ypix.im;
-
-			if (ypix.im * npixels + ypix.re >= npixels * npixels)
-			{
-				printf("ERROR (%f, %f) (%d, %d)\n", w.re, w.im, ypix.re, ypix.im);
-				continue;
-			}
 
 			atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
 			

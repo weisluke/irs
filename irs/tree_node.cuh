@@ -4,11 +4,17 @@
 #include "star.cuh"
 
 
-/******************************************************************************
-maximum expansion order for the fast multipole method
-******************************************************************************/
 namespace treenode
 {
+    /******************************************************************************
+    number of stars to use directly when shooting rays
+    this helps determine the size of the tree
+    ******************************************************************************/
+    const int MAX_NUM_STARS_DIRECT = 32;
+    
+    /******************************************************************************
+    maximum expansion order for the fast multipole method
+    ******************************************************************************/
     const int MAX_EXPANSION_ORDER = 25;
 }
 
@@ -279,15 +285,15 @@ namespace treenode
         {
             TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
-
-            if (nstars > 0)
-            {
-                atomicAdd(num_nonempty_nodes, 1);
-            }
             
             for (int j = 0; j < node->numneighbors; j++)
             {
                 nstars += node->neighbors[j]->numstars;
+            }
+
+            if (nstars > 0)
+            {
+                atomicAdd(num_nonempty_nodes, 1);
             }
 
             atomicMin(min_n_stars, nstars);
@@ -313,6 +319,11 @@ namespace treenode
         {
             TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
+
+            for (int j = 0; j < node->numneighbors; j++)
+            {
+                nstars += node->neighbors[j]->numstars;
+            }
 
             if (nstars > 0)
             {

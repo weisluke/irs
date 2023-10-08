@@ -43,8 +43,8 @@ public:
     /******************************************************************************
 	default constructor
 	******************************************************************************/
-	__host__ __device__ TreeNode(Complex<T> ctr, T hl, int lvl, TreeNode* p = nullptr)
-	{
+    __host__ __device__ TreeNode(Complex<T> ctr = Complex<T>(), T hl = 0, int lvl = 0, TreeNode* p = nullptr)
+    {
         center = ctr;
         half_length = hl;
         level = lvl;

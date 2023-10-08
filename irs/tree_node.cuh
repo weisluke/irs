@@ -10,7 +10,7 @@ namespace treenode
     number of stars to use directly when shooting rays
     this helps determine the size of the tree
     ******************************************************************************/
-    const int MAX_NUM_STARS_DIRECT = 32;
+    const int MAX_NUM_STARS_DIRECT = 16;
     
     /******************************************************************************
     maximum expansion order for the fast multipole method

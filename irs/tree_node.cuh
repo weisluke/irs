@@ -6,6 +6,7 @@
 
 namespace treenode
 {
+
     /******************************************************************************
     number of stars to use directly when shooting rays
     this helps determine the size of the tree
@@ -16,6 +17,7 @@ namespace treenode
     maximum expansion order for the fast multipole method
     ******************************************************************************/
     const int MAX_EXPANSION_ORDER = 25;
+
 }
 
 /******************************************************************************
@@ -266,8 +268,8 @@ namespace treenode
 {
 
     /******************************************************************************
-    get the number of non empty nodes, and the minimum and maximum number of stars
-    contained within a node and its neighbors
+    get the number of nodes which, when including its neighbors, are nonempty, and
+    the minimum and maximum number of stars contained within them
 
     \param nodes -- pointer to tree
     \param numnodes -- number of nodes in the tree
@@ -349,45 +351,41 @@ namespace treenode
     template <typename T>
     __global__ void sort_stars_kernel(TreeNode<T>* nodes, int numnodes, star<T>* stars, star<T>* temp_stars)
     {
-        /******************************************************************************
-        each block is a node, and each thread is a star within the parent node
-        ******************************************************************************/
-        int node_index = blockIdx.x;
-
-        int x_index = threadIdx.x;
-        int x_stride = blockDim.x;
-
         __shared__ int n_stars_top;
         __shared__ int n_stars_bottom;
         __shared__ int n_stars_children[4];
 
-        if (threadIdx.x == 0)
+        /******************************************************************************
+        each block is a node
+        ******************************************************************************/
+        for (int j = blockIdx.x; j < numnodes; j += gridDim.x)
         {
-            n_stars_top = 0;
-            n_stars_bottom = 0;
-            n_stars_children[0] = 0;
-            n_stars_children[1] = 0;
-            n_stars_children[2] = 0;
-            n_stars_children[3] = 0;
-        }
-        __syncthreads();
-
-        if (node_index < numnodes)
-        {
-            TreeNode<T>* node = &nodes[node_index];
+            TreeNode<T>* node = &nodes[j];
 
             /******************************************************************************
             if node is empty, skip it
             ******************************************************************************/
             if (node->numstars == 0)
             {
-                return;
+                continue;
             }
 
+            if (threadIdx.x == 0)
+            {
+                n_stars_top = 0;
+                n_stars_bottom = 0;
+                n_stars_children[0] = 0;
+                n_stars_children[1] = 0;
+                n_stars_children[2] = 0;
+                n_stars_children[3] = 0;
+            }
+            __syncthreads();
+
             /******************************************************************************
+            each thread is a star within the parent node
             in the first pass, figure out whether the star is above or below the center
             ******************************************************************************/
-            for (int i = x_index; i < node->numstars; i += x_stride)
+            for (int i = threadIdx.x; i < node->numstars; i += blockDim.x)
             {
                 if (stars[node->stars + i].position.im >= node->center.im)
                 {
@@ -407,7 +405,7 @@ namespace treenode
             /******************************************************************************
             in the second pass, figure out whether the star is left or right of the center
             ******************************************************************************/
-            for (int i = x_index; i < node->numstars; i += x_stride)
+            for (int i = threadIdx.x; i < node->numstars; i += blockDim.x)
             {
                 /******************************************************************************
                 if the star was in the top, then sort left and right
@@ -456,6 +454,7 @@ namespace treenode
                     node->children[i]->numstars = n_stars_children[i];
                 }
             }
+            __syncthreads();
         }
     }
 

@@ -67,16 +67,16 @@ namespace fmm
         /******************************************************************************
         each block is a node
         ******************************************************************************/
-        for (int i = blockIdx.x; i < numnodes; i += gridDim.x)
+        for (int j = blockIdx.x; j < numnodes; j += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[i];
+            TreeNode<T>* node = &nodes[j];
 
             /******************************************************************************
             each thread calculates a multipole coefficient in the x thread direction
             ******************************************************************************/
-            for (int j = threadIdx.x; j <= power; j += blockDim.x)
+            for (int i = threadIdx.x; i <= power; i += blockDim.x)
             {
-                calculate_multipole_coeff(node, coeffs, j, stars);
+                calculate_multipole_coeff(node, coeffs, i, stars);
             }
             __syncthreads();
 
@@ -153,9 +153,9 @@ namespace fmm
         /******************************************************************************
         each block is a node
         ******************************************************************************/
-        for (int i = blockIdx.x; i < numnodes; i += gridDim.x)
+        for (int k = blockIdx.x; k < numnodes; k += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[i];
+            TreeNode<T>* node = &nodes[k];
 
             /******************************************************************************
             each thread calculates a shifted multipole coefficient in the x thread
@@ -164,9 +164,9 @@ namespace fmm
             for (int j = threadIdx.y; j < node->numchildren; j += blockDim.y)
             {
                 TreeNode<T>* child = node->children[j];
-                for (int k = threadIdx.x; k <= power; k += blockDim.x)
+                for (int i = threadIdx.x; i <= power; i += blockDim.x)
                 {
-                    calculate_M2M_coeff(child, &coeffs[(power + 1) * j], k, binomcoeffs);
+                    calculate_M2M_coeff(child, &coeffs[(power + 1) * j], i, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -238,16 +238,16 @@ namespace fmm
         /******************************************************************************
         each block is a node
         ******************************************************************************/
-        for (int i = blockIdx.x; i < numnodes; i += gridDim.x)
+        for (int j = blockIdx.x; j < numnodes; j += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[i];
+            TreeNode<T>* node = &nodes[j];
 
             /******************************************************************************
             each thread calculates a local coefficient in the x thread direction
             ******************************************************************************/
-            for (int j = threadIdx.x; j <= power; j += blockDim.x)
+            for (int i = threadIdx.x; i <= power; i += blockDim.x)
             {
-                calculate_L2L_coeff(node, coeffs, j, power, binomcoeffs);
+                calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
             }
             __syncthreads();
 
@@ -336,9 +336,9 @@ namespace fmm
         /******************************************************************************
         each block is a node
         ******************************************************************************/
-        for (int i = blockIdx.x; i < numnodes; i += gridDim.x)
+        for (int k = blockIdx.x; k < numnodes; k += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[i];
+            TreeNode<T>* node = &nodes[k];
 
             /******************************************************************************
             each thread calculates a local coefficient in the x thread direction for a
@@ -346,9 +346,9 @@ namespace fmm
             ******************************************************************************/
             for (int j = threadIdx.y; j < node->numinterlist; j += blockDim.y)
             {
-                for (int k = threadIdx.x; k <= power; k += blockDim.x)
+                for (int i = threadIdx.x; i <= power; i += blockDim.x)
                 {
-                    calculate_M2L_coeff(node->interactionlist[j], node, &coeffs[(power + 1) * j], k, power, binomcoeffs);
+                    calculate_M2L_coeff(node->interactionlist[j], node, &coeffs[(power + 1) * j], i, power, binomcoeffs);
                 }
             }
             __syncthreads();

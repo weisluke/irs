@@ -19,13 +19,13 @@ void calculate_binomial_coeffs(int* binom_coeffs, int n)
 		return;
 	}
 
+	calculate_binomial_coeffs(binom_coeffs, n - 1);
+
 	/******************************************************************************
-	rows of Pascal's triangl
+	rows of Pascal's triangle
 	******************************************************************************/
 	int row_start = n * (n + 1) / 2;
 	int prev_row_start = (n - 1) * n / 2;
-
-	calculate_binomial_coeffs(binom_coeffs, n - 1);
 	for (int i = 0; i <= n; i++)
 	{
 		if (i == 0 || i == n)

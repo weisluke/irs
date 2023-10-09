@@ -43,6 +43,7 @@ public:
 
 
 	const T PI = static_cast<T>(3.1415926535898);
+	const T E = static_cast<T>(2.718281828459);
 
 	/******************************************************************************
 	default variables
@@ -232,8 +233,15 @@ private:
 				1),
 			verbose && rectangular && approx);
 
-		set_param("expansion_order", expansion_order,
-			static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1, verbose);
+		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1;
+		while (
+			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
+			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > (2 * half_length_source) / (100 * num_pixels)
+			)
+		{
+			expansion_order++;
+		}
+		set_param("expansion_order", expansion_order, expansion_order, verbose);
 		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
 		{
 			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";

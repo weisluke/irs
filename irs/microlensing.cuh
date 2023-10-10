@@ -535,8 +535,8 @@ private:
 
 	bool shoot_rays(bool verbose)
 	{
-		set_threads(threads, 32, 32);
-		set_blocks(threads, blocks, 32 * num_ray_blocks.re, 32 * num_ray_blocks.im);
+		set_threads(threads, 16, 16);
+		set_blocks(threads, blocks, 16 * num_ray_blocks.re, 16 * num_ray_blocks.im);
 
 		/******************************************************************************
 		shoot rays and calculate time taken in seconds

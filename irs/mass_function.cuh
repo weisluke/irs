@@ -960,5 +960,6 @@ public:
 			return mean_equal_mass2();
 		}
 	}
+
 };
 

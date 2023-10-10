@@ -60,30 +60,26 @@ namespace fmm
     __global__ void calculate_multipole_coeffs_kernel(TreeNode<T>* nodes, int numnodes, int power, star<T>* stars)
     {
         /******************************************************************************
-        each block is a node
-        ******************************************************************************/
-        int node_index = blockIdx.x;
-
-        int x_index = threadIdx.x;
-        int x_stride = blockDim.x;
-
-        /******************************************************************************
         array to hold multipole coefficients
         ******************************************************************************/
         extern __shared__ Complex<T> coeffs[];
 
-        if (node_index < numnodes)
+        /******************************************************************************
+        each block is a node
+        ******************************************************************************/
+        for (int j = blockIdx.x; j < numnodes; j += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[node_index];
+            TreeNode<T>* node = &nodes[j];
 
             /******************************************************************************
-            each thread calculates a multipole coefficient
+            each thread calculates a multipole coefficient in the x thread direction
             ******************************************************************************/
-            for (int i = x_index; i <= power; i += x_stride)
+            for (int i = threadIdx.x; i <= power; i += blockDim.x)
             {
                 calculate_multipole_coeff(node, coeffs, i, stars);
             }
             __syncthreads();
+
             /******************************************************************************
             once completed, set the multipole coefficients for this node using a single
             thread
@@ -92,6 +88,7 @@ namespace fmm
             {
                 node->set_multipole_coeffs(coeffs, power);
             }
+            __syncthreads();
         }
     }
 
@@ -129,7 +126,8 @@ namespace fmm
                 result /= dz;
             }
             result -= node->multipole_coeffs[0] / power;
-            result *= (dz / 2).pow(power);
+            result *= dz.pow(power);
+            result /= (1 << power);
         }
 
         coeffs[power] = result;
@@ -148,48 +146,43 @@ namespace fmm
     __global__ void calculate_M2M_coeffs_kernel(TreeNode<T>* nodes, int numnodes, int power, int* binomcoeffs)
     {
         /******************************************************************************
-        each block is a node
-        ******************************************************************************/
-        int node_index = blockIdx.x;
-
-        int x_index = threadIdx.x;
-        int x_stride = blockDim.x;
-        int y_index = threadIdx.y;
-        int y_stride = blockDim.y;
-
-        /******************************************************************************
         array to hold multipole coefficients
         ******************************************************************************/
         extern __shared__ Complex<T> coeffs[];
 
-        if (node_index < numnodes)
+        /******************************************************************************
+        each block is a node
+        ******************************************************************************/
+        for (int k = blockIdx.x; k < numnodes; k += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[node_index];
+            TreeNode<T>* node = &nodes[k];
 
             /******************************************************************************
-            each thread calculates a shifted multipole coefficient in the x direction for a
-            child node in the y direction
+            each thread calculates a shifted multipole coefficient in the x thread
+            direction for a child node in the y thread direction
             ******************************************************************************/
-            for (int i = y_index; i < node->numchildren; i += y_stride)
+            for (int j = threadIdx.y; j < node->numchildren; j += blockDim.y)
             {
-                TreeNode<T>* child = node->children[i];
-                for (int j = x_index; j <= power; j += x_stride)
+                TreeNode<T>* child = node->children[j];
+                for (int i = threadIdx.x; i <= power; i += blockDim.x)
                 {
-                    calculate_M2M_coeff(child, &coeffs[(power + 1) * i], j, binomcoeffs);
+                    calculate_M2M_coeff(child, &coeffs[(power + 1) * j], i, binomcoeffs);
                 }
             }
             __syncthreads();
+
             /******************************************************************************
             finally, add the children's shifted multipole coefficients onto the parent
             this must be sequentially carried out by one thread
             ******************************************************************************/
             if (threadIdx.x == 0 && threadIdx.y == 0)
             {
-                for (int i = 0; i < node->numchildren; i++)
+                for (int j = 0; j < node->numchildren; j++)
                 {
-                    node->add_multipole_coeffs(&coeffs[(power + 1) * i], power);
+                    node->add_multipole_coeffs(&coeffs[(power + 1) * j], power);
                 }
             }
+            __syncthreads();
         }
     }
 
@@ -218,7 +211,8 @@ namespace fmm
             result += node->parent->local_coeffs[i] * get_binomial_coeff(binomcoeffs, i, power);
             result *= dz;
         }
-        result /= (2 * dz).pow(power);
+        result /= dz.pow(power);
+        result /= (1 << power);
 
         coeffs[power] = result;
     }
@@ -237,30 +231,26 @@ namespace fmm
     __global__ void calculate_L2L_coeffs_kernel(TreeNode<T>* nodes, int numnodes, int power, int* binomcoeffs)
     {
         /******************************************************************************
-        each block is a node
-        ******************************************************************************/
-        int node_index = blockIdx.x;
-
-        int x_index = threadIdx.x;
-        int x_stride = blockDim.x;
-
-        /******************************************************************************
         array to hold local coefficients
         ******************************************************************************/
         extern __shared__ Complex<T> coeffs[];
 
-        if (node_index < numnodes)
+        /******************************************************************************
+        each block is a node
+        ******************************************************************************/
+        for (int j = blockIdx.x; j < numnodes; j += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[node_index];
+            TreeNode<T>* node = &nodes[j];
 
             /******************************************************************************
-            each thread calculates a local coefficient in the x direction
+            each thread calculates a local coefficient in the x thread direction
             ******************************************************************************/
-            for (int i = x_index; i <= power; i += x_stride)
+            for (int i = threadIdx.x; i <= power; i += blockDim.x)
             {
                 calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
             }
             __syncthreads();
+
             /******************************************************************************
             once completed, set the local coefficients for this node using a single thread
             ******************************************************************************/
@@ -268,6 +258,7 @@ namespace fmm
             {
                 node->set_local_coeffs(coeffs, power);
             }
+            __syncthreads();
         }
     }
 
@@ -338,47 +329,42 @@ namespace fmm
     __global__ void calculate_M2L_coeffs_kernel(TreeNode<T>* nodes, int numnodes, int power, int* binomcoeffs)
     {
         /******************************************************************************
-        each block is a node
-        ******************************************************************************/
-        int node_index = blockIdx.x;
-
-        int x_index = threadIdx.x;
-        int x_stride = blockDim.x;
-        int y_index = threadIdx.y;
-        int y_stride = blockDim.y;
-
-        /******************************************************************************
         array to hold local coefficients
         ******************************************************************************/
         extern __shared__ Complex<T> coeffs[];
 
-        if (node_index < numnodes)
+        /******************************************************************************
+        each block is a node
+        ******************************************************************************/
+        for (int k = blockIdx.x; k < numnodes; k += gridDim.x)
         {
-            TreeNode<T>* node = &nodes[node_index];
+            TreeNode<T>* node = &nodes[k];
 
             /******************************************************************************
-            each thread calculates a local coefficient in the x direction for a member of
-            the interaction list in the y direction
+            each thread calculates a local coefficient in the x thread direction for a
+            member of the interaction list in the y thread direction
             ******************************************************************************/
-            for (int i = y_index; i < node->numinterlist; i += y_stride)
+            for (int j = threadIdx.y; j < node->numinterlist; j += blockDim.y)
             {
-                for (int j = x_index; j <= power; j += x_stride)
+                for (int i = threadIdx.x; i <= power; i += blockDim.x)
                 {
-                    calculate_M2L_coeff(node->interactionlist[i], node, &coeffs[(power + 1) * i], j, power, binomcoeffs);
+                    calculate_M2L_coeff(node->interactionlist[j], node, &coeffs[(power + 1) * j], i, power, binomcoeffs);
                 }
             }
             __syncthreads();
+
             /******************************************************************************
             finally, add the local coefficients from the interaction list onto the node
             this must be sequentially carried out by one thread
             ******************************************************************************/
             if (threadIdx.x == 0 && threadIdx.y == 0)
             {
-                for (int i = 0; i < node->numinterlist; i++)
+                for (int j = 0; j < node->numinterlist; j++)
                 {
-                    node->add_local_coeffs(&coeffs[(power + 1) * i], power);
+                    node->add_local_coeffs(&coeffs[(power + 1) * j], power);
                 }
             }
+            __syncthreads();
         }
     }
 

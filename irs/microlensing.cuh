@@ -22,13 +22,6 @@
 #include <vector>
 
 
-/******************************************************************************
-number of stars to use directly when shooting rays
-this helps determine the size of the tree
-******************************************************************************/
-const int MAX_NUM_STARS_DIRECT = 32;
-
-
 template <typename T>
 class Microlensing
 {
@@ -50,6 +43,7 @@ public:
 
 
 	const T PI = static_cast<T>(3.1415926535898);
+	const T E = static_cast<T>(2.718281828459);
 
 	/******************************************************************************
 	default variables
@@ -65,7 +59,7 @@ public:
 	T m_upper = static_cast<T>(50);
 	T light_loss = static_cast<T>(0.01);
 	int rectangular = 1;
-	int approx = 1;
+	int approx = 0;
 	T safety_scale = static_cast<T>(1.37);
 	std::string starfile = "";
 	T half_length_source = static_cast<T>(5);
@@ -102,6 +96,8 @@ public:
 
 	int expansion_order;
 
+	T root_half_length;
+	int root_size_factor;
 	int tree_levels = 0;
 	std::vector<TreeNode<T>*> tree = {};
 	std::vector<int> num_nodes = {};
@@ -178,7 +174,7 @@ private:
 		of rays in the image plane by NUM_RESAMPLED_RAYS^2
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens, 
-			num_rays_source / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source) / (NUM_RESAMPLED_RAYS * NUM_RESAMPLED_RAYS),
+			num_rays_source / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source),
 			verbose);
 		
 		/******************************************************************************
@@ -196,14 +192,6 @@ private:
 				1 / std::abs(1 - kappa_tot + shear),
 				1 / std::abs(1 - kappa_tot - shear)
 			);
-
-		num_ray_blocks = Complex<int>(half_length_image / ray_sep) + Complex<int>(1, 1);
-
-		/******************************************************************************
-		make shooting region a multiple of the ray separation
-		******************************************************************************/
-		set_param("half_length_image", half_length_image, Complex<T>(ray_sep) * num_ray_blocks, verbose);
-		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose);
 
 		/******************************************************************************
 		if stars are not drawn from external file, calculate final number of stars to
@@ -245,8 +233,15 @@ private:
 				1),
 			verbose && rectangular && approx);
 
-		set_param("expansion_order", expansion_order,
-			static_cast<int>(std::log2(theta_e * theta_e * m_upper * MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1, verbose);
+		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1;
+		while (
+			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
+			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > (2 * half_length_source) / (100 * num_pixels)
+			)
+		{
+			expansion_order++;
+		}
+		set_param("expansion_order", expansion_order, expansion_order, verbose);
 		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
 		{
 			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
@@ -386,7 +381,6 @@ private:
 		BEGIN create root node, then create children and sort stars
 		******************************************************************************/
 
-		T root_half_length;
 		if (rectangular)
 		{
 			root_half_length = corner.re > corner.im ? corner.re : corner.im;
@@ -398,7 +392,7 @@ private:
 		/******************************************************************************
 		upscale root half length so it is a power of 2 multiple of the ray separation
 		******************************************************************************/
-		int root_size_factor = static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1;
+		set_param("root_size_factor", root_size_factor, static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1, verbose);
 		set_param("root_half_length", root_half_length, ray_sep * (1 << root_size_factor), verbose);
 
 		/******************************************************************************
@@ -445,7 +439,7 @@ private:
 			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
 			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
 
-			if (*max_num_stars_in_level > MAX_NUM_STARS_DIRECT)
+			if (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT)
 			{
 				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * 4) + "\n", verbose);
 
@@ -473,11 +467,19 @@ private:
 				treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels]);
 				if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
 			}
-		} while (*max_num_stars_in_level > MAX_NUM_STARS_DIRECT);
+		} while (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT);
 		set_param("tree_levels", tree_levels, tree_levels, verbose);
 
 		t_elapsed = stopwatch.stop();
 		std::cout << "Done creating children and sorting stars. Elapsed time: " << t_elapsed << " seconds.\n\n";
+
+
+		/******************************************************************************
+		make shooting region a multiple of the lowest level node length
+		******************************************************************************/
+		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << tree_levels)) + Complex<int>(1, 1);
+		set_param("half_length_image", half_length_image, Complex<T>(2 * root_half_length / (1 << tree_levels)) * num_ray_blocks, verbose);
+		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose, true);
 
 		/******************************************************************************
 		END create root node, then create children and sort stars
@@ -534,15 +536,15 @@ private:
 	bool shoot_rays(bool verbose)
 	{
 		set_threads(threads, 16, 16);
-		set_blocks(threads, blocks, num_ray_blocks.re, num_ray_blocks.im);
+		set_blocks(threads, blocks, 16 * num_ray_blocks.re, 16 * num_ray_blocks.im);
 
 		/******************************************************************************
 		shoot rays and calculate time taken in seconds
 		******************************************************************************/
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0],
-			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks, ray_sep,
+		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - tree_levels,
+			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
 			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();

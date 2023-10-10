@@ -93,7 +93,7 @@ calculate the deflection angle due to smooth matter
 template <typename T>
 __device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor_smooth)
 {
-	T PI = 3.1415926535898;
+	T PI = static_cast<T>(3.1415926535898);
 	Complex<T> alpha_smooth;
 
 	if (rectangular)
@@ -105,12 +105,17 @@ __device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangul
 			Complex<T> s3;
 			Complex<T> s4;
 
-			for (int i = 1; i <= taylor_smooth; i++)
+			for (int i = taylor_smooth; i >= 1; i--)
 			{
-				s1 += (z.conj() / corner).pow(i) / i;
-				s2 += (z.conj() / corner.conj()).pow(i) / i;
-				s3 += (z.conj() / -corner).pow(i) / i;
-				s4 += (z.conj() / -corner.conj()).pow(i) / i;
+				s1 += 1.0 / i;
+				s2 += 1.0 / i;
+				s3 += 1.0 / i;
+				s4 += 1.0 / i;
+
+				s1 *= (z.conj() / corner);
+				s2 *= (z.conj() / corner.conj());
+				s3 *= (z.conj() / -corner);
+				s4 *= (z.conj() / -corner.conj());
 			}
 
 			alpha_smooth = ((corner - z.conj()) * (corner.log() - s1) - (corner.conj() - z.conj()) * (corner.conj().log() - s2)

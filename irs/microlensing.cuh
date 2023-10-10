@@ -59,7 +59,7 @@ public:
 	T m_upper = static_cast<T>(50);
 	T light_loss = static_cast<T>(0.01);
 	int rectangular = 1;
-	int approx = 1;
+	int approx = 0;
 	T safety_scale = static_cast<T>(1.37);
 	std::string starfile = "";
 	T half_length_source = static_cast<T>(5);

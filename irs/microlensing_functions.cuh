@@ -62,10 +62,10 @@ __device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
 	Complex<T> alpha_local_bar;
 	Complex<T> dz = (z - node->center) / node->half_length;
 
-	for (int i = node->expansion_order - 1; i >= 0; i--)
+	for (int i = node->expansion_order; i >= 1; i--)
 	{
 		alpha_local_bar *= dz;
-		alpha_local_bar += node->local_coeffs[i + 1] * (i + 1);
+		alpha_local_bar += node->local_coeffs[i] * i;
 	}
 	alpha_local_bar *= (theta * theta);
 	/******************************************************************************
@@ -202,7 +202,7 @@ shoot rays from image plane to source plane
 \param stars -- pointer to array of point mass lenses
 \param kappastar -- convergence in point mass lenses
 \param root -- pointer to root node
-\param num_rays_factor -- number of rays per unit half length
+\param num_rays_factor -- log2(number of rays per unit half length)
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
@@ -221,85 +221,100 @@ shoot rays from image plane to source plane
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor, 
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
-	Complex<T> hlx, Complex<int> numrayblocks, T raysep, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
+	Complex<T> hlx, Complex<int> numrayblocks, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
+	__shared__ Complex<T> block_half_length;
+	__shared__ Complex<T> block_center;
 	__shared__ TreeNode<T> node[1];
-	__shared__ star<T> tmp_stars[treenode::MAX_NUM_STARS_DIRECT];
 	__shared__ int nstars;
-
-	Complex<T> half_length_image = Complex<T>(hlx.re / gridDim.x, hlx.im / gridDim.y);
-	Complex<T> center = -hlx + half_length_image + 2 * Complex<T>(half_length_image.re * blockIdx.x, half_length_image.im * blockIdx.y);
+	__shared__ star<T> tmp_stars[treenode::MAX_NUM_STARS_DIRECT];
 
 	if (threadIdx.x == 0 && threadIdx.y == 0)
 	{
-		nstars = 0;
-		*node = *(treenode::get_nearest_node(center, root));
-	}
-	__syncthreads();
-	if (threadIdx.x == 0)
-	{
-		for (int j = threadIdx.y; j < node->numstars; j += blockDim.y)
-		{
-			tmp_stars[atomicAdd(&nstars, 1)] = stars[node->stars + j];
-		}
-	}
-	for (int i = threadIdx.x; i < node->numneighbors; i += blockDim.x)
-	{
-		TreeNode<T>* neighbor = node->neighbors[i];
-		for (int j = threadIdx.y; j < neighbor->numstars; j += blockDim.y)
-		{
-			tmp_stars[atomicAdd(&nstars, 1)] = stars[neighbor->stars + j];
-		}
+		block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 	}
 	__syncthreads();
 
-	if (threadIdx.x == 0 && threadIdx.y == 0)
+	for (int l = blockIdx.y; l < numrayblocks.im; l += gridDim.y)
 	{
-		node->numneighbors = 0;
-		node->stars = 0;
-		node->numstars = nstars;
-	}
-	__syncthreads();
-
-	Complex<T> dx = half_length_image / (2 << num_rays_factor);
-	Complex<int> ypix;
-
-	for (int i = threadIdx.x; i < (2 << num_rays_factor); i += blockDim.x)
-	{
-		for (int j = threadIdx.y; j < (2 << num_rays_factor); j += blockDim.y)
+		for (int k = blockIdx.x; k < numrayblocks.re; k += gridDim.x)
 		{
-			/******************************************************************************
-			location of central ray in image plane and nearest node
-			******************************************************************************/
-			Complex<T> z = center - half_length_image + dx + 2 * Complex<T>(dx.re * i, dx.im * j);
-			Complex<T> w = complex_image_to_source(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
-
-			if (w.re <= -hly || w.re >= hly || w.im <= -hly || w.im >= hly)
+			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
-				continue;
+				block_center = -hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
+				*node = *(treenode::get_nearest_node(block_center, root));
+				nstars = 0;
 			}
-
-			ypix = point_to_pixel<int, T>(w, hly, npixels);
-
-			/******************************************************************************
-			account for possible rounding issues when converting to integer pixels
-			******************************************************************************/
-			if (ypix.re == npixels)
+			__syncthreads();
+			if (threadIdx.x == 0)
 			{
-				ypix.re--;
+				for (int j = threadIdx.y; j < node->numstars; j += blockDim.y)
+				{
+					tmp_stars[atomicAdd(&nstars, 1)] = stars[node->stars + j];
+				}
 			}
-			if (ypix.im == npixels)
+			for (int i = threadIdx.x; i < node->numneighbors; i += blockDim.x)
 			{
-				ypix.im--;
+				TreeNode<T>* neighbor = node->neighbors[i];
+				for (int j = threadIdx.y; j < neighbor->numstars; j += blockDim.y)
+				{
+					tmp_stars[atomicAdd(&nstars, 1)] = stars[neighbor->stars + j];
+				}
 			}
+			__syncthreads();
 
-			/******************************************************************************
-			reverse y coordinate so array forms image in correct orientation
-			******************************************************************************/
-			ypix.im = npixels - 1 - ypix.im;
+			if (threadIdx.x == 0 && threadIdx.y == 0)
+			{
+				node->numneighbors = 0;
+				node->stars = 0;
+				node->numstars = nstars;
+			}
+			__syncthreads();
 
-			atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
-			
+			int num_rays = (2 << num_rays_factor);
+			Complex<T> ray_half_sep = block_half_length / num_rays;
+			Complex<int> ypix;
+			Complex<T> z;
+			Complex<T> w;
+			for (int j = threadIdx.y; j < num_rays; j += blockDim.y)
+			{
+				for (int i = threadIdx.x; i < num_rays; i += blockDim.x)
+				{
+					z = block_center - block_half_length + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
+					w = complex_image_to_source(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
+
+					/******************************************************************************
+					if the ray landed outside the receiving region
+					******************************************************************************/
+					if (w.re < -hly || w.re > hly || w.im < -hly || w.im > hly)
+					{
+						continue;
+					}
+
+					ypix = point_to_pixel<int, T>(w, hly, npixels);
+
+					/******************************************************************************
+					account for possible rounding issues when converting to integer pixels
+					******************************************************************************/
+					if (ypix.re == npixels)
+					{
+						ypix.re--;
+					}
+					if (ypix.im == npixels)
+					{
+						ypix.im--;
+					}
+
+					/******************************************************************************
+					reverse y coordinate so array forms image in correct orientation
+					******************************************************************************/
+					ypix.im = npixels - 1 - ypix.im;
+
+					atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
+
+				}
+			}
+			__syncthreads();
 		}
 	}
 }

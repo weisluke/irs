@@ -475,10 +475,11 @@ private:
 
 
 		/******************************************************************************
-		make shooting region a multiple of the ray separation
+		make shooting region a multiple of the lowest level node length
 		******************************************************************************/
-		set_param("num_ray_blocks", num_ray_blocks, Complex<int>(half_length_image / root_half_length * (1 << tree_levels)) + Complex<int>(1, 1), verbose);
-		set_param("half_length_image", half_length_image, Complex<T>(root_half_length / (1 << tree_levels)) * num_ray_blocks, verbose, true);
+		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << tree_levels)) + Complex<int>(1, 1);
+		set_param("half_length_image", half_length_image, Complex<T>(2 * root_half_length / (1 << tree_levels)) * num_ray_blocks, verbose);
+		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose, true);
 
 		/******************************************************************************
 		END create root node, then create children and sort stars
@@ -543,7 +544,7 @@ private:
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
 		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - tree_levels,
-			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks, ray_sep,
+			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
 			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();

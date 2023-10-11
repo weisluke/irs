@@ -409,9 +409,9 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("safety_scale", microlensing.safety_scale, std::stod(cmdinput), verbose);
-				if (microlensing.safety_scale <= 1)
+				if (microlensing.safety_scale < 1.1)
 				{
-					std::cerr << "Error. Invalid safety_scale input. safety_scale must be > 1\n";
+					std::cerr << "Error. Invalid safety_scale input. safety_scale must be >= 1.1\n";
 					return -1;
 				}
 			}

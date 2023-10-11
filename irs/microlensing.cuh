@@ -543,7 +543,7 @@ private:
 		******************************************************************************/
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - tree_levels,
+		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - tree_levels,
 			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
 			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;

@@ -470,25 +470,20 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> hlx, Complex<int> numrayblocks, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
 {
-	__shared__ Complex<T> block_half_length;
-	__shared__ Complex<T> block_center;
-	__shared__ TreeNode<T> node[1];
+	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
+	
+	extern __shared__ int shared_memory[];
+	TreeNode<T>* node = reinterpret_cast<TreeNode<T>*>(&shared_memory[0]);
+	star<T>* tmp_stars = reinterpret_cast<star<T>*>(&node[1]);
 	__shared__ int nstars;
-	__shared__ star<T> tmp_stars[treenode::MAX_NUM_STARS_DIRECT];
-
-	if (threadIdx.x == 0 && threadIdx.y == 0)
-	{
-		block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
-	}
-	__syncthreads();
 
 	for (int l = blockIdx.y; l < numrayblocks.im; l += gridDim.y)
 	{
 		for (int k = blockIdx.x; k < numrayblocks.re; k += gridDim.x)
 		{
+			Complex<T> block_center = -hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
-				block_center = -hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
 				*node = *(treenode::get_nearest_node(block_center, root));
 				nstars = 0;
 			}

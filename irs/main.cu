@@ -78,7 +78,7 @@ void display_usage(char* name)
 		<< "  -h,--help               Show this help message.\n"
 		<< "  -v,--verbose            Toggle verbose output. Takes no option value.\n"
 		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << irs.kappa_tot << "\n"
-		<< "  -y,--shear              Specify the external shear. Default value: " << irs.shear << "\n"
+		<< "  -y,--shear              Specify the shear. Default value: " << irs.shear << "\n"
 		<< "  -s,--smooth_fraction    Specify the fraction of convergence due to smoothly\n"
 		<< "                          distributed mass. Default value: " << irs.smooth_fraction << "\n"
 		<< "  -ks,--kappa_star        Specify the convergence in point mass lenses. If\n"

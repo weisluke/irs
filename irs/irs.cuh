@@ -195,7 +195,7 @@ private:
 
 		/******************************************************************************
 		if stars are not drawn from external file, calculate final number of stars to
-		use
+		use and corner of the star field
 		******************************************************************************/
 		if (starfile == "")
 		{

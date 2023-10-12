@@ -229,7 +229,7 @@ private:
 
 		set_param("taylor_smooth", taylor_smooth,
 			std::max(
-				static_cast<int>(std::log(2 * kappa_star * corner.abs() / (2 * half_length_source / num_pixels * PI)) / std::log(safety_scale)),
+				static_cast<int>(std::log(2 * kappa_star * corner.abs() / (2 * half_length_source / (10 * num_pixels) * PI)) / std::log(safety_scale)),
 				1),
 			verbose && rectangular && approx);
 

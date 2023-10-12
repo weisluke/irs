@@ -264,13 +264,11 @@ respect to z
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
 \param approx -- whether the smooth matter deflection is approximate or not
-\param taylor_smooth -- degree of the taylor series for alpha_smooth if
-                        approximate
 
 \return d_alpha_smooth_d_z
 ******************************************************************************/
 template <typename T>
-__device__ T d_smooth_deflection_d_z(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor_smooth)
+__device__ T d_smooth_deflection_d_z(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx)
 {
 	T d_alpha_smooth_d_z = -kappastar;
 
@@ -408,7 +406,7 @@ __device__ T magnification(Complex<T> z, T kappa, T gamma, T theta, star<T>* sta
 {
 	Complex<T> d_alpha_star_d_zbar = d_star_deflection_d_zbar(z, theta, stars, node);
 	Complex<T> d_alpha_local_d_zbar = d_local_deflection_d_zbar(z, theta, node);
-	T d_alpha_smooth_d_z = d_smooth_deflection_d_z(z, kappastar, rectangular, corner, approx, taylor_smooth);
+	T d_alpha_smooth_d_z = d_smooth_deflection_d_z(z, kappastar, rectangular, corner, approx);
 	Complex<T> d_alpha_smooth_d_zbar = d_smooth_deflection_d_zbar(z, kappastar, rectangular, corner, approx, taylor_smooth);
 
 	T d_w_d_z = (1 - kappa) - d_alpha_smooth_d_z;

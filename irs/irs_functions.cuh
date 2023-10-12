@@ -240,10 +240,6 @@ __device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangul
 			Complex<T> c3 = -corner - z.conj();
 			Complex<T> c4 = -corner.conj() - z.conj();
 
-			/******************************************************************************
-			assumes rays shot lie within the rectangle of stars, thus removing any boxcar
-			and heaviside functions
-			******************************************************************************/
 			alpha_smooth = (c1 * c1.log() - c2 * c2.log() + c3 * c3.log() - c4 * c4.log());
 			alpha_smooth *= Complex<T>(0, -kappastar / PI);
 			alpha_smooth -= kappastar * 2 * (corner.re + z.re) * boxcar(z, corner);

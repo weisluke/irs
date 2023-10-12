@@ -217,10 +217,21 @@ __device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangul
 
 			for (int i = taylor_smooth; i >= 1; i--)
 			{
-				s1 += 1.0 / i;
-				s2 += 1.0 / i;
-				s3 += 1.0 / i;
-				s4 += 1.0 / i;
+				s1 *= i;
+				s1 += 1;
+				s1 /= i;
+
+				s2 *= i;
+				s2 += 1;
+				s2 /= i;
+
+				s3 *= i;
+				s3 += 1;
+				s3 /= i;
+
+				s4 *= i;
+				s4 += 1;
+				s4 /= i;
 
 				s1 *= (z.conj() / corner);
 				s2 *= (z.conj() / corner.conj());
@@ -313,10 +324,15 @@ __device__ Complex<T> d_smooth_deflection_d_zbar(Complex<T> z, T kappastar, int 
 
 			for (int i = (taylor_smooth % 2 == 0 ? taylor_smooth : taylor_smooth - 1); i >= 2; i -= 2)
 			{
-				s1 += 1.0 / i;
-				s1 *= (r1 * r1);
+				s1 *= i;
+				s1 += 1;
+				s1 /= i;
 
-				s2 += 1.0 / i;
+				s2 *= i;
+				s2 += 1;
+				s2 /= i;
+
+				s1 *= (r1 * r1);
 				s2 *= (r2 * r2);
 			}
 			d_alpha_smooth_d_zbar += s1 - s2;

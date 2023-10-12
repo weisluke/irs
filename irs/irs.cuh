@@ -3,7 +3,7 @@
 #include "binomial_coefficients.cuh"
 #include "complex.cuh"
 #include "fmm.cuh"
-#include "microlensing_functions.cuh"
+#include "irs_functions.cuh"
 #include "mass_function.cuh"
 #include "star.cuh"
 #include "stopwatch.hpp"
@@ -23,7 +23,7 @@
 
 
 template <typename T>
-class Microlensing
+class IRS
 {
 
 public:
@@ -123,7 +123,7 @@ public:
 	int* histogram_saddles = nullptr;
 
 
-	Microlensing()
+	IRS()
 	{
 
 	}
@@ -233,10 +233,10 @@ private:
 				1),
 			verbose && rectangular && approx);
 
-		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 * 100 * num_pixels / (2 * half_length_source))) + 1;
+		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 * (10 * num_pixels) / (2 * half_length_source))) + 1;
 		while (
 			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
-			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > (2 * half_length_source) / (100 * num_pixels)
+			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > (2 * half_length_source) / (10 * num_pixels)
 			)
 		{
 			expansion_order++;

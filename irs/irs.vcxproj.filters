@@ -20,7 +20,7 @@
     <ClInclude Include="complex.cuh">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="microlensing_functions.cuh">
+    <ClInclude Include="irs_functions.cuh">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="mass_function.cuh">
@@ -38,7 +38,7 @@
     <ClInclude Include="stopwatch.hpp">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="microlensing.cuh">
+    <ClInclude Include="irs.cuh">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="fmm.cuh">

@@ -6,7 +6,7 @@ Email: weisluke@alum.mit.edu
 ******************************************************************************/
 
 
-#include "microlensing.cuh"
+#include "irs.cuh"
 #include "util.hpp"
 
 #include <iostream>
@@ -15,7 +15,7 @@ Email: weisluke@alum.mit.edu
 
 
 using dtype = float; //type to be used throughout this program. int, float, or double
-Microlensing<dtype> microlensing;
+IRS<dtype> irs;
 
 /******************************************************************************
 constants to be used
@@ -77,57 +77,57 @@ void display_usage(char* name)
 		<< "Options:\n"
 		<< "  -h,--help               Show this help message.\n"
 		<< "  -v,--verbose            Toggle verbose output. Takes no option value.\n"
-		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << microlensing.kappa_tot << "\n"
-		<< "  -y,--shear              Specify the external shear. Default value: " << microlensing.shear << "\n"
+		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << irs.kappa_tot << "\n"
+		<< "  -y,--shear              Specify the external shear. Default value: " << irs.shear << "\n"
 		<< "  -s,--smooth_fraction    Specify the fraction of convergence due to smoothly\n"
-		<< "                          distributed mass. Default value: " << microlensing.smooth_fraction << "\n"
+		<< "                          distributed mass. Default value: " << irs.smooth_fraction << "\n"
 		<< "  -ks,--kappa_star        Specify the convergence in point mass lenses. If\n"
 		<< "                          provided, this overrides any supplied value for the\n"
-		<< "                          smooth fraction. Default value: " << microlensing.kappa_star << "\n"
+		<< "                          smooth fraction. Default value: " << irs.kappa_star << "\n"
 		<< "  -t,--theta_e            Specify the size of the Einstein radius of a unit\n"
-		<< "                          mass point lens in arbitrary units. Default value: " << microlensing.theta_e << "\n"
+		<< "                          mass point lens in arbitrary units. Default value: " << irs.theta_e << "\n"
 		<< "  -mf,--mass_function     Specify the mass function to use for the point mass\n"
 		<< "                          lenses. Options are: equal, uniform, Salpeter, and\n"
-		<< "                          Kroupa. Default value: " << microlensing.mass_function_str << "\n"
+		<< "                          Kroupa. Default value: " << irs.mass_function_str << "\n"
 		<< "  -ms,--m_solar           Specify the solar mass in arbitrary units.\n"
-		<< "                          Default value: " << microlensing.m_solar << "\n"
+		<< "                          Default value: " << irs.m_solar << "\n"
 		<< "  -ml,--m_lower           Specify the lower mass cutoff in arbitrary units.\n"
-		<< "                          Default value: " << microlensing.m_lower << "\n"
+		<< "                          Default value: " << irs.m_lower << "\n"
 		<< "  -mh,--m_upper           Specify the upper mass cutoff in arbitrary units.\n"
-		<< "                          Default value: " << microlensing.m_upper << "\n"
+		<< "                          Default value: " << irs.m_upper << "\n"
 		<< "  -ll,--light_loss        Allowed average fraction of light lost due to scatter\n"
 		<< "                          by the microlenses in the large deflection limit.\n"
-		<< "                          Default value: " << microlensing.light_loss << "\n"
+		<< "                          Default value: " << irs.light_loss << "\n"
 		<< "  -r,--rectangular        Specify whether the star field should be\n"
-		<< "                          rectangular (1) or circular (0). Default value: " << microlensing.rectangular << "\n"
+		<< "                          rectangular (1) or circular (0). Default value: " << irs.rectangular << "\n"
 		<< "  -a,--approx             Specify whether terms for alpha_smooth should be\n"
-		<< "                          approximated (1) or exact (0). Default value: " << microlensing.approx << "\n"
+		<< "                          approximated (1) or exact (0). Default value: " << irs.approx << "\n"
 		<< "  -ss,--safety_scale      Specify the multiplicative safety factor over the\n"
 		<< "                          shooting region to be used when generating the star\n"
-		<< "                          field. Default value: " << microlensing.safety_scale << "\n"
+		<< "                          field. Default value: " << irs.safety_scale << "\n"
 		<< "  -sf,--starfile          Specify the location of a binary file containing\n"
 		<< "                          values for num_stars, rectangular, corner, theta_e,\n"
 		<< "                          and the star positions and masses, in an order as\n"
 		<< "                          defined in this source code.\n"
 		<< "  -hl,--half_length       Specify the half-length of the square source plane\n"
 		<< "                          region to find the magnification in.\n"
-		<< "                          Default value: " << microlensing.half_length_source << "\n"
+		<< "                          Default value: " << irs.half_length_source << "\n"
 		<< "  -px,--pixels            Specify the number of pixels per side for the\n"
-		<< "                          magnification map. Default value: " << microlensing.num_pixels << "\n"
+		<< "                          magnification map. Default value: " << irs.num_pixels << "\n"
 		<< "  -nr,--num_rays          Specify the average number of rays per pixel.\n"
-		<< "                          Default value: " << microlensing.num_rays_source << "\n"
+		<< "                          Default value: " << irs.num_rays_source << "\n"
 		<< "  -rs,--random_seed       Specify the random seed for star field generation.\n"
 		<< "                          A value of 0 is reserved for star input files.\n"
 		<< "  -wm,--write_maps        Specify whether to write magnification maps (1) or\n"
-		<< "                          not (0). Default value: " << microlensing.write_maps << "\n"
+		<< "                          not (0). Default value: " << irs.write_maps << "\n"
 		<< "  -wp,--write_parities    Specify whether to write parity specific\n"
-		<< "                          magnification maps (1) or not (0). Default value: " << microlensing.write_parities << "\n"
+		<< "                          magnification maps (1) or not (0). Default value: " << irs.write_parities << "\n"
 		<< "  -wh,--write_histograms  Specify whether to write histograms (1) or not (0).\n"
-		<< "                          Default value: " << microlensing.write_histograms << "\n"
+		<< "                          Default value: " << irs.write_histograms << "\n"
 		<< "  -ot,--outfile_type      Specify the type of file to be output. Valid options\n"
-		<< "                          are binary (.bin). Default value: " << microlensing.outfile_type << "\n"
+		<< "                          are binary (.bin). Default value: " << irs.outfile_type << "\n"
 		<< "  -o,--outfile_prefix     Specify the prefix to be used in output file names.\n"
-		<< "                          Default value: " << microlensing.outfile_prefix << "\n";
+		<< "                          Default value: " << irs.outfile_prefix << "\n";
 }
 
 
@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("kappa_tot", microlensing.kappa_tot, std::stod(cmdinput), verbose);
+				set_param("kappa_tot", irs.kappa_tot, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -215,7 +215,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("shear", microlensing.shear, std::stod(cmdinput), verbose);
+				set_param("shear", irs.shear, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -231,13 +231,13 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				set_param("smooth_fraction", microlensing.smooth_fraction, std::stod(cmdinput), verbose);
-				if (microlensing.smooth_fraction < 0)
+				set_param("smooth_fraction", irs.smooth_fraction, std::stod(cmdinput), verbose);
+				if (irs.smooth_fraction < 0)
 				{
 					std::cerr << "Error. Invalid smooth_fraction input. smooth_fraction must be >= 0\n";
 					return -1;
 				}
-				else if (microlensing.smooth_fraction >= 1)
+				else if (irs.smooth_fraction >= 1)
 				{
 					std::cerr << "Error. Invalid smooth_fraction input. smooth_fraction must be < 1\n";
 					return -1;
@@ -253,8 +253,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("kappa_star", microlensing.kappa_star, std::stod(cmdinput), verbose);
-				if (microlensing.kappa_star < std::numeric_limits<dtype>::min())
+				set_param("kappa_star", irs.kappa_star, std::stod(cmdinput), verbose);
+				if (irs.kappa_star < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid kappa_star input. kappa_star must be >= " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
@@ -270,8 +270,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("theta_e", microlensing.theta_e, std::stod(cmdinput), verbose);
-				if (microlensing.theta_e < std::numeric_limits<dtype>::min())
+				set_param("theta_e", irs.theta_e, std::stod(cmdinput), verbose);
+				if (irs.theta_e < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid theta_e input. theta_e must be >= " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
@@ -285,8 +285,8 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-mf") || argv[i] == std::string("--mass_function"))
 		{
-			set_param("mass_function", microlensing.mass_function_str, make_lowercase(cmdinput), verbose);
-			if (!massfunctions::MASS_FUNCTIONS.count(microlensing.mass_function_str))
+			set_param("mass_function", irs.mass_function_str, make_lowercase(cmdinput), verbose);
+			if (!massfunctions::MASS_FUNCTIONS.count(irs.mass_function_str))
 			{
 				std::cerr << "Error. Invalid mass_function input. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
 				return -1;
@@ -296,8 +296,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("m_solar", microlensing.m_solar, std::stod(cmdinput), verbose);
-				if (microlensing.m_solar < std::numeric_limits<dtype>::min())
+				set_param("m_solar", irs.m_solar, std::stod(cmdinput), verbose);
+				if (irs.m_solar < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid m_solar input. m_solar must be >= " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
@@ -313,8 +313,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("m_lower", microlensing.m_lower, std::stod(cmdinput), verbose);
-				if (microlensing.m_lower < std::numeric_limits<dtype>::min())
+				set_param("m_lower", irs.m_lower, std::stod(cmdinput), verbose);
+				if (irs.m_lower < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid m_lower input. m_lower must be >= " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
@@ -330,13 +330,13 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("m_upper", microlensing.m_upper, std::stod(cmdinput), verbose);
-				if (microlensing.m_upper < std::numeric_limits<dtype>::min())
+				set_param("m_upper", irs.m_upper, std::stod(cmdinput), verbose);
+				if (irs.m_upper < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid m_upper input. m_upper must be >= " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
 				}
-				else if (microlensing.m_upper > std::numeric_limits<dtype>::max())
+				else if (irs.m_upper > std::numeric_limits<dtype>::max())
 				{
 					std::cerr << "Error. Invalid m_upper input. m_upper must be <= " << std::numeric_limits<dtype>::max() << "\n";
 					return -1;
@@ -352,13 +352,13 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("light_loss", microlensing.light_loss, std::stod(cmdinput), verbose);
-				if (microlensing.light_loss < std::numeric_limits<dtype>::min())
+				set_param("light_loss", irs.light_loss, std::stod(cmdinput), verbose);
+				if (irs.light_loss < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid light_loss input. light_loss must be >= " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
 				}
-				else if (microlensing.light_loss > 0.01)
+				else if (irs.light_loss > 0.01)
 				{
 					std::cerr << "Error. Invalid light_loss input. light_loss must be <= 0.01\n";
 					return -1;
@@ -374,8 +374,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("rectangular", microlensing.rectangular, std::stoi(cmdinput), verbose);
-				if (microlensing.rectangular != 0 && microlensing.rectangular != 1)
+				set_param("rectangular", irs.rectangular, std::stoi(cmdinput), verbose);
+				if (irs.rectangular != 0 && irs.rectangular != 1)
 				{
 					std::cerr << "Error. Invalid rectangular input. rectangular must be 1 (rectangular) or 0 (circular).\n";
 					return -1;
@@ -391,8 +391,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("approx", microlensing.approx, std::stoi(cmdinput), verbose);
-				if (microlensing.approx != 0 && microlensing.approx != 1)
+				set_param("approx", irs.approx, std::stoi(cmdinput), verbose);
+				if (irs.approx != 0 && irs.approx != 1)
 				{
 					std::cerr << "Error. Invalid approx input. approx must be 1 (approximate) or 0 (exact).\n";
 					return -1;
@@ -408,8 +408,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("safety_scale", microlensing.safety_scale, std::stod(cmdinput), verbose);
-				if (microlensing.safety_scale < 1.1)
+				set_param("safety_scale", irs.safety_scale, std::stod(cmdinput), verbose);
+				if (irs.safety_scale < 1.1)
 				{
 					std::cerr << "Error. Invalid safety_scale input. safety_scale must be >= 1.1\n";
 					return -1;
@@ -423,14 +423,14 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-sf") || argv[i] == std::string("--starfile"))
 		{
-			set_param("starfile", microlensing.starfile, cmdinput, verbose);
+			set_param("starfile", irs.starfile, cmdinput, verbose);
 		}
 		else if (argv[i] == std::string("-hl") || argv[i] == std::string("--half_length"))
 		{
 			try
 			{
-				set_param("half_length", microlensing.half_length_source, std::stod(cmdinput), verbose);
-				if (microlensing.half_length_source < std::numeric_limits<dtype>::min())
+				set_param("half_length", irs.half_length_source, std::stod(cmdinput), verbose);
+				if (irs.half_length_source < std::numeric_limits<dtype>::min())
 				{
 					std::cerr << "Error. Invalid half_length input. half_length must be >= " << std::numeric_limits<dtype>::min() << "\n";
 					return -1;
@@ -446,8 +446,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("num_pixels", microlensing.num_pixels, std::stoi(cmdinput), verbose);
-				if (microlensing.num_pixels < 1)
+				set_param("num_pixels", irs.num_pixels, std::stoi(cmdinput), verbose);
+				if (irs.num_pixels < 1)
 				{
 					std::cerr << "Error. Invalid num_pixels input. num_pixels must be an integer > 0\n";
 					return -1;
@@ -463,8 +463,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("num_rays", microlensing.num_rays_source, std::stoi(cmdinput), verbose);
-				if (microlensing.num_rays_source < 1)
+				set_param("num_rays", irs.num_rays_source, std::stoi(cmdinput), verbose);
+				if (irs.num_rays_source < 1)
 				{
 					std::cerr << "Error. Invalid num_rays input. num_rays must be an integer > 0\n";
 					return -1;
@@ -480,8 +480,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("random_seed", microlensing.random_seed, std::stoi(cmdinput), verbose);
-				if (microlensing.random_seed == 0 && 
+				set_param("random_seed", irs.random_seed, std::stoi(cmdinput), verbose);
+				if (irs.random_seed == 0 && 
 					!(cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file")))
 				{
 					std::cerr << "Error. Invalid random_seed input. Seed of 0 is reserved for star input files.\n";
@@ -498,8 +498,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("write_maps", microlensing.write_maps, std::stoi(cmdinput), verbose);
-				if (microlensing.write_maps != 0 && microlensing.write_maps != 1)
+				set_param("write_maps", irs.write_maps, std::stoi(cmdinput), verbose);
+				if (irs.write_maps != 0 && irs.write_maps != 1)
 				{
 					std::cerr << "Error. Invalid write_maps input. write_maps must be 1 (true) or 0 (false).\n";
 					return -1;
@@ -515,8 +515,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("write_parities", microlensing.write_parities, std::stoi(cmdinput), verbose);
-				if (microlensing.write_parities != 0 && microlensing.write_parities != 1)
+				set_param("write_parities", irs.write_parities, std::stoi(cmdinput), verbose);
+				if (irs.write_parities != 0 && irs.write_parities != 1)
 				{
 					std::cerr << "Error. Invalid write_parities input. write_parities must be 1 (true) or 0 (false).\n";
 					return -1;
@@ -532,8 +532,8 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("write_histograms", microlensing.write_histograms, std::stoi(cmdinput), verbose);
-				if (microlensing.write_histograms != 0 && microlensing.write_histograms != 1)
+				set_param("write_histograms", irs.write_histograms, std::stoi(cmdinput), verbose);
+				if (irs.write_histograms != 0 && irs.write_histograms != 1)
 				{
 					std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
 					return -1;
@@ -547,8 +547,8 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ot") || argv[i] == std::string("--outfile_type"))
 		{
-			set_param("outfile_type", microlensing.outfile_type, make_lowercase(cmdinput), verbose);
-			if (microlensing.outfile_type != ".bin")
+			set_param("outfile_type", irs.outfile_type, make_lowercase(cmdinput), verbose);
+			if (irs.outfile_type != ".bin")
 			{
 				std::cerr << "Error. Invalid outfile_type. outfile_type must be .bin\n";
 				return -1;
@@ -556,25 +556,25 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-o") || argv[i] == std::string("--outfile_prefix"))
 		{
-			set_param("outfile_prefix", microlensing.outfile_prefix, cmdinput, verbose);
+			set_param("outfile_prefix", irs.outfile_prefix, cmdinput, verbose);
 		}
 	}
 
 	if (cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star"))
 	{
-		set_param("smooth_fraction", microlensing.smooth_fraction, 1 - microlensing.kappa_star / microlensing.kappa_tot, verbose);
+		set_param("smooth_fraction", irs.smooth_fraction, 1 - irs.kappa_star / irs.kappa_tot, verbose);
 	}
 	else
 	{
-		set_param("kappa_star", microlensing.kappa_star, (1 - microlensing.smooth_fraction) * microlensing.kappa_tot, verbose);
+		set_param("kappa_star", irs.kappa_star, (1 - irs.smooth_fraction) * irs.kappa_tot, verbose);
 	}
 
-	if (microlensing.mass_function_str == "equal")
+	if (irs.mass_function_str == "equal")
 	{
-		set_param("m_lower", microlensing.m_lower, 1, verbose);
-		set_param("m_upper", microlensing.m_upper, 1, verbose);
+		set_param("m_lower", irs.m_lower, 1, verbose);
+		set_param("m_upper", irs.m_upper, 1, verbose);
 	}
-	else if (microlensing.m_lower > microlensing.m_upper)
+	else if (irs.m_lower > irs.m_upper)
 	{
 		std::cerr << "Error. m_lower must be <= m_upper.\n";
 		return -1;
@@ -621,8 +621,8 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	run microlensing and save files
 	******************************************************************************/
-	if (!microlensing.run(verbose)) return -1;
-	if (!microlensing.save(verbose)) return -1;
+	if (!irs.run(verbose)) return -1;
+	if (!irs.save(verbose)) return -1;
 
 
 	std::cout << "Done.\n";

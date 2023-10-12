@@ -16,7 +16,7 @@ namespace treenode
     /******************************************************************************
     maximum expansion order for the fast multipole method
     ******************************************************************************/
-    const int MAX_EXPANSION_ORDER = 25;
+    const int MAX_EXPANSION_ORDER = 30;
 
 }
 

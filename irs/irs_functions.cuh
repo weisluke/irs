@@ -534,6 +534,14 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 				{
 					z = block_center - block_half_length + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
 					w = complex_image_to_source(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
+					
+					/******************************************************************************
+					if the ray location is the same as a star position, we will have a nan returned
+					******************************************************************************/
+					if (isnan(w.re) || isnan(w.im))
+					{
+						continue;
+					}
 
 					/******************************************************************************
 					if the ray landed outside the receiving region

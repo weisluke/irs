@@ -20,7 +20,7 @@ IRS<dtype> irs;
 /******************************************************************************
 constants to be used
 ******************************************************************************/
-constexpr int OPTS_SIZE = 2 * 24;
+constexpr int OPTS_SIZE = 2 * 23;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -45,7 +45,6 @@ const std::string OPTS[OPTS_SIZE] =
 	"-rs", "--random_seed",
 	"-wm", "--write_maps",
 	"-wp", "--write_parities",
-	"-wh", "--write_histograms",
 	"-o", "--outfile_prefix"
 };
 
@@ -121,8 +120,6 @@ void display_usage(char* name)
 		<< "                          not (0). Default value: " << irs.write_maps << "\n"
 		<< "  -wp,--write_parities    Specify whether to write parity specific\n"
 		<< "                          magnification maps (1) or not (0). Default value: " << irs.write_parities << "\n"
-		<< "  -wh,--write_histograms  Specify whether to write histograms (1) or not (0).\n"
-		<< "                          Default value: " << irs.write_histograms << "\n"
 		<< "  -o,--outfile_prefix     Specify the prefix to be used in output file names.\n"
 		<< "                          Default value: " << irs.outfile_prefix << "\n";
 }
@@ -553,23 +550,6 @@ int main(int argc, char* argv[])
 			catch (...)
 			{
 				std::cerr << "Error. Invalid write_parities input.\n";
-				return -1;
-			}
-		}
-		else if (argv[i] == std::string("-wh") || argv[i] == std::string("--write_histograms"))
-		{
-			try
-			{
-				set_param("write_histograms", irs.write_histograms, std::stoi(cmdinput), verbose);
-				if (irs.write_histograms != 0 && irs.write_histograms != 1)
-				{
-					std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
-					return -1;
-				}
-			}
-			catch (...)
-			{
-				std::cerr << "Error. Invalid write_histograms input.\n";
 				return -1;
 			}
 		}

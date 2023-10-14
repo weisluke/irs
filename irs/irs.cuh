@@ -249,11 +249,6 @@ private:
 			return false;
 		}
 
-		if (write_parities != 0 && write_parities != 1)
-		{
-			std::cerr << "Error. write_parities must be 1 (true) or 0 (false).\n";
-			return false;
-		}
 
 
 		std::cout << "Done checking input parameters.\n\n";

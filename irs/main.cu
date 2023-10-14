@@ -124,8 +124,6 @@ void display_usage(char* name)
 		<< "                          magnification maps (1) or not (0). Default value: " << irs.write_parities << "\n"
 		<< "  -wh,--write_histograms  Specify whether to write histograms (1) or not (0).\n"
 		<< "                          Default value: " << irs.write_histograms << "\n"
-		<< "  -ot,--outfile_type      Specify the type of file to be output. Valid options\n"
-		<< "                          are binary (.bin). Default value: " << irs.outfile_type << "\n"
 		<< "  -o,--outfile_prefix     Specify the prefix to be used in output file names.\n"
 		<< "                          Default value: " << irs.outfile_prefix << "\n";
 }
@@ -542,15 +540,6 @@ int main(int argc, char* argv[])
 			catch (...)
 			{
 				std::cerr << "Error. Invalid write_histograms input.\n";
-				return -1;
-			}
-		}
-		else if (argv[i] == std::string("-ot") || argv[i] == std::string("--outfile_type"))
-		{
-			set_param("outfile_type", irs.outfile_type, make_lowercase(cmdinput), verbose);
-			if (irs.outfile_type != ".bin")
-			{
-				std::cerr << "Error. Invalid outfile_type. outfile_type must be .bin\n";
 				return -1;
 			}
 		}

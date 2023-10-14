@@ -27,26 +27,8 @@ class IRS
 {
 
 public:
-
 	/******************************************************************************
-	variables for kernel threads and blocks
-	******************************************************************************/
-	dim3 threads;
-	dim3 blocks;
-
-	/******************************************************************************
-	stopwatch for timing purposes
-	******************************************************************************/
-	Stopwatch stopwatch;
-	double t_elapsed;
-	double t_ray_shoot;
-
-
-	const T PI = static_cast<T>(3.1415926535898);
-	const T E = static_cast<T>(2.718281828459);
-
-	/******************************************************************************
-	default variables
+	default input variables
 	******************************************************************************/
 	T kappa_tot = static_cast<T>(0.3);
 	T shear = static_cast<T>(0.3);
@@ -69,8 +51,38 @@ public:
 	int write_maps = 1;
 	int write_parities = 0;
 	int write_histograms = 1;
-	std::string outfile_type = ".bin";
 	std::string outfile_prefix = "./";
+
+
+	/******************************************************************************
+	class initializer is empty
+	******************************************************************************/
+	IRS()
+	{
+
+	}
+
+
+private:
+	/******************************************************************************
+	constant variables
+	******************************************************************************/
+	const T PI = static_cast<T>(3.1415926535898);
+	const T E = static_cast<T>(2.718281828459);
+	const std::string outfile_type = ".bin";
+
+	/******************************************************************************
+	variables for kernel threads and blocks
+	******************************************************************************/
+	dim3 threads;
+	dim3 blocks;
+
+	/******************************************************************************
+	stopwatch for timing purposes
+	******************************************************************************/
+	Stopwatch stopwatch;
+	double t_elapsed;
+	double t_ray_shoot;
 
 	/******************************************************************************
 	derived variables
@@ -123,13 +135,6 @@ public:
 	int* histogram_saddles = nullptr;
 
 
-	IRS()
-	{
-
-	}
-
-
-private:
 
 	bool calculate_derived_params(bool verbose)
 	{

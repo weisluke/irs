@@ -607,7 +607,7 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
-	run microlensing and save files
+	run and save files
 	******************************************************************************/
 	if (!irs.run(verbose)) return -1;
 	if (!irs.save(verbose)) return -1;

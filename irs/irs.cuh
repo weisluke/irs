@@ -50,7 +50,6 @@ public:
 	int random_seed = 0;
 	int write_maps = 1;
 	int write_parities = 0;
-	int write_histograms = 1;
 	std::string outfile_prefix = "./";
 
 
@@ -123,16 +122,9 @@ private:
 
 	int* binomial_coeffs = nullptr;
 
-	int* pixels = nullptr;
-	int* pixels_minima = nullptr;
-	int* pixels_saddles = nullptr;
-
-	int* min_rays = nullptr;
-	int* max_rays = nullptr;
-	int histogram_length = 0;
-	int* histogram = nullptr;
-	int* histogram_minima = nullptr;
-	int* histogram_saddles = nullptr;
+	T* pixels = nullptr;
+	T* pixels_minima = nullptr;
+	T* pixels_saddles = nullptr;
 
 
 
@@ -286,13 +278,13 @@ private:
 		/******************************************************************************
 		allocate memory for pixels
 		******************************************************************************/
-		cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(int));
+		cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(T));
 		if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return false;
 		if (write_parities)
 		{
-			cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(int));
+			cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(T));
 			if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return false;
-			cudaMallocManaged(&pixels_saddles, num_pixels * num_pixels * sizeof(int));
+			cudaMallocManaged(&pixels_saddles, num_pixels * num_pixels * sizeof(T));
 			if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return false;
 		}
 
@@ -558,89 +550,6 @@ private:
 		return true;
 	}
 
-	bool create_histograms(bool verbose)
-	{
-		/******************************************************************************
-		create histograms of pixel values
-		******************************************************************************/
-
-		if (write_histograms)
-		{
-			std::cout << "Creating histograms...\n";
-			stopwatch.start();
-
-			cudaMallocManaged(&min_rays, sizeof(int));
-			if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return false;
-			cudaMallocManaged(&max_rays, sizeof(int));
-			if (cuda_error("cudaMallocManaged(*max_rays)", false, __FILE__, __LINE__)) return false;
-
-			*min_rays = std::numeric_limits<int>::max();
-			*max_rays = 0;
-
-
-			set_threads(threads, 16, 16);
-			set_blocks(threads, blocks, num_pixels, num_pixels);
-
-			histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_rays, max_rays);
-			if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
-			if (write_parities)
-			{
-				histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, max_rays);
-				if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, max_rays);
-				if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
-			}
-
-			histogram_length = *max_rays - *min_rays + 1;
-
-			cudaMallocManaged(&histogram, histogram_length * sizeof(int));
-			if (cuda_error("cudaMallocManaged(*histogram)", false, __FILE__, __LINE__)) return false;
-			if (write_parities)
-			{
-				cudaMallocManaged(&histogram_minima, histogram_length * sizeof(int));
-				if (cuda_error("cudaMallocManaged(*histogram_minima)", false, __FILE__, __LINE__)) return false;
-				cudaMallocManaged(&histogram_saddles, histogram_length * sizeof(int));
-				if (cuda_error("cudaMallocManaged(*histogram_saddles)", false, __FILE__, __LINE__)) return false;
-			}
-
-			
-			set_threads(threads, 512);
-			set_blocks(threads, blocks, histogram_length);
-
-			initialize_histogram_kernel<T> <<<blocks, threads>>> (histogram, histogram_length);
-			if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
-			if (write_parities)
-			{
-				initialize_histogram_kernel<T> <<<blocks, threads>>> (histogram_minima, histogram_length);
-				if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
-				initialize_histogram_kernel<T> <<<blocks, threads>>> (histogram_saddles, histogram_length);
-				if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
-			}
-
-			
-			set_threads(threads, 16, 16);
-			set_blocks(threads, blocks, num_pixels, num_pixels);
-
-			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, *min_rays, histogram);
-			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-			if (write_parities)
-			{
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, *min_rays, histogram_minima);
-				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, *min_rays, histogram_saddles);
-				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-			}
-			t_elapsed = stopwatch.stop();
-			std::cout << "Done creating histograms. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n";
-		}
-
-		/******************************************************************************
-		done creating histograms of pixel values
-		******************************************************************************/
-
-		return true;
-	}
-
 	bool write_files(bool verbose)
 	{
 		/******************************************************************************
@@ -732,42 +641,6 @@ private:
 
 
 		/******************************************************************************
-		histograms of magnification maps
-		******************************************************************************/
-		if (write_histograms)
-		{
-			std::cout << "Writing magnification histograms...\n";
-
-			fname = outfile_prefix + "irs_numrays_numpixels.txt";
-			if (!write_histogram<T>(histogram, histogram_length, *min_rays, fname))
-			{
-				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
-				return false;
-			}
-			std::cout << "Done writing magnification histogram to file " << fname << "\n";
-			if (write_parities)
-			{
-				fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
-				if (!write_histogram<T>(histogram_minima, histogram_length, *min_rays, fname))
-				{
-					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
-					return false;
-				}
-				std::cout << "Done writing magnification histogram to file " << fname << "\n";
-
-				fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
-				if (!write_histogram<T>(histogram_saddles, histogram_length, *min_rays, fname))
-				{
-					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
-					return false;
-				}
-				std::cout << "Done writing magnification histogram to file " << fname << "\n";
-			}
-			std::cout << "\n";
-		}
-
-
-		/******************************************************************************
 		write magnifications for minima, saddle, and combined maps
 		******************************************************************************/
 		if (write_maps)
@@ -775,7 +648,7 @@ private:
 			std::cout << "Writing magnifications...\n";
 
 			fname = outfile_prefix + "irs_magnifications" + outfile_type;
-			if (!write_array<int>(pixels, num_pixels, num_pixels, fname))
+			if (!write_array<T>(pixels, num_pixels, num_pixels, fname))
 			{
 				std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 				return false;
@@ -784,7 +657,7 @@ private:
 			if (write_parities)
 			{
 				fname = outfile_prefix + "irs_magnifications_minima" + outfile_type;
-				if (!write_array<int>(pixels_minima, num_pixels, num_pixels, fname))
+				if (!write_array<T>(pixels_minima, num_pixels, num_pixels, fname))
 				{
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 					return false;
@@ -792,7 +665,7 @@ private:
 				std::cout << "Done writing magnifications to file " << fname << "\n";
 
 				fname = outfile_prefix + "irs_magnifications_saddles" + outfile_type;
-				if (!write_array<int>(pixels_saddles, num_pixels, num_pixels, fname))
+				if (!write_array<T>(pixels_saddles, num_pixels, num_pixels, fname))
 				{
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 					return false;
@@ -821,7 +694,6 @@ public:
 
 	bool save(bool verbose)
 	{
-		if (!create_histograms(verbose)) return false;
 		if (!write_files(verbose)) return false;
 
 		return true;

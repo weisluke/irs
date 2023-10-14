@@ -20,7 +20,7 @@ IRS<dtype> irs;
 /******************************************************************************
 constants to be used
 ******************************************************************************/
-constexpr int OPTS_SIZE = 2 * 25;
+constexpr int OPTS_SIZE = 2 * 24;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -46,7 +46,6 @@ const std::string OPTS[OPTS_SIZE] =
 	"-wm", "--write_maps",
 	"-wp", "--write_parities",
 	"-wh", "--write_histograms",
-	"-ot", "--outfile_type",
 	"-o", "--outfile_prefix"
 };
 

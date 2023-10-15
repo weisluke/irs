@@ -112,6 +112,7 @@ private:
 	int tree_levels = 0;
 	std::vector<TreeNode<T>*> tree = {};
 	std::vector<int> num_nodes = {};
+	int ray_blocks_level = 0;
 
 	/******************************************************************************
 	dynamic memory
@@ -189,6 +190,7 @@ private:
 				1 / std::abs(1 - kappa_tot + shear),
 				1 / std::abs(1 - kappa_tot - shear)
 			);
+		set_param("half_length_image", half_length_image, half_length_image, verbose);
 
 		/******************************************************************************
 		if stars are not drawn from external file, calculate final number of stars to
@@ -472,10 +474,22 @@ private:
 
 
 		/******************************************************************************
-		make shooting region a multiple of the lowest level node length
+		make shooting region a multiple of the lowest level node length, or a multiple
+		of a factor of two smaller version of the root half length, that doesn't exceed
+		the size of the corner
 		******************************************************************************/
-		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << tree_levels)) + Complex<int>(1, 1);
-		set_param("half_length_image", half_length_image, Complex<T>(2 * root_half_length / (1 << tree_levels)) * num_ray_blocks, verbose);
+		ray_blocks_level = std::max(tree_levels,
+			static_cast<int>(std::log2(2 * root_half_length / (half_length_image.re < half_length_image.im ? half_length_image.re : half_length_image.im))) + 1);
+		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
+		Complex<T> tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
+		while (tmp_half_length_image.re > corner.re || tmp_half_length_image.im > corner.im)
+		{
+			ray_blocks_level++;
+			num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
+			tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
+		}
+		set_param("ray_blocks_level", ray_blocks_level, ray_blocks_level, verbose);
+		set_param("half_length_image", half_length_image, tmp_half_length_image, verbose);
 		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose, true);
 
 		/******************************************************************************
@@ -540,7 +554,7 @@ private:
 		******************************************************************************/
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - tree_levels,
+		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - ray_blocks_level,
 			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
 			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;

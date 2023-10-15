@@ -475,11 +475,10 @@ private:
 
 		/******************************************************************************
 		make shooting region a multiple of the lowest level node length, or a multiple
-		of a factor of two smaller version of the root half length, that doesn't exceed
-		the size of the corner
+		of a factor of two smaller version of the root length that doesn't exceed the
+		size of the corner
 		******************************************************************************/
-		ray_blocks_level = std::max(tree_levels,
-			static_cast<int>(std::log2(2 * root_half_length / (half_length_image.re < half_length_image.im ? half_length_image.re : half_length_image.im))) + 1);
+		ray_blocks_level = tree_levels;
 		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
 		Complex<T> tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
 		while (tmp_half_length_image.re > corner.re || tmp_half_length_image.im > corner.im)

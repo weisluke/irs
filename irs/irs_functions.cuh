@@ -88,7 +88,7 @@ __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, Tre
 }
 
 /******************************************************************************
-calculate the deriviative of the deflection angle due to nearby stars for a
+calculate the derivative of the deflection angle due to nearby stars for a
 node with respect to zbar
 
 \param z -- complex image plane position
@@ -104,7 +104,7 @@ __device__ Complex<T> d_star_deflection_d_zbar(Complex<T> z, T theta, star<T>* s
 	Complex<T> d_alpha_star_bar_d_z;
 
 	/******************************************************************************
-	theta^2 * sum(m_i / (z - z_i))
+	-theta^2 * sum(m_i / (z - z_i)^2)
 	******************************************************************************/
 	for (int i = 0; i < node->numstars; i++)
 	{
@@ -131,8 +131,8 @@ calculate the deflection angle due to far away stars for a node
 \param node -- node within which to calculate the deflection angle
 
 \return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
-           where a_i are coefficients of the lensing potential in units of the
-           node size
+                      where a_i are coefficients of the lensing potential in
+                      units of the node size
 ******************************************************************************/
 template <typename T>
 __device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
@@ -162,9 +162,10 @@ node with respect to zbar
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param node -- node within which to calculate the deflection angle
 
-\return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
-		   where a_i are coefficients of the lensing potential in units of the
-		   node size
+\return d_alpha_local_d_zbar = theta^2 * sum(i * (i - 1) * a_i 
+                               * (z - z_0) ^ (i - 2))
+                               where a_i are coefficients of the lensing
+                               potential in units of the node size
 ******************************************************************************/
 template <typename T>
 __device__ Complex<T> d_local_deflection_d_zbar(Complex<T> z, T theta, TreeNode<T>* node)
@@ -569,11 +570,6 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					}
 
 					/******************************************************************************
-					reverse y coordinate so array forms image in correct orientation
-					******************************************************************************/
-					ypix.im = npixels - 1 - ypix.im;
-
-					/******************************************************************************
 					determine what fraction of area to allocate to a pixel, based on whether the
 					cell was magnified or demagnified
 					******************************************************************************/
@@ -585,6 +581,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					{
 						to_add = fabs(mu);
 					}
+
+					/******************************************************************************
+					reverse y coordinate so array forms image in correct orientation
+					******************************************************************************/
+					ypix.im = npixels - 1 - ypix.im;
 
 					if (pixmin && pixsad)
 					{

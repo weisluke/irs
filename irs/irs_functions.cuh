@@ -229,11 +229,6 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					}
 
 					/******************************************************************************
-					reverse y coordinate so array forms image in correct orientation
-					******************************************************************************/
-					ypix.im = npixels - 1 - ypix.im;
-
-					/******************************************************************************
 					determine what fraction of area to allocate to a pixel, based on whether the
 					cell was magnified or demagnified
 					******************************************************************************/
@@ -245,6 +240,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					{
 						to_add = fabs(mu);
 					}
+
+					/******************************************************************************
+					reverse y coordinate so array forms image in correct orientation
+					******************************************************************************/
+					ypix.im = npixels - 1 - ypix.im;
 
 					if (pixmin && pixsad)
 					{

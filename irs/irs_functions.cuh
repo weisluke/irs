@@ -590,7 +590,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			__syncthreads();
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
-				device_print_progress(atomicAdd(percentage, 1), numrayblocks.re * numrayblocks.im);
+				int p = atomicAdd(percentage, 1);
+				if (p * 100 / (numrayblocks.re * numrayblocks.im) > (p - 1) * 100 / (numrayblocks.re * numrayblocks.im))
+				{
+					device_print_progress(p, numrayblocks.re * numrayblocks.im);
+				}
 			}
 		}
 	}

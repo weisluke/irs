@@ -3,6 +3,7 @@
 #include "complex.cuh"
 #include "star.cuh"
 #include "tree_node.cuh"
+#include "util.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -478,7 +479,7 @@ shoot rays from image plane to source plane
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor, 
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
-	Complex<T> hlx, Complex<int> numrayblocks, T hly, int* pixmin, int* pixsad, int* pixels, int npixels)
+	Complex<T> hlx, Complex<int> numrayblocks, T hly, int* pixmin, int* pixsad, int* pixels, int npixels, int* percentage)
 {
 	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 	
@@ -587,6 +588,10 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 				}
 			}
 			__syncthreads();
+			if (threadIdx.x == 0 && threadIdx.y == 0)
+			{
+				device_print_progress(atomicAdd(percentage, 1), numrayblocks.re * numrayblocks.im);
+			}
 		}
 	}
 }

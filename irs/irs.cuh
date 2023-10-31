@@ -584,6 +584,12 @@ private:
 		set_threads(threads, 16, 16);
 		set_blocks(threads, blocks, 16 * num_ray_blocks.re, 16 * num_ray_blocks.im);
 
+		int* percentage = nullptr;
+		cudaMallocManaged(&percentage, sizeof(int));
+		if (cuda_error("cudaMallocManaged(*percentage)", false, __FILE__, __LINE__)) return false;
+
+		*percentage = 1;
+
 		/******************************************************************************
 		shoot rays and calculate time taken in seconds
 		******************************************************************************/
@@ -591,10 +597,10 @@ private:
 		stopwatch.start();
 		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - ray_blocks_level,
 			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
-			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels);
+			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();
-		std::cout << "Done shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
+		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 		return true;
 	}

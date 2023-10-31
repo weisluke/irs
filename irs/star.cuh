@@ -208,7 +208,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	infile.read((char*)(&nstars), sizeof(int));
 	if (nstars < 1)
 	{
-		std::cerr << "Error. No valid star information found in file " << starfile << "\n";
+		std::cerr << "Error. Invalid num_stars input. num_stars must be an integer > 0\n";
 		return false;
 	}
 
@@ -225,6 +225,11 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	second item in the file is whether the star field is rectangular
 	******************************************************************************/
 	infile.read((char*)(&rectangular), sizeof(int));
+	if (rectangular != 0 && rectangular != 1)
+	{
+		std::cerr << "Error. Invalid rectangular input. rectangular must be 1 (rectangular) or 0 (circular).\n";
+		return false;
+	}
 
 
 	/******************************************************************************

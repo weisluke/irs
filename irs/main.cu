@@ -475,11 +475,14 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-rs") || argv[i] == std::string("--random_seed"))
 		{
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			{
+				continue;
+			}
 			try
 			{
 				set_param("random_seed", irs.random_seed, std::stoi(cmdinput), verbose);
-				if (irs.random_seed == 0 && 
-					!(cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file")))
+				if (irs.random_seed == 0)
 				{
 					std::cerr << "Error. Invalid random_seed input. Seed of 0 is reserved for star input files.\n";
 					return -1;

@@ -133,7 +133,7 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 			std::cout << " ";
 		}
 	}
-	std::cout << "] " << icurr * 100 / imax << " %";
+	std::cout << "] " << icurr * 100 / imax << " %" << std::flush;
 }
 
 /******************************************************************************

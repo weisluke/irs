@@ -143,18 +143,30 @@ private:
 		stopwatch.start();
 
 		/******************************************************************************
-		determine mass function, <m>, and <m^2>
+		if star file is not specified, set the mass function, mean_mass, and
+		mean_mass2
 		******************************************************************************/
-		mass_function = massfunctions::MASS_FUNCTIONS.at(mass_function_str);
-		set_param("mean_mass", mean_mass, MassFunction<T>(mass_function).mean_mass(m_solar, m_lower, m_upper), verbose);
-		set_param("mean_mass2", mean_mass2, MassFunction<T>(mass_function).mean_mass2(m_solar, m_lower, m_upper), verbose, starfile != "");
+		if (starfile == "")
+		{
+			if (mass_function_str == "equal")
+			{
+				set_param("m_lower", m_lower, 1, verbose);
+				set_param("m_upper", m_upper, 1, verbose);
+			}
 
+			/******************************************************************************
+			determine mass function, <m>, and <m^2>
+			******************************************************************************/
+			mass_function = massfunctions::MASS_FUNCTIONS.at(mass_function_str);
+			set_param("mean_mass", mean_mass, MassFunction<T>(mass_function).mean_mass(m_solar, m_lower, m_upper), verbose);
+			set_param("mean_mass2", mean_mass2, MassFunction<T>(mass_function).mean_mass2(m_solar, m_lower, m_upper), verbose);
+		}
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
 		rectangular, corner, theta_e, stars, kappa_star, m_lower, m_upper, mean_mass,
 		and mean_mass2 based on star information
 		******************************************************************************/
-		if (starfile != "")
+		else 
 		{
 			std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
 
@@ -165,7 +177,17 @@ private:
 				return false;
 			}
 
-			std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n\n";
+			set_param("num_stars", num_stars, num_stars, verbose);
+			set_param("rectangular", rectangular, rectangular, verbose);
+			set_param("corner", corner, corner, verbose);
+			set_param("theta_e", theta_e, theta_e, verbose);
+			set_param("kappa_star", kappa_star, kappa_star, verbose);
+			set_param("m_lower", m_lower, m_lower, verbose);
+			set_param("m_upper", m_upper, m_upper, verbose);
+			set_param("mean_mass", mean_mass, mean_mass, verbose);
+			set_param("mean_mass2", mean_mass2, mean_mass2, verbose);
+
+			std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n";
 		}
 
 		/******************************************************************************
@@ -374,6 +396,12 @@ private:
 		******************************************************************************/
 		calculate_star_params<T>(num_stars, rectangular, corner, theta_e, stars,
 			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
+
+		set_param("kappa_star_actual", kappa_star_actual, kappa_star_actual, verbose);
+		set_param("m_lower_actual", m_lower_actual, m_lower_actual, verbose);
+		set_param("m_upper_actual", m_upper_actual, m_upper_actual, verbose);
+		set_param("mean_mass_actual", mean_mass_actual, mean_mass_actual, verbose);
+		set_param("mean_mass2_actual", mean_mass2_actual, mean_mass2_actual, verbose, true);
 
 		/******************************************************************************
 		END populating star array

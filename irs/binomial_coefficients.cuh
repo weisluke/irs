@@ -13,6 +13,10 @@ void calculate_binomial_coeffs(int* binom_coeffs, int n)
 	/******************************************************************************
 	recursion limit
 	******************************************************************************/
+	if (n < 0) //should never hit this unless the maximum order is miscalculated
+	{
+		return;
+	}
 	if (n == 0)
 	{
 		binom_coeffs[0] = 1;

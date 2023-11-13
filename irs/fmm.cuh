@@ -76,7 +76,7 @@ namespace fmm
             ******************************************************************************/
             for (int i = threadIdx.x; i <= power; i += blockDim.x)
             {
-                calculate_multipole_coeff(node, coeffs, i, stars);
+                calculate_multipole_coeff<T>(node, coeffs, i, stars);
             }
             __syncthreads();
 
@@ -166,7 +166,7 @@ namespace fmm
                 TreeNode<T>* child = node->children[j];
                 for (int i = threadIdx.x; i <= power; i += blockDim.x)
                 {
-                    calculate_M2M_coeff(child, &coeffs[(power + 1) * j], i, binomcoeffs);
+                    calculate_M2M_coeff<T>(child, &coeffs[(power + 1) * j], i, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -247,7 +247,7 @@ namespace fmm
             ******************************************************************************/
             for (int i = threadIdx.x; i <= power; i += blockDim.x)
             {
-                calculate_L2L_coeff(node, coeffs, i, power, binomcoeffs);
+                calculate_L2L_coeff<T>(node, coeffs, i, power, binomcoeffs);
             }
             __syncthreads();
 
@@ -348,7 +348,7 @@ namespace fmm
             {
                 for (int i = threadIdx.x; i <= power; i += blockDim.x)
                 {
-                    calculate_M2L_coeff(node->interactionlist[j], node, &coeffs[(power + 1) * j], i, power, binomcoeffs);
+                    calculate_M2L_coeff<T>(node->interactionlist[j], node, &coeffs[(power + 1) * j], i, power, binomcoeffs);
                 }
             }
             __syncthreads();

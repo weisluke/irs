@@ -477,7 +477,7 @@ namespace treenode
     }
 
     /******************************************************************************
-    find the node nearest to a given position at a given level
+    find the node nearest to a given position
 
     \param z -- position to find the nearest node to
     \param root -- pointer to root node

@@ -41,6 +41,8 @@ template class for handling the mass functions of point mass lenses
 template <typename T>
 class MassFunction
 {
+
+private:
 	/******************************************************************************
 	calculate the integral of b * x^a from x1 to x2
 	assumes 0 < x1 <= x2
@@ -114,6 +116,7 @@ class MassFunction
 #endif
 		return result;
 	}
+
 
 public:
 	massfunctions::massfunction mass_function;

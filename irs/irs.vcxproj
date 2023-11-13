@@ -19,7 +19,7 @@
     <ClInclude Include="irs.cuh" />
     <ClInclude Include="stopwatch.hpp" />
     <ClInclude Include="tree_node.cuh" />
-    <ClInclude Include="util.hpp" />
+    <ClInclude Include="util.cuh" />
     <ClInclude Include="star.cuh" />
   </ItemGroup>
   <ItemGroup>

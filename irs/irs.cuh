@@ -8,7 +8,7 @@
 #include "star.cuh"
 #include "stopwatch.hpp"
 #include "tree_node.cuh"
-#include "util.hpp"
+#include "util.cuh"
 
 #include <curand_kernel.h>
 

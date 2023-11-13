@@ -7,7 +7,7 @@ Email: weisluke@alum.mit.edu
 
 
 #include "irs.cuh"
-#include "util.hpp"
+#include "util.cuh"
 
 #include <iostream>
 #include <limits> //for std::numeric_limits

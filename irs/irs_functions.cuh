@@ -3,7 +3,7 @@
 #include "complex.cuh"
 #include "star.cuh"
 #include "tree_node.cuh"
-#include "util.hpp"
+#include "util.cuh"
 
 #include <filesystem>
 #include <fstream>

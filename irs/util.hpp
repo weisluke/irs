@@ -119,7 +119,7 @@ examples: [====    ] 50%       [=====  ] 73%
 \param num_bars -- number of = symbols inside the bar
 				   default value: 50
 ******************************************************************************/
-__host__ void print_progress(int icurr, int imax, int num_bars = 50)
+void print_progress(int icurr, int imax, int num_bars = 50)
 {
 	std::cout << "\r[";
 	for (int i = 0; i < num_bars; i++)

@@ -388,9 +388,9 @@ template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* node,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth)
 {
-	Complex<T> alpha_star = star_deflection(z, theta, stars, node);
-	Complex<T> alpha_local = local_deflection(z, theta, node);
-	Complex<T> alpha_smooth = smooth_deflection(z, kappastar, rectangular, corner, approx, taylor_smooth);
+	Complex<T> alpha_star = star_deflection<T>(z, theta, stars, node);
+	Complex<T> alpha_local = local_deflection<T>(z, theta, node);
+	Complex<T> alpha_smooth = smooth_deflection<T>(z, kappastar, rectangular, corner, approx, taylor_smooth);
 
 	/******************************************************************************
 	(1 - kappa) * z + gamma * z_bar - alpha_star - alpha_local - alpha_smooth
@@ -421,10 +421,10 @@ template <typename T>
 __device__ T magnification(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* node,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth)
 {
-	Complex<T> d_alpha_star_d_zbar = d_star_deflection_d_zbar(z, theta, stars, node);
-	Complex<T> d_alpha_local_d_zbar = d_local_deflection_d_zbar(z, theta, node);
-	T d_alpha_smooth_d_z = d_smooth_deflection_d_z(z, kappastar, rectangular, corner, approx);
-	Complex<T> d_alpha_smooth_d_zbar = d_smooth_deflection_d_zbar(z, kappastar, rectangular, corner, approx, taylor_smooth);
+	Complex<T> d_alpha_star_d_zbar = d_star_deflection_d_zbar<T>(z, theta, stars, node);
+	Complex<T> d_alpha_local_d_zbar = d_local_deflection_d_zbar<T>(z, theta, node);
+	T d_alpha_smooth_d_z = d_smooth_deflection_d_z<T>(z, kappastar, rectangular, corner, approx);
+	Complex<T> d_alpha_smooth_d_zbar = d_smooth_deflection_d_zbar<T>(z, kappastar, rectangular, corner, approx, taylor_smooth);
 
 	T d_w_d_z = (1 - kappa) - d_alpha_smooth_d_z;
 	Complex<T> d_w_d_zbar = gamma - d_alpha_star_d_zbar - d_alpha_local_d_zbar - d_alpha_smooth_d_zbar;
@@ -534,7 +534,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 				for (int i = threadIdx.x; i < num_rays; i += blockDim.x)
 				{
 					z = block_center - block_half_length + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
-					w = complex_image_to_source(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
+					w = complex_image_to_source<T>(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
 					
 					/******************************************************************************
 					if the ray location is the same as a star position, we will have a nan returned
@@ -573,7 +573,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 
 					if (pixmin && pixsad)
 					{
-						T mu = magnification(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
+						T mu = magnification<T>(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
 						if (mu >= 0)
 						{
 							atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);

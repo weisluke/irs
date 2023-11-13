@@ -109,7 +109,7 @@ private:
 	int expansion_order;
 
 	T root_half_length;
-	int root_size_factor;
+	int rays_level; //ray_sep * 2 ^ rays_level = root_half_length
 	int tree_levels = 0;
 	std::vector<TreeNode<T>*> tree = {};
 	std::vector<int> num_nodes = {};
@@ -197,9 +197,6 @@ private:
 
 		/******************************************************************************
 		number density of rays in the lens plane
-		uses the fact that for a given user specified number density of rays in the
-		source plane, further subdivisions are made that multiply the effective number
-		of rays in the image plane by NUM_RESAMPLED_RAYS^2
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens, 
 			num_rays_source / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source),
@@ -230,42 +227,44 @@ private:
 		{
 			if (rectangular)
 			{
-				set_param("num_stars", num_stars, static_cast<int>((safety_scale * 2 * half_length_image.re) * (safety_scale * 2 * half_length_image.im)
-					* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1, verbose);
+				num_stars = static_cast<int>((safety_scale * 2 * half_length_image.re) * (safety_scale * 2 * half_length_image.im) 
+					* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
+				set_param("num_stars", num_stars, num_stars, verbose);
 
-				set_param("corner", corner,
-					std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
+				corner = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
 					* Complex<T>(
 						std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))),
 						std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
-						),
-					verbose);
+					);
+				set_param("corner", corner, corner, verbose);
 			}
 			else
 			{
-				set_param("num_stars", num_stars, static_cast<int>(safety_scale * safety_scale * half_length_image.abs() * half_length_image.abs()
-					* kappa_star / (theta_e * theta_e * mean_mass)) + 1, verbose);
+				num_stars = static_cast<int>(safety_scale * safety_scale * half_length_image.abs() * half_length_image.abs()
+					* kappa_star / (theta_e * theta_e * mean_mass)) + 1;
+				set_param("num_stars", num_stars, num_stars, verbose);
 
-				set_param("corner", corner,
-					std::sqrt(theta_e * theta_e * num_stars * mean_mass / (kappa_star * 2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
+				corner = std::sqrt(theta_e * theta_e * num_stars * mean_mass / (kappa_star * 2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
 					* Complex<T>(
 						std::abs(1 - kappa_tot - shear),
 						std::abs(1 - kappa_tot + shear)
-						),
-					verbose);
+					);
+				set_param("corner", corner, corner, verbose);
 			}
 		}
 
-		set_param("taylor_smooth", taylor_smooth,
-			std::max(
-				static_cast<int>(std::log(2 * kappa_star * corner.abs() / (2 * half_length_source / (10 * num_pixels) * PI)) / std::log(safety_scale)),
-				1),
-			verbose && rectangular && approx);
+		T error = 2 * half_length_source / (10 * num_pixels);
 
-		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 * (10 * num_pixels) / (2 * half_length_source))) + 1;
+		taylor_smooth = std::max(
+			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (error * PI)) / std::log(safety_scale)),
+			1
+		);
+		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose && rectangular && approx);
+
+		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / (9 * error))) + 1;
 		while (
 			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
-			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > (2 * half_length_source) / (10 * num_pixels)
+			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > error
 			)
 		{
 			expansion_order++;
@@ -427,8 +426,8 @@ private:
 		/******************************************************************************
 		upscale root half length so it is a power of 2 multiple of the ray separation
 		******************************************************************************/
-		set_param("root_size_factor", root_size_factor, static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1, verbose);
-		set_param("root_half_length", root_half_length, ray_sep * (1 << root_size_factor), verbose);
+		set_param("rays_level", rays_level, static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1, verbose);
+		set_param("root_half_length", root_half_length, ray_sep * (1 << rays_level), verbose);
 
 		/******************************************************************************
 		push empty pointer into tree, add 1 to number of nodes, and allocate memory
@@ -524,6 +523,11 @@ private:
 			tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
 		}
 		set_param("ray_blocks_level", ray_blocks_level, ray_blocks_level, verbose);
+		if (ray_blocks_level > rays_level)
+		{
+			std::cerr << "Error. ray_blocks_level > rays_level\n";
+			return false;
+		}
 		set_param("half_length_image", half_length_image, tmp_half_length_image, verbose);
 		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose, true);
 
@@ -595,7 +599,7 @@ private:
 		******************************************************************************/
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], root_size_factor - ray_blocks_level,
+		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
 			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
 			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;

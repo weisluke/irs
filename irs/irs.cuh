@@ -567,9 +567,9 @@ private:
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1));
 			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 
-			set_threads(threads, 2, expansion_order + 1, 27);
+			set_threads(threads, 1, expansion_order + 1, 27);
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), 27);
-			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 2 * 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 1 * 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 

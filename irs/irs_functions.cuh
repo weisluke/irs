@@ -767,17 +767,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					}
 					else
 					{
-						Complex<T> grad_mu = grad_magnification(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
-						Complex<T> dy = Complex<T>(0.5, 0.5) + ypix - point_to_pixel<T, T>(w, hly, npixels);
-						dy *= 2 * hly / npixels;
-
-						T d_mu = grad_mu.re * dy.re + grad_mu.im * dy.im;
-
-						//printf("grad_mu: %f, %f\ndy: %f, %f\nmu: %f, d_mu: %f\n", grad_mu.re, grad_mu.im, dy.re, dy.im, mu, d_mu);
-
-						to_add = fabs(mu + d_mu);
-
-						//to_add = fabs(mu);
+						to_add = fabs(mu);
 					}
 
 					/******************************************************************************

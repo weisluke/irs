@@ -166,7 +166,7 @@ namespace fmm
                 TreeNode<T>* child = node->children[j];
                 for (int i = threadIdx.y; i <= power; i += blockDim.y)
                 {
-                    calculate_M2M_coeff<T>(child, &coeffs[(power + 1) * 4 * threadIdx.x + (power + 1) * j], i, binomcoeffs);
+                    calculate_M2M_coeff<T>(child, &coeffs[(power + 1) * treenode::MAX_NUM_CHILDREN * threadIdx.x + (power + 1) * j], i, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -179,7 +179,7 @@ namespace fmm
             {
                 for (int j = 0; j < node->num_children; j++)
                 {
-                    node->add_multipole_coeffs(&coeffs[(power + 1) * 4 * threadIdx.x + (power + 1) * j], power);
+                    node->add_multipole_coeffs(&coeffs[(power + 1) * treenode::MAX_NUM_CHILDREN * threadIdx.x + (power + 1) * j], power);
                 }
             }
             __syncthreads();
@@ -348,7 +348,7 @@ namespace fmm
             {
                 for (int i = threadIdx.y; i <= power; i += blockDim.y)
                 {
-                    calculate_M2L_coeff<T>(node->same_level_interaction_list[j], node, &coeffs[(power + 1) * 27 * threadIdx.x + (power + 1) * j], i, power, binomcoeffs);
+                    calculate_M2L_coeff<T>(node->same_level_interaction_list[j], node, &coeffs[(power + 1) * treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST * threadIdx.x + (power + 1) * j], i, power, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -361,7 +361,7 @@ namespace fmm
             {
                 for (int j = 0; j < node->num_same_level_interaction_list; j++)
                 {
-                    node->add_local_coeffs(&coeffs[(power + 1) * 27 * threadIdx.x + (power + 1) * j], power);
+                    node->add_local_coeffs(&coeffs[(power + 1) * treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST * threadIdx.x + (power + 1) * j], power);
                 }
             }
             __syncthreads();

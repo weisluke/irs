@@ -713,11 +713,11 @@ private:
 		set_blocks(threads, blocks, num_nodes[tree_levels], (expansion_order + 1));
 		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[tree_levels], num_nodes[tree_levels], expansion_order, stars);
 
-		set_threads(threads, 4, expansion_order + 1, 4);
+		set_threads(threads, 4, expansion_order + 1, treenode::MAX_NUM_CHILDREN);
 		for (int i = tree_levels - 1; i >= 0; i--)
 		{
-			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), 4);
-			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), treenode::MAX_NUM_CHILDREN);
+			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * treenode::MAX_NUM_CHILDREN * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 
 		/******************************************************************************
@@ -729,9 +729,9 @@ private:
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1));
 			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 
-			set_threads(threads, 1, expansion_order + 1, 27);
-			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), 27);
-			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 1 * 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			set_threads(threads, 1, expansion_order + 1, treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST);
+			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST);
+			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 1 * treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 

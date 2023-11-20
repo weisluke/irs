@@ -35,7 +35,7 @@ public:
 
     TreeNode* parent;
     TreeNode* children[4]; // a node has at most 4 children
-    int numchildren;
+    int num_children;
     TreeNode* neighbors[8]; // a node has at most 8 neighbors
     int numneighbors;
     TreeNode* interactionlist[27]; // a node has at most 27 elements in its interaction list
@@ -63,7 +63,7 @@ public:
         {
             children[i] = nullptr;
         }
-        numchildren = 0;
+        num_children = 0;
         for (int i = 0; i < 8; i++)
         {
             neighbors[i] = nullptr;
@@ -100,7 +100,7 @@ public:
         {
             children[i] = n.children[i];
         }
-        numchildren = n.numchildren;
+        num_children = n.num_children;
         for (int i = 0; i < 8; i++)
         {
             neighbors[i] = n.neighbors[i];
@@ -156,7 +156,7 @@ public:
         {
             make_child(nodes, start, i);
         }
-        numchildren = 4;
+        num_children = 4;
     }
 
 
@@ -176,7 +176,7 @@ public:
         /******************************************************************************
         add parent's children as neighbors
         ******************************************************************************/
-        for (int i = 0; i < parent->numchildren; i++)
+        for (int i = 0; i < parent->num_children; i++)
         {
             TreeNode* node = parent->children[i];
 
@@ -219,6 +219,7 @@ public:
                     neighbors[numneighbors++] = node;
                 }
                 else
+                for (int j = 0; j < neighbor->num_children; j++)
                 {
                     interactionlist[numinterlist++] = node;
                 }
@@ -489,7 +490,7 @@ namespace treenode
     __device__ TreeNode<T>* get_nearest_node(Complex<T> z, TreeNode<T>* root)
     {
         TreeNode<T>* node = root;
-        while (node->numchildren > 0)
+        while (node->num_children > 0)
         {
             if (z.re >= node->center.re && z.im >= node->center.im)
             {

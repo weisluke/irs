@@ -37,7 +37,7 @@ public:
     TreeNode* children[4]; // a node has at most 4 children
     int num_children;
     TreeNode* neighbors[8]; // a node has at most 8 neighbors
-    int numneighbors;
+    int num_neighbors;
     TreeNode* interactionlist[27]; // a node has at most 27 elements in its interaction list
     int numinterlist;
 
@@ -68,7 +68,7 @@ public:
         {
             neighbors[i] = nullptr;
         }
-        numneighbors = 0;
+        num_neighbors = 0;
         for (int i = 0; i < 27; i++)
         {
             interactionlist[i] = nullptr;
@@ -105,7 +105,7 @@ public:
         {
             neighbors[i] = n.neighbors[i];
         }
-        numneighbors = n.numneighbors;
+        num_neighbors = n.num_neighbors;
         for (int i = 0; i < 27; i++)
         {
             interactionlist[i] = n.interactionlist[i];
@@ -190,14 +190,14 @@ public:
 
             if (node != this)
             {
-                neighbors[numneighbors++] = node;
+                neighbors[num_neighbors++] = node;
             }
         }
         /******************************************************************************
         parent's neighbors' children are on the same level as the node
         add the close ones as neighbors, and the far ones to the interaction list
         ******************************************************************************/
-        for (int i = 0; i < parent->numneighbors; i++)
+        for (int i = 0; i < parent->num_neighbors; i++)
         {
             TreeNode* neighbor = parent->neighbors[i];
             
@@ -290,7 +290,7 @@ namespace treenode
             TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
             
-            for (int j = 0; j < node->numneighbors; j++)
+            for (int j = 0; j < node->num_neighbors; j++)
             {
                 nstars += node->neighbors[j]->numstars;
             }
@@ -324,7 +324,7 @@ namespace treenode
             TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
 
-            for (int j = 0; j < node->numneighbors; j++)
+            for (int j = 0; j < node->num_neighbors; j++)
             {
                 nstars += node->neighbors[j]->numstars;
             }

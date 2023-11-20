@@ -75,7 +75,7 @@ __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, Tre
 	{
 		alpha_star_bar += stars[node->stars + i].mass / (z - stars[node->stars + i].position);
 	}
-	for (int j = 0; j < node->numneighbors; j++)
+	for (int j = 0; j < node->num_neighbors; j++)
 	{
 		TreeNode<T>* neighbor = node->neighbors[j];
 		for (int i = 0; i < neighbor->numstars; i++)
@@ -111,7 +111,7 @@ __device__ Complex<T> d_star_deflection_d_zbar(Complex<T> z, T theta, star<T>* s
 	{
 		d_alpha_star_bar_d_z += stars[node->stars + i].mass / ((z - stars[node->stars + i].position) * (z - stars[node->stars + i].position));
 	}
-	for (int j = 0; j < node->numneighbors; j++)
+	for (int j = 0; j < node->num_neighbors; j++)
 	{
 		TreeNode<T>* neighbor = node->neighbors[j];
 		for (int i = 0; i < neighbor->numstars; i++)
@@ -506,7 +506,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					tmp_stars[atomicAdd(&nstars, 1)] = stars[node->stars + j];
 				}
 			}
-			for (int i = threadIdx.x; i < node->numneighbors; i += blockDim.x)
+			for (int i = threadIdx.x; i < node->num_neighbors; i += blockDim.x)
 			{
 				TreeNode<T>* neighbor = node->neighbors[i];
 				for (int j = threadIdx.y; j < neighbor->numstars; j += blockDim.y)
@@ -518,7 +518,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
-				node->numneighbors = 0;
+				node->num_neighbors = 0;
 				node->stars = 0;
 				node->numstars = nstars;
 			}

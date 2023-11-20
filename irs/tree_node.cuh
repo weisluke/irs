@@ -19,6 +19,11 @@ namespace treenode
     ******************************************************************************/
     const int MAX_EXPANSION_ORDER = 31;
 
+    const int MAX_NUM_CHILDREN = 4; // a node has at most 4 children
+    const int MAX_NUM_NEIGHBORS = 8; // a node has at most 8 neighbors
+    const int MAX_NUM_SAME_LEVEL_INTERACTION_LIST = 27; // a node has at most 27 elements in its interaction list from the same level
+    const int MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST = 5; //a node has at most 5 elements in its interaction list from different levels
+
 }
 
 /******************************************************************************
@@ -34,12 +39,14 @@ public:
     int level;
 
     TreeNode* parent;
-    TreeNode* children[4]; //a node has at most 4 children
+    TreeNode* children[treenode::MAX_NUM_CHILDREN];
     int num_children;
-    TreeNode* neighbors[8]; //a node has at most 8 neighbors
+    TreeNode* neighbors[treenode::MAX_NUM_NEIGHBORS];
     int num_neighbors;
-    TreeNode* interactionlist[27]; //a node has at most 27 elements in its interaction list
-    int numinterlist;
+    TreeNode* same_level_interaction_list[treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST];
+    int num_same_level_interaction_list;
+    TreeNode* different_level_interaction_list[treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST];
+    int num_different_level_interaction_list;
 
     int stars; //position of this node's stars in array of stars
     int numstars; //number of stars in this node
@@ -59,21 +66,26 @@ public:
         level = lvl;
 
 		parent = p;
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < treenode::MAX_NUM_CHILDREN; i++)
         {
             children[i] = nullptr;
         }
         num_children = 0;
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < treenode::MAX_NUM_NEIGHBORS; i++)
         {
             neighbors[i] = nullptr;
         }
         num_neighbors = 0;
-        for (int i = 0; i < 27; i++)
+        for (int i = 0; i < treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST; i++)
         {
-            interactionlist[i] = nullptr;
+            same_level_interaction_list[i] = nullptr;
         }
-        numinterlist = 0;
+        num_same_level_interaction_list = 0;
+        for (int i = 0; i < treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST; i++)
+        {
+            different_level_interaction_list[i] = nullptr;
+        }
+        num_different_level_interaction_list = 0;
 
         stars = 0;
         numstars = 0;
@@ -96,21 +108,26 @@ public:
         level = n.level;
 
         parent = n.parent;
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < treenode::MAX_NUM_CHILDREN; i++)
         {
             children[i] = n.children[i];
         }
         num_children = n.num_children;
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < treenode::MAX_NUM_NEIGHBORS; i++)
         {
             neighbors[i] = n.neighbors[i];
         }
         num_neighbors = n.num_neighbors;
-        for (int i = 0; i < 27; i++)
+        for (int i = 0; i < treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST; i++)
         {
-            interactionlist[i] = n.interactionlist[i];
+            same_level_interaction_list[i] = n.same_level_interaction_list[i];
         }
-        numinterlist = n.numinterlist;
+        num_same_level_interaction_list = n.num_same_level_interaction_list;
+        for (int i = 0; i < treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST; i++)
+        {
+            different_level_interaction_list[i] = n.different_level_interaction_list[i];
+        }
+        num_different_level_interaction_list = n.num_different_level_interaction_list;
 
         stars = n.stars;
         numstars = n.numstars;
@@ -200,27 +217,51 @@ public:
         for (int i = 0; i < parent->num_neighbors; i++)
         {
             TreeNode* neighbor = parent->neighbors[i];
-            
-            for (int j = 0; j < neighbor->num_children; j++)
+
+            /******************************************************************************
+            if neighbor is empty, skip it
+            ******************************************************************************/
+            if (neighbor->numstars == 0)
             {
-                TreeNode* node = neighbor->children[j];
+                continue;
+            }
 
-                /******************************************************************************
-                if node is empty, skip it
-                ******************************************************************************/
-                if (node->numstars == 0)
-                {
-                    continue;
-                }
+            if (neighbor->num_children == 0)
+            {
 
-                if (fabs(node->center.re - center.re) < 3 * half_length
-                    && fabs(node->center.im - center.im) < 3 * half_length)
+                if (fabs(neighbor->center.re - center.re) < 4 * half_length
+                    && fabs(neighbor->center.im - center.im) < 4 * half_length)
                 {
-                    neighbors[num_neighbors++] = node;
+                    neighbors[num_neighbors++] = neighbor;
                 }
                 else
                 {
-                    interactionlist[numinterlist++] = node;
+                    different_level_interaction_list[num_different_level_interaction_list++] = neighbor;
+                }
+            }
+            else
+            {
+                for (int j = 0; j < neighbor->num_children; j++)
+                {
+                    TreeNode* node = neighbor->children[j];
+
+                    /******************************************************************************
+                    if node is empty, skip it
+                    ******************************************************************************/
+                    if (node->numstars == 0)
+                    {
+                        continue;
+                    }
+
+                    if (fabs(node->center.re - center.re) < 3 * half_length
+                        && fabs(node->center.im - center.im) < 3 * half_length)
+                    {
+                        neighbors[num_neighbors++] = node;
+                    }
+                    else
+                    {
+                        same_level_interaction_list[num_same_level_interaction_list++] = node;
+                    }
                 }
             }
         }

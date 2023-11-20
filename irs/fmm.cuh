@@ -344,11 +344,11 @@ namespace fmm
             each thread calculates a local coefficient in the y thread direction for a
             member of the interaction list in the z thread direction
             ******************************************************************************/
-            for (int j = threadIdx.z; j < node->numinterlist; j += blockDim.z)
+            for (int j = threadIdx.z; j < node->num_same_level_interaction_list; j += blockDim.z)
             {
                 for (int i = threadIdx.y; i <= power; i += blockDim.y)
                 {
-                    calculate_M2L_coeff<T>(node->interactionlist[j], node, &coeffs[(power + 1) * 27 * threadIdx.x + (power + 1) * j], i, power, binomcoeffs);
+                    calculate_M2L_coeff<T>(node->same_level_interaction_list[j], node, &coeffs[(power + 1) * 27 * threadIdx.x + (power + 1) * j], i, power, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -359,7 +359,7 @@ namespace fmm
             ******************************************************************************/
             if (threadIdx.y == 0 && threadIdx.z == 0)
             {
-                for (int j = 0; j < node->numinterlist; j++)
+                for (int j = 0; j < node->num_same_level_interaction_list; j++)
                 {
                     node->add_local_coeffs(&coeffs[(power + 1) * 27 * threadIdx.x + (power + 1) * j], power);
                 }

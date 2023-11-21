@@ -71,6 +71,11 @@ namespace fmm
         {
             TreeNode<T>* node = &nodes[j];
 
+            if (node->num_children != 0 || node->numstars == 0)
+            {
+                continue;
+            }
+
             /******************************************************************************
             each thread calculates a multipole coefficient in the y thread direction
             ******************************************************************************/
@@ -382,10 +387,10 @@ namespace fmm
     template <typename T>
     __device__ void calculate_P2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs, star<T>* stars)
     {
+        Complex<T> result;
+
         for (int i = 0; i < node_from->numstars; i++)
         {
-            Complex<T> result;
-
             star<T> star = stars[node_from->stars + i];
 
             /******************************************************************************
@@ -400,12 +405,11 @@ namespace fmm
             }
             else
             {
-                result -= star.mass / power;
-                result /= dz.pow(power);
+                result -= star.mass / (power * dz.pow(power));
             }
-
-            coeffs[power] += result;
         }
+
+        coeffs[power] = result;
     }
 
     /******************************************************************************

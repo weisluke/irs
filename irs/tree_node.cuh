@@ -152,7 +152,7 @@ public:
     {
         T new_half_length = half_length / 2;
 
-        Complex<T> offsets[4] = 
+        Complex<T> offsets[treenode::MAX_NUM_CHILDREN] = 
         {
             Complex<T>(1, 1),
             Complex<T>(-1, 1),
@@ -169,11 +169,11 @@ public:
 
     __host__ __device__ void make_children(TreeNode* nodes, int start)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < treenode::MAX_NUM_CHILDREN; i++)
         {
             make_child(nodes, start, i);
         }
-        num_children = 4;
+        num_children = treenode::MAX_NUM_CHILDREN;
     }
 
 
@@ -228,7 +228,6 @@ public:
 
             if (neighbor->num_children == 0)
             {
-
                 if (fabs(neighbor->center.re - center.re) < 4 * half_length
                     && fabs(neighbor->center.im - center.im) < 4 * half_length)
                 {

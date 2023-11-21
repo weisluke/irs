@@ -709,13 +709,13 @@ private:
 		std::cout << "Calculating multipole and local coefficients...\n";
 		stopwatch.start();
 
-		set_threads(threads, 16, expansion_order + 1);
-		set_blocks(threads, blocks, num_nodes[tree_levels], (expansion_order + 1));
-		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[tree_levels], num_nodes[tree_levels], expansion_order, stars);
-
-		set_threads(threads, 4, expansion_order + 1, treenode::MAX_NUM_CHILDREN);
-		for (int i = tree_levels - 1; i >= 0; i--)
+		for (int i = tree_levels; i >= 0; i--)
 		{
+			set_threads(threads, 16, expansion_order + 1);
+			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1));
+			fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, stars);
+
+			set_threads(threads, 4, expansion_order + 1, treenode::MAX_NUM_CHILDREN);
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), treenode::MAX_NUM_CHILDREN);
 			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * treenode::MAX_NUM_CHILDREN * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}

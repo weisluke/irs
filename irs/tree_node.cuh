@@ -335,7 +335,7 @@ namespace treenode
                 nstars += node->neighbors[j]->numstars;
             }
 
-            if (nstars > 0)
+            if (nstars > treenode::MAX_NUM_STARS_DIRECT)
             {
                 atomicAdd(num_nonempty_nodes, 1);
             }
@@ -369,7 +369,7 @@ namespace treenode
                 nstars += node->neighbors[j]->numstars;
             }
 
-            if (nstars > 0)
+            if (nstars > treenode::MAX_NUM_STARS_DIRECT)
             {
                 /******************************************************************************
                 assumes that array of child nodes has 4 * num_nonempty_nodes at the start
@@ -405,9 +405,9 @@ namespace treenode
             TreeNode<T>* node = &nodes[j];
 
             /******************************************************************************
-            if node is empty, skip it
+            if node is empty or has no children, skip it
             ******************************************************************************/
-            if (node->numstars == 0)
+            if (node->numstars == 0 || node->num_children == 0)
             {
                 continue;
             }

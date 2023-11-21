@@ -382,10 +382,10 @@ namespace fmm
     template <typename T>
     __device__ void calculate_P2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs, star<T>* stars)
     {
-        Complex<T> result;
-
         for (int i = 0; i < node_from->numstars; i++)
         {
+            Complex<T> result;
+
             star<T> star = stars[node_from->stars + i];
 
             /******************************************************************************
@@ -403,9 +403,9 @@ namespace fmm
                 result -= star.mass / power;
                 result /= dz.pow(power);
             }
-        }
 
-        coeffs[power] = result;
+            coeffs[power] += result;
+        }
     }
 
     /******************************************************************************

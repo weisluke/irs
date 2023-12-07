@@ -46,7 +46,7 @@ public:
 	std::string starfile = "";
 	T half_length_source = static_cast<T>(5);
 	int num_pixels = 1000;
-	int num_rays_source = 100;
+	int num_rays_source = 1000;
 	int random_seed = 0;
 	int write_maps = 1;
 	int write_parities = 0;

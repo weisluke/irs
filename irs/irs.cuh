@@ -136,6 +136,129 @@ private:
 
 
 
+	bool check_input_params(bool verbose)
+	{
+		std::cout << "Checking input parameters...\n";
+
+
+		if (kappa_tot < std::numeric_limits<T>::min())
+		{
+			std::cerr << "Error. kappa_tot must be >= " << std::numeric_limits<T>::min() << "\n";
+			return false;
+		}
+
+		if (kappa_star < std::numeric_limits<T>::min())
+		{
+			std::cerr << "Error. kappa_star must be >= " << std::numeric_limits<T>::min() << "\n";
+			return false;
+		}
+		if (kappa_star > kappa_tot)
+		{
+			std::cerr << "Error. kappa_star must be <= kappa_tot\n";
+			return false;
+		}
+
+		if (theta_e < std::numeric_limits<T>::min())
+		{
+			std::cerr << "Error. theta_e must be >= " << std::numeric_limits<T>::min() << "\n";
+			return false;
+		}
+
+		if (!massfunctions::MASS_FUNCTIONS.count(mass_function_str))
+		{
+			std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
+			return false;
+		}
+
+		if (m_solar < std::numeric_limits<T>::min())
+		{
+			std::cerr << "Error. m_solar must be >= " << std::numeric_limits<T>::min() << "\n";
+			return false;
+		}
+
+		if (m_lower < std::numeric_limits<T>::min())
+		{
+			std::cerr << "Error. m_lower must be >= " << std::numeric_limits<T>::min() << "\n";
+			return false;
+		}
+
+		if (m_upper < m_lower)
+		{
+			std::cerr << "Error. m_upper must be >= m_lower.\n";
+			return false;
+		}
+
+		if (light_loss < std::numeric_limits<T>::min())
+		{
+			std::cerr << "Error. light_loss must be >= " << std::numeric_limits<T>::min() << "\n";
+			return false;
+		}
+		else if (light_loss > 0.01)
+		{
+			std::cerr << "Error. light_loss must be <= 0.01\n";
+			return false;
+		}
+
+		if (rectangular != 0 && rectangular != 1)
+		{
+			std::cerr << "Error. rectangular must be 1 (rectangular) or 0 (circular).\n";
+			return false;
+		}
+
+		if (approx != 0 && approx != 1)
+		{
+			std::cerr << "Error. approx must be 1 (approximate) or 0 (exact).\n";
+			return false;
+		}
+		
+		if (safety_scale < 1.1)
+		{
+			std::cerr << "Error. safety_scale must be >= 1.1\n";
+			return false;
+		}
+
+		if (half_length_source < std::numeric_limits<T>::min())
+		{
+			std::cerr << "Error. half_length must be >= " << std::numeric_limits<T>::min() << "\n";
+			return false;
+		}
+
+		if (num_pixels < 1)
+		{
+			std::cerr << "Error. num_pixels must be an integer > 0\n";
+			return false;
+		}
+
+		if (num_rays_source < 1)
+		{
+			std::cerr << "Error. num_rays must be an integer > 0\n";
+			return false;
+		}
+
+		if (write_maps != 0 && write_maps != 1)
+		{
+			std::cerr << "Error. write_maps must be 1 (true) or 0 (false).\n";
+			return false;
+		}
+
+		if (write_parities != 0 && write_parities != 1)
+		{
+			std::cerr << "Error. write_parities must be 1 (true) or 0 (false).\n";
+			return false;
+		}
+
+		if (write_histograms != 0 && write_histograms != 1)
+		{
+			std::cerr << "Error. write_histograms must be 1 (true) or 0 (false).\n";
+			return false;
+		}
+
+
+		std::cout << "Done checking input parameters.\n";
+		
+		return true;		
+	}
+	
 	bool calculate_derived_params(bool verbose)
 	{
 		std::cout << "Calculating derived parameters...\n";
@@ -853,6 +976,7 @@ public:
 
 	bool run(bool verbose)
 	{
+		if (!check_input_params(verbose)) return false;
 		if (!calculate_derived_params(verbose)) return false;
 		if (!allocate_initialize_memory(verbose)) return false;
 		if (!populate_star_array(verbose)) return false;

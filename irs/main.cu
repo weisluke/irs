@@ -10,7 +10,6 @@ Email: weisluke@alum.mit.edu
 #include "util.cuh"
 
 #include <iostream>
-#include <limits> //for std::numeric_limits
 #include <string>
 
 
@@ -91,9 +90,9 @@ void display_usage(char* name)
 		<< "                          Kroupa. Default value: " << irs.mass_function_str << "\n"
 		<< "  -ms,--m_solar           Specify the solar mass in arbitrary units.\n"
 		<< "                          Default value: " << irs.m_solar << "\n"
-		<< "  -ml,--m_lower           Specify the lower mass cutoff in arbitrary units.\n"
+		<< "  -ml,--m_lower           Specify the lower mass cutoff in solar mass units.\n"
 		<< "                          Default value: " << irs.m_lower << "\n"
-		<< "  -mh,--m_upper           Specify the upper mass cutoff in arbitrary units.\n"
+		<< "  -mh,--m_upper           Specify the upper mass cutoff in solar mass units.\n"
 		<< "                          Default value: " << irs.m_upper << "\n"
 		<< "  -ll,--light_loss        Allowed average fraction of light lost due to scatter\n"
 		<< "                          by the microlenses in the large deflection limit.\n"
@@ -260,11 +259,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("kappa_star", irs.kappa_star, std::stod(cmdinput), verbose);
-				if (irs.kappa_star < std::numeric_limits<dtype>::min())
-				{
-					std::cerr << "Error. Invalid kappa_star input. kappa_star must be >= " << std::numeric_limits<dtype>::min() << "\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -281,11 +275,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("theta_e", irs.theta_e, std::stod(cmdinput), verbose);
-				if (irs.theta_e < std::numeric_limits<dtype>::min())
-				{
-					std::cerr << "Error. Invalid theta_e input. theta_e must be >= " << std::numeric_limits<dtype>::min() << "\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -300,22 +289,12 @@ int main(int argc, char* argv[])
 				continue;
 			}
 			set_param("mass_function", irs.mass_function_str, make_lowercase(cmdinput), verbose);
-			if (!massfunctions::MASS_FUNCTIONS.count(irs.mass_function_str))
-			{
-				std::cerr << "Error. Invalid mass_function input. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
-				return -1;
-			}
 		}
 		else if (argv[i] == std::string("-ms") || argv[i] == std::string("--m_solar"))
 		{
 			try
 			{
 				set_param("m_solar", irs.m_solar, std::stod(cmdinput), verbose);
-				if (irs.m_solar < std::numeric_limits<dtype>::min())
-				{
-					std::cerr << "Error. Invalid m_solar input. m_solar must be >= " << std::numeric_limits<dtype>::min() << "\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -332,11 +311,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("m_lower", irs.m_lower, std::stod(cmdinput), verbose);
-				if (irs.m_lower < std::numeric_limits<dtype>::min())
-				{
-					std::cerr << "Error. Invalid m_lower input. m_lower must be >= " << std::numeric_limits<dtype>::min() << "\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -353,16 +327,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("m_upper", irs.m_upper, std::stod(cmdinput), verbose);
-				if (irs.m_upper < std::numeric_limits<dtype>::min())
-				{
-					std::cerr << "Error. Invalid m_upper input. m_upper must be >= " << std::numeric_limits<dtype>::min() << "\n";
-					return -1;
-				}
-				else if (irs.m_upper > std::numeric_limits<dtype>::max())
-				{
-					std::cerr << "Error. Invalid m_upper input. m_upper must be <= " << std::numeric_limits<dtype>::max() << "\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -375,16 +339,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("light_loss", irs.light_loss, std::stod(cmdinput), verbose);
-				if (irs.light_loss < std::numeric_limits<dtype>::min())
-				{
-					std::cerr << "Error. Invalid light_loss input. light_loss must be >= " << std::numeric_limits<dtype>::min() << "\n";
-					return -1;
-				}
-				else if (irs.light_loss > 0.01)
-				{
-					std::cerr << "Error. Invalid light_loss input. light_loss must be <= 0.01\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -401,11 +355,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("rectangular", irs.rectangular, std::stoi(cmdinput), verbose);
-				if (irs.rectangular != 0 && irs.rectangular != 1)
-				{
-					std::cerr << "Error. Invalid rectangular input. rectangular must be 1 (rectangular) or 0 (circular).\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -418,11 +367,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("approx", irs.approx, std::stoi(cmdinput), verbose);
-				if (irs.approx != 0 && irs.approx != 1)
-				{
-					std::cerr << "Error. Invalid approx input. approx must be 1 (approximate) or 0 (exact).\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -435,11 +379,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("safety_scale", irs.safety_scale, std::stod(cmdinput), verbose);
-				if (irs.safety_scale < 1.1)
-				{
-					std::cerr << "Error. Invalid safety_scale input. safety_scale must be >= 1.1\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -456,11 +395,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("half_length", irs.half_length_source, std::stod(cmdinput), verbose);
-				if (irs.half_length_source < std::numeric_limits<dtype>::min())
-				{
-					std::cerr << "Error. Invalid half_length input. half_length must be >= " << std::numeric_limits<dtype>::min() << "\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -473,11 +407,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("num_pixels", irs.num_pixels, std::stoi(cmdinput), verbose);
-				if (irs.num_pixels < 1)
-				{
-					std::cerr << "Error. Invalid num_pixels input. num_pixels must be an integer > 0\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -490,11 +419,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("num_rays", irs.num_rays_source, std::stoi(cmdinput), verbose);
-				if (irs.num_rays_source < 1)
-				{
-					std::cerr << "Error. Invalid num_rays input. num_rays must be an integer > 0\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -511,11 +435,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("random_seed", irs.random_seed, std::stoi(cmdinput), verbose);
-				if (irs.random_seed == 0)
-				{
-					std::cerr << "Error. Invalid random_seed input. Seed of 0 is reserved for star input files.\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -528,11 +447,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("write_maps", irs.write_maps, std::stoi(cmdinput), verbose);
-				if (irs.write_maps != 0 && irs.write_maps != 1)
-				{
-					std::cerr << "Error. Invalid write_maps input. write_maps must be 1 (true) or 0 (false).\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -545,11 +459,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("write_parities", irs.write_parities, std::stoi(cmdinput), verbose);
-				if (irs.write_parities != 0 && irs.write_parities != 1)
-				{
-					std::cerr << "Error. Invalid write_parities input. write_parities must be 1 (true) or 0 (false).\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -562,11 +471,6 @@ int main(int argc, char* argv[])
 			try
 			{
 				set_param("write_histograms", irs.write_histograms, std::stoi(cmdinput), verbose);
-				if (irs.write_histograms != 0 && irs.write_histograms != 1)
-				{
-					std::cerr << "Error. Invalid write_histograms input. write_histograms must be 1 (true) or 0 (false).\n";
-					return -1;
-				}
 			}
 			catch (...)
 			{
@@ -584,12 +488,6 @@ int main(int argc, char* argv[])
 		!(cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star")))
 	{
 		set_param("kappa_star", irs.kappa_star, (1 - smooth_fraction) * irs.kappa_tot, verbose);
-	}
-	
-	if (irs.m_lower > irs.m_upper)
-	{
-		std::cerr << "Error. m_lower must be <= m_upper.\n";
-		return -1;
 	}
 
 	std::cout << "\n";

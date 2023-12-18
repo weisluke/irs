@@ -254,7 +254,7 @@ private:
 		}
 
 
-		std::cout << "Done checking input parameters.\n";
+		std::cout << "Done checking input parameters.\n\n";
 		
 		return true;		
 	}

@@ -32,7 +32,6 @@ public:
 	******************************************************************************/
 	T kappa_tot = static_cast<T>(0.3);
 	T shear = static_cast<T>(0.3);
-	T smooth_fraction = static_cast<T>(0.1);
 	T kappa_star = static_cast<T>(0.27);
 	T theta_e = static_cast<T>(1);
 	std::string mass_function_str = "equal";
@@ -714,7 +713,7 @@ private:
 		outfile << "kappa_tot " << kappa_tot << "\n";
 		outfile << "shear " << shear << "\n";
 		outfile << "mu_ave " << mu_ave << "\n";
-		outfile << "smooth_fraction " << smooth_fraction << "\n";
+		outfile << "smooth_fraction " << (1 - kappa_star / kappa_tot) << "\n";
 		outfile << "kappa_star " << kappa_star << "\n";
 		if (starfile == "")
 		{
@@ -730,21 +729,14 @@ private:
 				outfile << "m_solar " << m_solar << "\n";
 			}
 			outfile << "m_lower " << m_lower << "\n";
-			outfile << "m_lower_actual " << m_lower_actual << "\n";
 			outfile << "m_upper " << m_upper << "\n";
-			outfile << "m_upper_actual " << m_upper_actual << "\n";
 			outfile << "mean_mass " << mean_mass << "\n";
-			outfile << "mean_mass_actual " << mean_mass_actual << "\n";
 			outfile << "mean_mass2 " << mean_mass2 << "\n";
-			outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
 		}
-		else
-		{
-			outfile << "m_lower_actual " << m_lower_actual << "\n";
-			outfile << "m_upper_actual " << m_upper_actual << "\n";
-			outfile << "mean_mass_actual " << mean_mass_actual << "\n";
-			outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
-		}
+		outfile << "m_lower_actual " << m_lower_actual << "\n";
+		outfile << "m_upper_actual " << m_upper_actual << "\n";
+		outfile << "mean_mass_actual " << mean_mass_actual << "\n";
+		outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
 		outfile << "light_loss " << light_loss << "\n";
 		outfile << "num_stars " << num_stars << "\n";
 		if (rectangular)

@@ -101,6 +101,7 @@ private:
 	T mu_ave;
 	T num_rays_lens;
 	T ray_sep;
+	Complex<T> center_x;
 	Complex<int> num_ray_blocks;
 	Complex<T> half_length_image;
 	Complex<T> corner;
@@ -342,6 +343,9 @@ private:
 			);
 		set_param("half_length_image", half_length_image, half_length_image, verbose);
 
+		center_x = Complex<T>(center_y.re / (1 - kappa_tot + shear), center_y.im / (1 - kappa_tot - shear));
+		set_param("center_x", center_x, center_x, verbose);
+
 		/******************************************************************************
 		if stars are not drawn from external file, calculate final number of stars to
 		use and corner of the star field
@@ -350,7 +354,7 @@ private:
 		{
 			if (rectangular)
 			{
-				num_stars = static_cast<int>((safety_scale * 2 * half_length_image.re) * (safety_scale * 2 * half_length_image.im) 
+				num_stars = static_cast<int>((safety_scale * 2 * (std::abs(center_x.re) + half_length_image.re)) * (safety_scale * 2 * (std::abs(center_x.im) + half_length_image.im)) 
 					* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
@@ -363,7 +367,7 @@ private:
 			}
 			else
 			{
-				num_stars = static_cast<int>(safety_scale * safety_scale * half_length_image.abs() * half_length_image.abs()
+				num_stars = static_cast<int>(safety_scale * safety_scale * (center_x + half_length_image).abs() * (center_x + half_length_image).abs()
 					* kappa_star / (theta_e * theta_e * mean_mass)) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
@@ -415,7 +419,7 @@ private:
 		******************************************************************************/
 		cudaMallocManaged(&states, num_stars * sizeof(curandState));
 		if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return false;
-		if (stars == nullptr) // if memory wasn't allocated already due to reading a star file
+		if (stars == nullptr) //if memory wasn't allocated already due to reading a star file
 		{
 			cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
 			if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
@@ -607,7 +611,7 @@ private:
 				if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 
 				print_verbose("Creating children...\n", verbose);
-				(*num_nonempty_nodes)--; // subtract one since value is size of array, and instead needs to be the first allocatable element
+				(*num_nonempty_nodes)--; //subtract one since value is size of array, and instead needs to be the first allocatable element
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::create_children_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
 				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
@@ -723,8 +727,8 @@ private:
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
 		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
-			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
-			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
+			rectangular, corner, approx, taylor_smooth, center_x, half_length_image, num_ray_blocks,
+			center_y, half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();
 		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
@@ -877,6 +881,8 @@ private:
 			outfile << "rad " << corner.abs() << "\n";
 		}
 		outfile << "safety_scale " << safety_scale << "\n";
+		outfile << "center_y1" << center_y.re << "\n";
+		outfile << "center_y2" << center_y.im << "\n";
 		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";

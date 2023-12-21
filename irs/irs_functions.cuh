@@ -467,9 +467,11 @@ shoot rays from image plane to source plane
 \param approx -- whether the smooth matter deflection is approximate or not
 \param taylor_smooth -- degree of the taylor series for alpha_smooth if 
                         approximate
+\param center_x -- center of the image plane shooting region
 \param hlx -- half length of the image plane shooting region
 \param numrayblocks -- number of ray blocks for the image plane shooting region
 \param raysep -- separation between central rays of shooting squares
+\param center_y -- center of the source plane receiving region
 \param hly -- half length of the source plane receiving region
 \param pixmin -- pointer to array of positive parity pixels
 \param pixsad -- pointer to array of negative parity pixels
@@ -479,7 +481,8 @@ shoot rays from image plane to source plane
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor, 
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
-	Complex<T> hlx, Complex<int> numrayblocks, T hly, int* pixmin, int* pixsad, int* pixels, int npixels, int* percentage)
+	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks, 
+	Complex<T> center_y, T hly, int* pixmin, int* pixsad, int* pixels, int npixels, int* percentage)
 {
 	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 	
@@ -492,7 +495,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	{
 		for (int k = blockIdx.x; k < numrayblocks.re; k += gridDim.x)
 		{
-			Complex<T> block_center = -hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
+			Complex<T> block_center = center_x - hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
 				*node = *(treenode::get_nearest_node(block_center, root));
@@ -543,6 +546,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					{
 						continue;
 					}
+
+					/******************************************************************************
+					shift ray position relative to center
+					******************************************************************************/
+					w -= center_y;
 
 					/******************************************************************************
 					if the ray landed outside the receiving region

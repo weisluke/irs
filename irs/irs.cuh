@@ -11,6 +11,9 @@
 #include "util.cuh"
 
 #include <curand_kernel.h>
+#include <thrust/execution_policy.h> //for thrust::device
+#include <thrust/extrema.h> // for thrust::min_element, thrust::max_element
+#include <thrust/reduce.h> // for thrust::reduce
 
 #include <algorithm> //for std::min and std::max
 #include <chrono> //for setting random seed with clock
@@ -114,6 +117,8 @@ private:
 	std::vector<int> num_nodes = {};
 	int ray_blocks_level = 0;
 
+	unsigned long int num_rays_total = 0;
+
 	/******************************************************************************
 	dynamic memory
 	******************************************************************************/
@@ -127,8 +132,8 @@ private:
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
 
-	int* min_rays = nullptr;
-	int* max_rays = nullptr;
+	int min_rays = std::numeric_limits<int>::max();
+	int max_rays = 0;
 	int histogram_length = 0;
 	int* histogram = nullptr;
 	int* histogram_minima = nullptr;
@@ -728,6 +733,8 @@ private:
 		t_ray_shoot = stopwatch.stop();
 		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
+		num_rays_total = thrust::reduce(thrust::device, pixels, pixels + num_pixels * num_pixels, num_rays_total);
+
 		return true;
 	}
 
@@ -742,29 +749,25 @@ private:
 			std::cout << "Creating histograms...\n";
 			stopwatch.start();
 
-			cudaMallocManaged(&min_rays, sizeof(int));
-			if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return false;
-			cudaMallocManaged(&max_rays, sizeof(int));
-			if (cuda_error("cudaMallocManaged(*max_rays)", false, __FILE__, __LINE__)) return false;
-
-			*min_rays = std::numeric_limits<int>::max();
-			*max_rays = 0;
+			min_rays = *thrust::min_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
+			max_rays = *thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
 
 
-			set_threads(threads, 16, 16);
-			set_blocks(threads, blocks, num_pixels, num_pixels);
-
-			histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_rays, max_rays);
-			if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, max_rays);
-				if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, max_rays);
-				if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
+				int min_rays_minima = *thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
+				int max_rays_minima = *thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
+
+				int min_rays_saddles = *thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);
+				int max_rays_saddles = *thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);
+
+				min_rays = min_rays < min_rays_minima ? min_rays : 
+					(min_rays_minima < min_rays_saddles ? min_rays_minima : min_rays_saddles);
+				max_rays = max_rays > max_rays_minima ? max_rays : 
+					(max_rays_minima > max_rays_saddles ? max_rays_minima : max_rays_saddles);
 			}
 
-			histogram_length = *max_rays - *min_rays + 1;
+			histogram_length = max_rays - min_rays + 1;
 
 			cudaMallocManaged(&histogram, histogram_length * sizeof(int));
 			if (cuda_error("cudaMallocManaged(*histogram)", false, __FILE__, __LINE__)) return false;
@@ -794,13 +797,13 @@ private:
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
-			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, *min_rays, histogram);
+			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_rays, histogram);
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, *min_rays, histogram_minima);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, histogram_minima);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, *min_rays, histogram_saddles);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, histogram_saddles);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 			t_elapsed = stopwatch.stop();
@@ -905,7 +908,7 @@ private:
 			std::cout << "Writing magnification histograms...\n";
 
 			fname = outfile_prefix + "irs_numrays_numpixels.txt";
-			if (!write_histogram<T>(histogram, histogram_length, *min_rays, fname))
+			if (!write_histogram<T>(histogram, histogram_length, min_rays, fname))
 			{
 				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 				return false;
@@ -914,7 +917,7 @@ private:
 			if (write_parities)
 			{
 				fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
-				if (!write_histogram<T>(histogram_minima, histogram_length, *min_rays, fname))
+				if (!write_histogram<T>(histogram_minima, histogram_length, min_rays, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;
@@ -922,7 +925,7 @@ private:
 				std::cout << "Done writing magnification histogram to file " << fname << "\n";
 
 				fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
-				if (!write_histogram<T>(histogram_saddles, histogram_length, *min_rays, fname))
+				if (!write_histogram<T>(histogram_saddles, histogram_length, min_rays, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;

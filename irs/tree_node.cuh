@@ -48,8 +48,8 @@ public:
     TreeNode* different_level_interaction_list[treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST];
     int num_different_level_interaction_list;
 
-    int stars; // position of this node's stars in array of stars
-    int numstars; // number of stars in this node
+    int stars; //position of this node's stars in array of stars
+    int numstars; //number of stars in this node
 
     int expansion_order;
     Complex<T> multipole_coeffs[treenode::MAX_EXPANSION_ORDER + 1];

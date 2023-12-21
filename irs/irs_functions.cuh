@@ -626,33 +626,6 @@ __global__ void initialize_pixels_kernel(int* pixels, int npixels)
 }
 
 /******************************************************************************
-calculate the minimum and maximum number of rays in the pixel array
-
-\param pixels -- pointer to array of pixels
-\param npixels -- number of pixels for one side of the receiving square
-\param minrays -- pointer to minimum number of rays
-\param maxrays -- pointer to maximum number of rays
-******************************************************************************/
-template <typename T>
-__global__ void histogram_min_max_kernel(int* pixels, int npixels, int* minrays, int* maxrays)
-{
-	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
-	int x_stride = blockDim.x * gridDim.x;
-
-	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
-	int y_stride = blockDim.y * gridDim.y;
-
-	for (int i = x_index; i < npixels; i += x_stride)
-	{
-		for (int j = y_index; j < npixels; j += y_stride)
-		{
-			atomicMin(minrays, pixels[j * npixels + i]);
-			atomicMax(maxrays, pixels[j * npixels + i]);
-		}
-	}
-}
-
-/******************************************************************************
 initialize histogram values to 0
 
 \param histogram -- pointer to histogram

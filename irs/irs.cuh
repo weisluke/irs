@@ -43,6 +43,7 @@ public:
 	int approx = 0;
 	T safety_scale = static_cast<T>(1.37);
 	std::string starfile = "";
+	Complex<T> center_y = Complex<T>();
 	T half_length_source = static_cast<T>(5);
 	int num_pixels = 1000;
 	int num_rays_source = 1000;

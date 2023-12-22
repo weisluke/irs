@@ -89,7 +89,7 @@ __device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, Tre
 }
 
 /******************************************************************************
-calculate the deriviative of the deflection angle due to nearby stars for a
+calculate the derivative of the deflection angle due to nearby stars for a
 node with respect to zbar
 
 \param z -- complex image plane position

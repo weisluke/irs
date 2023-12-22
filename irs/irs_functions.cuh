@@ -163,7 +163,7 @@ node with respect to zbar
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param node -- node within which to calculate the deflection angle
 
-\return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
+\return alpha_local = theta^2 * sum(i * (i-1) * a_i * (z - z_0) ^ (i - 2))
 		   where a_i are coefficients of the lensing potential in units of the
 		   node size
 ******************************************************************************/

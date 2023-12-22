@@ -372,8 +372,8 @@ lens equation from image plane to source plane
 \param gamma -- external shear
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
-\param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
+\param node -- node within which to calculate the deflection angle
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
@@ -406,8 +406,8 @@ magnification at a point in the image plane
 \param gamma -- external shear
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
-\param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
+\param node -- node within which to calculate the deflection angle
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses

@@ -736,10 +736,10 @@ private:
 
 		num_rays_shot = num_ray_blocks.re * num_ray_blocks.im;
 		num_rays_shot <<= 2 * (rays_level - ray_blocks_level + 1);
-		std::cout << "num_rays_shot: " << num_rays_shot << "\n";
+		set_param("num_rays_shot", num_rays_shot, num_rays_shot, verbose);
 
 		num_rays_received = thrust::reduce(thrust::device, pixels, pixels + num_pixels * num_pixels, num_rays_received);
-		std::cout << "num_rays_received: " << num_rays_received << "\n\n";
+		set_param("num_rays_received", num_rays_received, num_rays_received, verbose, true);
 
 		return true;
 	}
@@ -888,6 +888,7 @@ private:
 		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
+		outfile << "mean_rays_per_pixel_actual " << (1.0 * num_rays_received / (num_pixels * num_pixels)) << "\n";
 		outfile << "half_length_image_x1 " << half_length_image.re << "\n";
 		outfile << "half_length_image_x2 " << half_length_image.im << "\n";
 		outfile << "ray_sep " << ray_sep << "\n";

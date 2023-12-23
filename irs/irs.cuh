@@ -117,7 +117,8 @@ private:
 	std::vector<int> num_nodes = {};
 	int ray_blocks_level = 0;
 
-	unsigned long int num_rays_total = 0;
+	unsigned long int num_rays_shot = 0;
+	unsigned long int num_rays_received = 0;
 
 	/******************************************************************************
 	dynamic memory
@@ -733,7 +734,12 @@ private:
 		t_ray_shoot = stopwatch.stop();
 		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
-		num_rays_total = thrust::reduce(thrust::device, pixels, pixels + num_pixels * num_pixels, num_rays_total);
+		num_rays_shot = num_ray_blocks.re * num_ray_blocks.im;
+		num_rays_shot <<= 2 * (rays_level - ray_blocks_level + 1);
+		std::cout << "num_rays_shot: " << num_rays_shot << "\n";
+
+		num_rays_received = thrust::reduce(thrust::device, pixels, pixels + num_pixels * num_pixels, num_rays_received);
+		std::cout << "num_rays_received: " << num_rays_received << "\n\n";
 
 		return true;
 	}
@@ -886,6 +892,8 @@ private:
 		outfile << "half_length_image_x2 " << half_length_image.im << "\n";
 		outfile << "ray_sep " << ray_sep << "\n";
 		outfile << "t_ray_shoot " << t_ray_shoot << "\n";
+		outfile << "num_rays_shot " << num_rays_shot << "\n";
+		outfile << "num_rays_received " << num_rays_received << "\n";
 		outfile.close();
 		std::cout << "Done writing parameter info to file " << fname << "\n\n";
 

@@ -758,11 +758,31 @@ private:
 			min_rays = *thrust::min_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
 			max_rays = *thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
 
+			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
+			T mu_min_actual = mu_ave * min_rays / num_rays_source;
+
+			if (mu_ave > 1 && mu_min_actual < mu_min_theor)
+			{
+				std::cerr << "Warning. Minimum magnification after shooting rays is less than the theoretical minimum.\n";
+				std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+				std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
+				std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
+			}
 
 			if (write_parities)
 			{
 				int min_rays_minima = *thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
 				int max_rays_minima = *thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
+				
+				mu_min_actual = mu_ave * min_rays_minima / num_rays_source;
+
+				if (mu_ave > 1 && mu_min_actual < mu_min_theor)
+				{
+					std::cerr << "Warning. Minimum positive parity magnification after shooting rays is less than the theoretical minimum.\n";
+					std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays_minima << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+					std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
+					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
+				}
 
 				int min_rays_saddles = *thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);
 				int max_rays_saddles = *thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);

@@ -107,6 +107,8 @@ private:
 	Complex<T> corner;
 	int taylor_smooth;
 
+	T error; //error in the ray position
+
 	int expansion_order;
 
 	T root_half_length;
@@ -380,28 +382,13 @@ private:
 			}
 		}
 
-		T error = 2 * half_length_source / (10 * num_pixels);
+		error = 2 * half_length_source / (10 * num_pixels);
 
 		taylor_smooth = std::max(
 			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (error * PI)) / std::log(safety_scale)),
 			1
 		);
 		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose && rectangular && approx);
-
-		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / (9 * error))) + 1;
-		while (
-			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
-			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > error
-			)
-		{
-			expansion_order++;
-		}
-		set_param("expansion_order", expansion_order, expansion_order, verbose);
-		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
-		{
-			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
-			return false;
-		}
 
 		t_elapsed = stopwatch.stop();
 		std::cout << "Done calculating derived parameters. Elapsed time: " << t_elapsed << " seconds.\n\n";
@@ -430,7 +417,7 @@ private:
 		/******************************************************************************
 		allocate memory for binomial coefficients
 		******************************************************************************/
-		cudaMallocManaged(&binomial_coeffs, (2 * expansion_order * (2 * expansion_order + 3) / 2 + 1) * sizeof(int));
+		cudaMallocManaged(&binomial_coeffs, (2 * treenode::MAX_EXPANSION_ORDER * (2 * treenode::MAX_EXPANSION_ORDER + 3) / 2 + 1) * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return false;
 
 		/******************************************************************************
@@ -661,6 +648,23 @@ private:
 		/******************************************************************************
 		END create root node, then create children and sort stars
 		******************************************************************************/
+
+		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
+			* (1 << tree_levels) / (root_half_length * std::sqrt(2) * error)));
+		while (
+			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
+			* (1 << tree_levels) / (root_half_length * std::sqrt(2))
+			* (4 * E * ((expansion_order + 1) + 2) * 3 + 4) / (2 << ((expansion_order + 1) + 1)) > error
+			)
+		{
+			expansion_order++;
+		}
+		set_param("expansion_order", expansion_order, expansion_order, verbose);
+		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
+		{
+			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
+			return false;
+		}
 
 		print_verbose("Calculating binomial coefficients...\n", verbose);
 		calculate_binomial_coeffs(binomial_coeffs, 2 * expansion_order);

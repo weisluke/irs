@@ -643,7 +643,7 @@ private:
 			return false;
 		}
 		set_param("half_length_image", half_length_image, tmp_half_length_image, verbose);
-		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose, true);
+		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose);
 
 		/******************************************************************************
 		END create root node, then create children and sort stars
@@ -651,7 +651,7 @@ private:
 
 		expansion_order = static_cast<int>(2 * std::log2(theta_e) - std::log2(root_half_length * error))
 			 + tree_levels + 1;
-		set_param("expansion_order", expansion_order, expansion_order, verbose);
+		set_param("expansion_order", expansion_order, expansion_order, verbose, true);
 		if (expansion_order < 3)
 		{
 			std::cerr << "Error. Expansion order needs to be >= 3\n";

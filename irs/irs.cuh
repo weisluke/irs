@@ -382,7 +382,7 @@ private:
 			}
 		}
 
-		error = 2 * half_length_source / (10 * num_pixels);
+		error = 2 * half_length_source / (10 * num_pixels); //error is 1/10 of a pixel
 
 		taylor_smooth = std::max(
 			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (error * PI)) / std::log(safety_scale)),
@@ -649,18 +649,15 @@ private:
 		END create root node, then create children and sort stars
 		******************************************************************************/
 
-		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
-			* (1 << tree_levels) / (root_half_length * std::sqrt(2) * error)));
-		while (
-			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
-			* (1 << tree_levels) / (root_half_length * std::sqrt(2))
-			* (4 * E * ((expansion_order + 1) + 2) * 3 + 4) / (2 << ((expansion_order + 1) + 1)) > error
-			)
-		{
-			expansion_order++;
-		}
+		expansion_order = static_cast<int>(2 * std::log2(theta_e) - std::log2(root_half_length * error))
+			 + tree_levels + 1;
 		set_param("expansion_order", expansion_order, expansion_order, verbose);
-		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
+		if (expansion_order < 3)
+		{
+			std::cerr << "Error. Expansion order needs to be >= 3\n";
+			return false;
+		}
+		else if (expansion_order > treenode::MAX_EXPANSION_ORDER)
 		{
 			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
 			return false;

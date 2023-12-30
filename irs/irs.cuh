@@ -107,7 +107,7 @@ private:
 	Complex<T> corner;
 	int taylor_smooth;
 
-	T error; //error in the ray position
+	T alpha_error; //error in the deflection angle
 
 	int expansion_order;
 
@@ -382,10 +382,10 @@ private:
 			}
 		}
 
-		error = 2 * half_length_source / (10 * num_pixels); //error is 1/10 of a pixel
+		alpha_error = 2 * half_length_source / (10 * num_pixels); //error is 1/10 of a pixel
 
 		taylor_smooth = std::max(
-			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (error * PI)) / std::log(safety_scale)),
+			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),
 			1
 		);
 		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose && rectangular && approx);
@@ -649,7 +649,7 @@ private:
 		END create root node, then create children and sort stars
 		******************************************************************************/
 
-		expansion_order = static_cast<int>(2 * std::log2(theta_e) - std::log2(root_half_length * error))
+		expansion_order = static_cast<int>(2 * std::log2(theta_e) - std::log2(root_half_length * alpha_error))
 			 + tree_levels + 1;
 		set_param("expansion_order", expansion_order, expansion_order, verbose, true);
 		if (expansion_order < 3)

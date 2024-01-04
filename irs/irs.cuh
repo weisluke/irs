@@ -635,7 +635,8 @@ private:
 		ray_blocks_level = tree_levels;
 		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
 		Complex<T> tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
-		while (tmp_half_length_image.re > corner.re || tmp_half_length_image.im > corner.im)
+		while ((tmp_half_length_image.re > corner.re || tmp_half_length_image.im > corner.im) &&
+				ray_blocks_level <= rays_level)
 		{
 			ray_blocks_level++;
 			num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);

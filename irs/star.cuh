@@ -374,7 +374,6 @@ bool read_star_file_txt(int& nstars, int& rectangular, Complex<T>& corner, T& th
 	T total_mass = 0;
 	T I_stars = 0;
 
-	std::ifstream infile;
 	infile.open(starfile);
 	if (!infile.is_open())
 	{
@@ -446,14 +445,14 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 
 	if (starpath.extension() == ".bin")
 	{
-		if !(read_star_file_bin(nstars, rectangular, corner, theta, stars, starfile))
+		if (!read_star_file_bin(nstars, rectangular, corner, theta, stars, starfile))
 		{
 			return false;
 		}
 	}
 	else if (starpath.extension() == ".txt")
 	{
-		if !(read_star_file_txt(nstars, rectangular, corner, theta, stars, starfile))
+		if (!read_star_file_txt(nstars, rectangular, corner, theta, stars, starfile))
 		{
 			return false;
 		}

@@ -313,11 +313,6 @@ private:
 			set_param("corner", corner, corner, verbose);
 			set_param("theta_e", theta_e, theta_e, verbose);
 			set_param("kappa_star", kappa_star, kappa_star, verbose);
-			if (kappa_star > kappa_tot)
-			{
-				std::cerr << "Error. kappa_star must be <= kappa_tot\n";
-				return false;
-			}
 			set_param("m_lower", m_lower, m_lower, verbose);
 			set_param("m_upper", m_upper, m_upper, verbose);
 			set_param("mean_mass", mean_mass, mean_mass, verbose);

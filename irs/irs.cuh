@@ -68,7 +68,6 @@ private:
 	constant variables
 	******************************************************************************/
 	const T PI = static_cast<T>(3.1415926535898);
-	const T E = static_cast<T>(2.718281828459);
 	const std::string outfile_type = ".bin";
 
 	/******************************************************************************
@@ -215,6 +214,12 @@ private:
 			return false;
 		}
 		
+		/******************************************************************************
+		if the alpha_smooth comes from a rectangular mass sheet, finding the caustics
+		requires a Taylor series approximation to alpha_smooth. a bound on the error of
+		that series necessitates having some minimum cutoff here for the ratio of the
+		size of the star field to the size of the shooting rectangle
+		******************************************************************************/
 		if (safety_scale < 1.1)
 		{
 			std::cerr << "Error. safety_scale must be >= 1.1\n";

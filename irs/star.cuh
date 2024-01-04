@@ -156,7 +156,7 @@ void calculate_star_params(int nstars, int rectangular, Complex<T> corner, T the
 }
 
 /******************************************************************************
-read star field file
+read binary star field file
 
 \param nstars -- number of point mass lenses
 \param rectangular -- whether the star field is rectangular or not
@@ -164,18 +164,12 @@ read star field file
 				 lenses
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
-\param kappastar -- convergence in point mass lenses
-\param m_low -- lower mass cutoff
-\param m_up -- upper mass cutoff
-\param meanmass -- mean mass <m>
-\param meanmass2 -- mean mass squared <m^2>
 \param starfile -- location of the star field file
 
 \return bool -- true if file is successfully read, false if not
 ******************************************************************************/
 template <typename T>
-bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars,
-	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, const std::string& starfile)
+bool read_star_file_bin(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars, const std::string& starfile)
 {
 	std::filesystem::path starpath = starfile;
 
@@ -235,7 +229,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	/******************************************************************************
 	objects in the file are nstars + rectangular + corner + theta + stars
 	******************************************************************************/
-	if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) +  nstars * sizeof(star<T>))
+	if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) + nstars * sizeof(star<T>))
 	{
 		/******************************************************************************
 		third item in the file is the corner of the star field
@@ -306,6 +300,168 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 	}
 
 	infile.close();
+
+	return true;
+}
+
+/******************************************************************************
+read txt star field file
+
+\param nstars -- number of point mass lenses
+\param rectangular -- whether the star field is rectangular or not
+\param corner -- complex number denoting the corner of the field of point mass
+				 lenses
+\param theta -- size of the Einstein radius of a unit mass point lens
+\param stars -- pointer to array of point mass lenses
+\param starfile -- location of the star field file
+
+\return bool -- true if file is successfully read, false if not
+******************************************************************************/
+template <typename T>
+bool read_star_file_txt(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars, const std::string& starfile)
+{
+	std::filesystem::path starpath = starfile;
+
+	if (starpath.extension() != ".txt")
+	{
+		std::cerr << "Error. Star input file " << starfile << " is not a .txt file.\n";
+		return false;
+	}
+
+	/******************************************************************************
+	set parameters that will be modified based on star input file
+	******************************************************************************/
+	nstars = 0;
+	T x1, x2, m;
+
+	std::ifstream infile;
+	infile.open(starfile);
+	if (!infile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << starfile << "\n";
+		return false;
+	}
+
+	while (infile >> x1 >> x2 >> m)
+	{
+		nstars++;
+	}
+	infile.close();
+
+	if (nstars < 1)
+	{
+		std::cerr << "Error. Invalid num_stars input. num_stars must be an integer > 0\n";
+		return false;
+	}
+
+
+	/******************************************************************************
+	allocate memory for stars if needed
+	******************************************************************************/
+	if (stars == nullptr)
+	{
+		cudaMallocManaged(&stars, nstars * sizeof(star<T>));
+		if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
+	}
+
+
+	/******************************************************************************
+	set parameters that will be modified based on star input file
+	******************************************************************************/
+	T max_x1 = 0;
+	T max_x2 = 0;
+	T max_rad = 0;
+	T total_mass = 0;
+	T I_stars = 0;
+
+	infile.open(starfile);
+	if (!infile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << starfile << "\n";
+		return false;
+	}
+
+	for	(int i = 0; i < nstars; i++)
+	{
+		infile >> x1 >> x2 >> m;
+		stars[i].position = Complex<T>(x1, x2);
+		stars[i].mass = m;
+		total_mass += m;
+		I_stars += m * (x1 * x1 + x2 * x2); //moment of inertia of a point mass
+		max_x1 = std::max(max_x1, std::abs(x1));
+		max_x2 = std::max(max_x2, std::abs(x2));
+		max_rad = std::max(max_rad, std::sqrt(x1 * x1 + x2 * x2));
+	}
+	infile.close();
+
+	/******************************************************************************
+	determine whether a star field is circular or rectangular by using the moment
+	of inertia
+	******************************************************************************/
+	T I_circ = total_mass * max_rad * max_rad / 2; //moment of inertia of a disk of radius max_rad
+	T I_rect = total_mass * (max_x1 * max_x1 + max_x2 * max_x2) / 3; //moment of inertia of a rectangle with corner (max_x1, max_x2)
+
+	if (I_stars / I_circ > I_stars / I_rect)
+	{
+		rectangular = 0;
+		corner.re = max_rad;
+		corner.im = 0;
+	}
+	else
+	{
+		rectangular = 1;
+		corner.re = max_x1;
+		corner.im = max_x2;
+	}
+
+	theta = 1; //assume all positions are in units of the Einstein radius of a unit mass
+	
+	return true;
+}
+
+/******************************************************************************
+read star field file
+
+\param nstars -- number of point mass lenses
+\param rectangular -- whether the star field is rectangular or not
+\param corner -- complex number denoting the corner of the field of point mass
+				 lenses
+\param theta -- size of the Einstein radius of a unit mass point lens
+\param stars -- pointer to array of point mass lenses
+\param kappastar -- convergence in point mass lenses
+\param m_low -- lower mass cutoff
+\param m_up -- upper mass cutoff
+\param meanmass -- mean mass <m>
+\param meanmass2 -- mean mass squared <m^2>
+\param starfile -- location of the star field file
+
+\return bool -- true if file is successfully read, false if not
+******************************************************************************/
+template <typename T>
+bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars,
+	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, const std::string& starfile)
+{
+	std::filesystem::path starpath = starfile;
+
+	if (starpath.extension() == ".bin")
+	{
+		if (!read_star_file_bin(nstars, rectangular, corner, theta, stars, starfile))
+		{
+			return false;
+		}
+	}
+	else if (starpath.extension() == ".txt")
+	{
+		if (!read_star_file_txt(nstars, rectangular, corner, theta, stars, starfile))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		std::cerr << "Error. Star input file " << starfile << " is not a .bin or .txt file.\n";
+		return false;
+	}
 
 	calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, m_low, m_up, meanmass, meanmass2);
 

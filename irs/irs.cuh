@@ -313,6 +313,11 @@ private:
 			set_param("corner", corner, corner, verbose);
 			set_param("theta_e", theta_e, theta_e, verbose);
 			set_param("kappa_star", kappa_star, kappa_star, verbose);
+			if (kappa_star > kappa_tot)
+			{
+				std::cerr << "Error. kappa_star must be <= kappa_tot\n";
+				return false;
+			}
 			set_param("m_lower", m_lower, m_lower, verbose);
 			set_param("m_upper", m_upper, m_upper, verbose);
 			set_param("mean_mass", mean_mass, mean_mass, verbose);
@@ -384,6 +389,23 @@ private:
 						std::abs(1 - kappa_tot + shear)
 					);
 				set_param("corner", corner, corner, verbose);
+			}
+		}
+		/******************************************************************************
+		otherwise, check that the star file actually has a large enough field of stars
+		******************************************************************************/
+		else
+		{
+			if ((rectangular && 
+					(corner.re < safety_scale * (std::abs(center_x.re) + half_length_image.re) || 
+						corner.im < safety_scale * (std::abs(center_x.im) + half_length_image.im))) ||
+				(!rectangular && 
+					(corner.re * corner.re + corner.im * corner.im < safety_scale * safety_scale * (center_x + half_length_image).abs() * (center_x + half_length_image).abs()))
+				)
+			{
+				std::cerr << "Error. The provided star field is not large enough to cover the desired source plane region.\n";
+				std::cerr << "Try decreasing the safety_scale, or providing a larger field of stars.\n";
+				return false;
 			}
 		}
 

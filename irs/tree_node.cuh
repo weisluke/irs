@@ -491,6 +491,13 @@ namespace treenode
         TreeNode<T>* node = root;
         while (node->numchildren > 0)
         {
+            //critical curves can land outside the field of stars
+            if (fabs(z.re - node->center.re) > node->half_length ||
+                fabs(z.im - node->center.im) > node->half_length)
+            {
+                return node;
+            }
+
             if (z.re >= node->center.re && z.im >= node->center.im)
             {
                 node = node->children[0];

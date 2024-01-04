@@ -381,6 +381,23 @@ private:
 				set_param("corner", corner, corner, verbose);
 			}
 		}
+		/******************************************************************************
+		otherwise, check that the star file actually has a large enough field of stars
+		******************************************************************************/
+		else
+		{
+			if ((rectangular && 
+					(corner.re < safety_scale * (std::abs(center_x.re) + half_length_image.re) || 
+						corner.im < safety_scale * (std::abs(center_x.im) + half_length_image.im))) ||
+				(!rectangular && 
+					(corner.re * corner.re + corner.im * corner.im < safety_scale * safety_scale * (center_x + half_length_image).abs() * (center_x + half_length_image).abs()))
+				)
+			{
+				std::cerr << "Error. The provided star field is not large enough to cover the desired source plane region.\n";
+				std::cerr << "Try decreasing the safety_scale, or providing a larger field of stars.\n";
+				return false;
+			}
+		}
 
 		alpha_error = 2 * half_length_source / (10 * num_pixels); //error is 1/10 of a pixel
 

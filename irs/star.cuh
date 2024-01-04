@@ -229,7 +229,7 @@ bool read_star_file_bin(int& nstars, int& rectangular, Complex<T>& corner, T& th
 	/******************************************************************************
 	objects in the file are nstars + rectangular + corner + theta + stars
 	******************************************************************************/
-	if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) +  nstars * sizeof(star<T>))
+	if (fsize == sizeof(int) + sizeof(int) + sizeof(Complex<T>) + sizeof(T) + nstars * sizeof(star<T>))
 	{
 		/******************************************************************************
 		third item in the file is the corner of the star field

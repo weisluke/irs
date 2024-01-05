@@ -402,6 +402,15 @@ private:
 				std::cerr << "Try decreasing the safety_scale, or providing a larger field of stars.\n";
 				return false;
 			}
+			if (!rectangular)
+			{
+				corner = corner.abs() * std::sqrt(1 / (2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
+					* Complex<T>(
+						std::abs(1 - kappa_tot - shear),
+						std::abs(1 - kappa_tot + shear)
+					);
+				set_param("corner", corner, corner, verbose);
+			}
 		}
 
 		alpha_error = 2 * half_length_source / (10 * num_pixels); //error is 1/10 of a pixel
@@ -905,8 +914,8 @@ private:
 			outfile << "rad " << corner.abs() << "\n";
 		}
 		outfile << "safety_scale " << safety_scale << "\n";
-		outfile << "center_y1" << center_y.re << "\n";
-		outfile << "center_y2" << center_y.im << "\n";
+		outfile << "center_y1 " << center_y.re << "\n";
+		outfile << "center_y2 " << center_y.im << "\n";
 		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";

@@ -194,7 +194,6 @@ public:
         add parent's children as neighbors
         ******************************************************************************/
         for (int i = 0; i < parent->num_children; i++)
-        for (int i = 0; i < parent->num_children; i++)
         {
             TreeNode* node = parent->children[i];
 

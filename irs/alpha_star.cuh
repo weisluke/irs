@@ -27,7 +27,7 @@ __device__ Complex<T> alpha_star(Complex<T> z, T theta, star<T>* stars, TreeNode
 	{
 		a_star_bar += stars[node->stars + i].mass / (z - stars[node->stars + i].position);
 	}
-	for (int j = 0; j < node->numneighbors; j++)
+	for (int j = 0; j < node->num_neighbors; j++)
 	{
 		TreeNode<T>* neighbor = node->neighbors[j];
 		for (int i = 0; i < neighbor->numstars; i++)
@@ -63,7 +63,7 @@ __device__ Complex<T> d_alpha_star_d_zbar(Complex<T> z, T theta, star<T>* stars,
 	{
 		d_a_star_bar_d_z += stars[node->stars + i].mass / ((z - stars[node->stars + i].position) * (z - stars[node->stars + i].position));
 	}
-	for (int j = 0; j < node->numneighbors; j++)
+	for (int j = 0; j < node->num_neighbors; j++)
 	{
 		TreeNode<T>* neighbor = node->neighbors[j];
 		for (int i = 0; i < neighbor->numstars; i++)

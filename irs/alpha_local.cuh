@@ -1,7 +1,6 @@
 #pragma once
 
 #include "complex.cuh"
-#include "star.cuh"
 #include "tree_node.cuh"
 
 

@@ -11,6 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="alpha_local.cuh" />
+    <ClInclude Include="alpha_smooth.cuh" />
+    <ClInclude Include="alpha_star.cuh" />
     <ClInclude Include="binomial_coefficients.cuh" />
     <ClInclude Include="complex.cuh" />
     <ClInclude Include="fmm.cuh" />

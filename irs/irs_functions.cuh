@@ -297,7 +297,7 @@ __global__ void histogram_min_max_kernel(int* pixels, int npixels, int* minrays,
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
-	
+
 	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
 	int y_stride = blockDim.y * gridDim.y;
 

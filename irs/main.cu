@@ -19,7 +19,7 @@ IRS<dtype> irs;
 /******************************************************************************
 constants to be used
 ******************************************************************************/
-constexpr int OPTS_SIZE = 2 * 24;
+constexpr int OPTS_SIZE = 2 * 26;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -38,6 +38,8 @@ const std::string OPTS[OPTS_SIZE] =
 	"-a", "--approx",
 	"-ss", "--safety_scale",
 	"-sf", "--starfile",
+	"-cy1", "--center_y1",
+	"-cy2", "--center_y2",
 	"-hl", "--half_length",
 	"-px", "--pixels",
 	"-nr", "--num_rays",
@@ -108,6 +110,10 @@ void display_usage(char* name)
 		<< "                          values for num_stars, rectangular, corner, theta_e,\n"
 		<< "                          and the star positions and masses, in an order as\n"
 		<< "                          defined in this source code.\n"
+		<< "  -cy1, --center_y1       Specify the y1 position of the center of the\n"
+		<< "                          magnification map. Default value: " << irs.center_y.re << "\n"
+		<< "  -cy2, --center_y2       Specify the y2 position of the center of the\n"
+		<< "                          magnification map. Default value: " << irs.center_y.im << "\n"
 		<< "  -hl,--half_length       Specify the half-length of the square source plane\n"
 		<< "                          region to find the magnification in.\n"
 		<< "                          Default value: " << irs.half_length_source << "\n"
@@ -389,6 +395,30 @@ int main(int argc, char* argv[])
 		else if (argv[i] == std::string("-sf") || argv[i] == std::string("--starfile"))
 		{
 			set_param("starfile", irs.starfile, cmdinput, verbose);
+		}
+		else if (argv[i] == std::string("-cy1") || argv[i] == std::string("--center_y1"))
+		{
+			try
+			{
+				set_param("center_y1", irs.center_y.re, std::stod(cmdinput), verbose);
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid center_y1 input.\n";
+				return -1;
+			}
+		}
+		else if (argv[i] == std::string("-cy2") || argv[i] == std::string("--center_y2"))
+		{
+			try
+			{
+				set_param("center_y2", irs.center_y.im, std::stod(cmdinput), verbose);
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid center_y2 input.\n";
+				return -1;
+			}
 		}
 		else if (argv[i] == std::string("-hl") || argv[i] == std::string("--half_length"))
 		{

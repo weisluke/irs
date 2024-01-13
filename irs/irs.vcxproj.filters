@@ -14,9 +14,6 @@
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="util.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="complex.cuh">
       <Filter>include</Filter>
     </ClInclude>
@@ -42,6 +39,18 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="fmm.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="util.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="alpha_local.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="alpha_smooth.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="alpha_star.cuh">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

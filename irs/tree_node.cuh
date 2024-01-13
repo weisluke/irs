@@ -34,15 +34,15 @@ public:
     int level;
 
     TreeNode* parent;
-    TreeNode* children[4]; // a node has at most 4 children
+    TreeNode* children[4]; //a node has at most 4 children
     int numchildren;
-    TreeNode* neighbors[8]; // a node has at most 8 neighbors
+    TreeNode* neighbors[8]; //a node has at most 8 neighbors
     int numneighbors;
-    TreeNode* interactionlist[27]; // a node has at most 27 elements in its interaction list
+    TreeNode* interactionlist[27]; //a node has at most 27 elements in its interaction list
     int numinterlist;
 
-    int stars; // position of this node's stars in array of stars
-    int numstars; // number of stars in this node
+    int stars; //position of this node's stars in array of stars
+    int numstars; //number of stars in this node
 
     int expansion_order;
     Complex<T> multipole_coeffs[treenode::MAX_EXPANSION_ORDER + 1];
@@ -491,6 +491,13 @@ namespace treenode
         TreeNode<T>* node = root;
         while (node->numchildren > 0)
         {
+            //critical curves can land outside the field of stars
+            if (fabs(z.re - node->center.re) > node->half_length ||
+                fabs(z.im - node->center.im) > node->half_length)
+            {
+                return node;
+            }
+
             if (z.re >= node->center.re && z.im >= node->center.im)
             {
                 node = node->children[0];

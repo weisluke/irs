@@ -1,5 +1,8 @@
 #pragma once
 
+#include "alpha_local.cuh"
+#include "alpha_smooth.cuh"
+#include "alpha_star.cuh"
 #include "complex.cuh"
 #include "star.cuh"
 #include "tree_node.cuh"
@@ -12,359 +15,6 @@
 
 
 /******************************************************************************
-Heaviside Step Function
-
-\param x -- number to evaluate
-
-\return 1 if x > 0, 0 if x <= 0
-******************************************************************************/
-template <typename T>
-__device__ T heaviside(T x)
-{
-	if (x > 0)
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
-}
-
-/******************************************************************************
-2-Dimensional Boxcar Function
-
-\param z -- complex number to evalulate
-\param corner -- corner of the rectangular region
-
-\return 1 if z lies within the rectangle defined by corner, 0 if it is on the
-		border or outside
-******************************************************************************/
-template <typename T>
-__device__ T boxcar(Complex<T> z, Complex<T> corner)
-{
-	if (-corner.re < z.re && z.re < corner.re && -corner.im < z.im && z.im < corner.im)
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
-}
-
-/******************************************************************************
-calculate the deflection angle due to nearby stars for a node
-
-\param z -- complex image plane position
-\param theta -- size of the Einstein radius of a unit mass point lens
-\param stars -- pointer to array of point mass lenses
-\param node -- node within which to calculate the deflection angle
-
-\return alpha_star = theta^2 * sum(m_i / (z - z_i)_bar)
-******************************************************************************/
-template <typename T>
-__device__ Complex<T> star_deflection(Complex<T> z, T theta, star<T>* stars, TreeNode<T>* node)
-{
-	Complex<T> alpha_star_bar;
-
-	/******************************************************************************
-	theta^2 * sum(m_i / (z - z_i))
-	******************************************************************************/
-	for (int i = 0; i < node->numstars; i++)
-	{
-		alpha_star_bar += stars[node->stars + i].mass / (z - stars[node->stars + i].position);
-	}
-	for (int j = 0; j < node->numneighbors; j++)
-	{
-		TreeNode<T>* neighbor = node->neighbors[j];
-		for (int i = 0; i < neighbor->numstars; i++)
-		{
-			alpha_star_bar += stars[neighbor->stars + i].mass / (z - stars[neighbor->stars + i].position);
-		}
-	}
-	alpha_star_bar *= (theta * theta);
-
-	return alpha_star_bar.conj();
-}
-
-/******************************************************************************
-calculate the deriviative of the deflection angle due to nearby stars for a
-node with respect to zbar
-
-\param z -- complex image plane position
-\param theta -- size of the Einstein radius of a unit mass point lens
-\param stars -- pointer to array of point mass lenses
-\param node -- node within which to calculate the deflection angle
-
-\return d_alpha_star_d_zbar = -theta^2 * sum(m_i / (z - z_i)_bar^2)
-******************************************************************************/
-template <typename T>
-__device__ Complex<T> d_star_deflection_d_zbar(Complex<T> z, T theta, star<T>* stars, TreeNode<T>* node)
-{
-	Complex<T> d_alpha_star_bar_d_z;
-
-	/******************************************************************************
-	theta^2 * sum(m_i / (z - z_i))
-	******************************************************************************/
-	for (int i = 0; i < node->numstars; i++)
-	{
-		d_alpha_star_bar_d_z += stars[node->stars + i].mass / ((z - stars[node->stars + i].position) * (z - stars[node->stars + i].position));
-	}
-	for (int j = 0; j < node->numneighbors; j++)
-	{
-		TreeNode<T>* neighbor = node->neighbors[j];
-		for (int i = 0; i < neighbor->numstars; i++)
-		{
-			d_alpha_star_bar_d_z += stars[neighbor->stars + i].mass / ((z - stars[neighbor->stars + i].position) * (z - stars[neighbor->stars + i].position));
-		}
-	}
-	d_alpha_star_bar_d_z *= -(theta * theta);
-
-	return d_alpha_star_bar_d_z.conj();
-}
-
-/******************************************************************************
-calculate the deflection angle due to far away stars for a node
-
-\param z -- complex image plane position
-\param theta -- size of the Einstein radius of a unit mass point lens
-\param node -- node within which to calculate the deflection angle
-
-\return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
-           where a_i are coefficients of the lensing potential in units of the
-           node size
-******************************************************************************/
-template <typename T>
-__device__ Complex<T> local_deflection(Complex<T> z, T theta, TreeNode<T>* node)
-{
-	Complex<T> alpha_local_bar;
-	Complex<T> dz = (z - node->center) / node->half_length;
-
-	for (int i = node->expansion_order; i >= 1; i--)
-	{
-		alpha_local_bar *= dz;
-		alpha_local_bar += node->local_coeffs[i] * i;
-	}
-	alpha_local_bar *= (theta * theta);
-	/******************************************************************************
-	account for node size 
-	******************************************************************************/
-	alpha_local_bar /= node->half_length;
-
-	return alpha_local_bar.conj();
-}
-
-/******************************************************************************
-calculate the derivative of the deflection angle due to far away stars for a
-node with respect to zbar
-
-\param z -- complex image plane position
-\param theta -- size of the Einstein radius of a unit mass point lens
-\param node -- node within which to calculate the deflection angle
-
-\return alpha_local = theta^2 * sum(i * a_i * (z - z_0) ^ (i - 1))
-		   where a_i are coefficients of the lensing potential in units of the
-		   node size
-******************************************************************************/
-template <typename T>
-__device__ Complex<T> d_local_deflection_d_zbar(Complex<T> z, T theta, TreeNode<T>* node)
-{
-	Complex<T> d_alpha_local_bar_dz;
-	Complex<T> dz = (z - node->center) / node->half_length;
-
-	for (int i = node->expansion_order; i >= 2; i--)
-	{
-		d_alpha_local_bar_dz *= dz;
-		d_alpha_local_bar_dz += node->local_coeffs[i] * i * (i - 1);
-	}
-	d_alpha_local_bar_dz *= (theta * theta);
-	/******************************************************************************
-	account for node size
-	******************************************************************************/
-	d_alpha_local_bar_dz /= (node->half_length * node->half_length);
-
-	return d_alpha_local_bar_dz.conj();
-}
-
-/******************************************************************************
-calculate the deflection angle due to smooth matter
-
-\param z -- complex image plane position
-\param kappastar -- convergence in point mass lenses
-\param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the rectangular field of
-				 point mass lenses
-\param approx -- whether the smooth matter deflection is approximate or not
-\param taylor_smooth -- degree of the taylor series for alpha_smooth if
-                        approximate
-
-\return alpha_smooth
-******************************************************************************/
-template <typename T>
-__device__ Complex<T> smooth_deflection(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor_smooth)
-{
-	T PI = static_cast<T>(3.1415926535898);
-	Complex<T> alpha_smooth;
-
-	if (rectangular)
-	{
-		if (approx)
-		{
-			Complex<T> s1;
-			Complex<T> s2;
-			Complex<T> s3;
-			Complex<T> s4;
-
-			for (int i = taylor_smooth; i >= 1; i--)
-			{
-				s1 *= i;
-				s1 += 1;
-				s1 /= i;
-
-				s2 *= i;
-				s2 += 1;
-				s2 /= i;
-
-				s3 *= i;
-				s3 += 1;
-				s3 /= i;
-
-				s4 *= i;
-				s4 += 1;
-				s4 /= i;
-
-				s1 *= (z.conj() / corner);
-				s2 *= (z.conj() / corner.conj());
-				s3 *= (z.conj() / -corner);
-				s4 *= (z.conj() / -corner.conj());
-			}
-
-			alpha_smooth = ((corner - z.conj()) * (corner.log() - s1) - (corner.conj() - z.conj()) * (corner.conj().log() - s2)
-				+ (-corner - z.conj()) * ((-corner).log() - s3) - (-corner.conj() - z.conj()) * ((-corner).conj().log() - s4));
-			alpha_smooth *= Complex<T>(0, -kappastar / PI);
-			alpha_smooth -= kappastar * 2 * (corner.re + z.re);
-		}
-		else
-		{
-			Complex<T> c1 = corner - z.conj();
-			Complex<T> c2 = corner.conj() - z.conj();
-			Complex<T> c3 = -corner - z.conj();
-			Complex<T> c4 = -corner.conj() - z.conj();
-
-			alpha_smooth = (c1 * c1.log() - c2 * c2.log() + c3 * c3.log() - c4 * c4.log());
-			alpha_smooth *= Complex<T>(0, -kappastar / PI);
-			alpha_smooth -= kappastar * 2 * (corner.re + z.re) * boxcar(z, corner);
-			alpha_smooth -= kappastar * 4 * corner.re * heaviside(corner.im + z.im) * heaviside(corner.im - z.im) * heaviside(z.re - corner.re);
-		}
-	}
-	else
-	{
-		alpha_smooth = -kappastar * z;
-	}
-
-	return alpha_smooth;
-}
-
-/******************************************************************************
-calculate the derivative of the deflection angle due to smooth matter with
-respect to z
-
-\param z -- complex image plane position
-\param kappastar -- convergence in point mass lenses
-\param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the rectangular field of
-				 point mass lenses
-\param approx -- whether the smooth matter deflection is approximate or not
-
-\return d_alpha_smooth_d_z
-******************************************************************************/
-template <typename T>
-__device__ T d_smooth_deflection_d_z(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx)
-{
-	T d_alpha_smooth_d_z = -kappastar;
-
-	if (rectangular && !approx)
-	{
-		d_alpha_smooth_d_z *= boxcar(z, corner);
-	}
-
-	return d_alpha_smooth_d_z;
-}
-
-/******************************************************************************
-calculate the derivative of the deflection angle due to smooth matter with
-respect to zbar
-
-\param z -- complex image plane position
-\param kappastar -- convergence in point mass lenses
-\param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the
-				 rectangular field of point mass lenses
-\param approx -- whether the smooth matter deflection is approximate or not
-\param taylor_smooth -- degree of the taylor series for alpha_smooth if
-                        approximate
-
-\return d_alpha_smooth_d_zbar
-******************************************************************************/
-template <typename T>
-__device__ Complex<T> d_smooth_deflection_d_zbar(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor_smooth)
-{
-	T PI = static_cast<T>(3.1415926535898);
-	Complex<T> d_alpha_smooth_d_zbar;
-
-	if (rectangular)
-	{
-		if (approx)
-		{
-			Complex<T> r1 = z.conj() / corner;
-			Complex<T> r2 = z.conj() / corner.conj();
-
-			Complex<T> s1;
-			Complex<T> s2;
-
-			for (int i = (taylor_smooth % 2 == 0 ? taylor_smooth : taylor_smooth - 1); i >= 2; i -= 2)
-			{
-				s1 *= i;
-				s1 += 1;
-				s1 /= i;
-
-				s2 *= i;
-				s2 += 1;
-				s2 /= i;
-
-				s1 *= (r1 * r1);
-				s2 *= (r2 * r2);
-			}
-			d_alpha_smooth_d_zbar += s1 - s2;
-			d_alpha_smooth_d_zbar *= 2;
-
-			if (taylor_smooth % 2 == 0)
-			{
-				d_alpha_smooth_d_zbar += r1.pow(taylor_smooth) * 2;
-				d_alpha_smooth_d_zbar -= r2.pow(taylor_smooth) * 2;
-			}
-
-			d_alpha_smooth_d_zbar *= Complex<T>(0, -kappastar / PI);
-			d_alpha_smooth_d_zbar += kappastar - 4 * kappastar * corner.arg() / PI;
-		}
-		else
-		{
-			Complex<T> c1 = corner.conj() - z.conj();
-			Complex<T> c2 = corner - z.conj();
-			Complex<T> c3 = -corner - z.conj();
-			Complex<T> c4 = -corner.conj() - z.conj();
-
-			d_alpha_smooth_d_zbar = (c1.log() - c2.log() - c3.log() + c4.log());
-			d_alpha_smooth_d_zbar *= Complex<T>(0, -kappastar / PI);
-			d_alpha_smooth_d_zbar -= kappastar * boxcar(z, corner);
-		}
-	}
-
-	return d_alpha_smooth_d_zbar;
-}
-
-/******************************************************************************
 lens equation from image plane to source plane
 
 \param z -- complex image plane position
@@ -372,8 +22,8 @@ lens equation from image plane to source plane
 \param gamma -- external shear
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
-\param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
+\param node -- node within which to calculate the deflection angle
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
@@ -388,14 +38,14 @@ template <typename T>
 __device__ Complex<T> complex_image_to_source(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* node,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth)
 {
-	Complex<T> alpha_star = star_deflection<T>(z, theta, stars, node);
-	Complex<T> alpha_local = local_deflection<T>(z, theta, node);
-	Complex<T> alpha_smooth = smooth_deflection<T>(z, kappastar, rectangular, corner, approx, taylor_smooth);
+	Complex<T> a_star = alpha_star<T>(z, theta, stars, node);
+	Complex<T> a_local = alpha_local<T>(z, theta, node);
+	Complex<T> a_smooth = alpha_smooth<T>(z, kappastar, rectangular, corner, approx, taylor_smooth);
 
 	/******************************************************************************
 	(1 - kappa) * z + gamma * z_bar - alpha_star - alpha_local - alpha_smooth
 	******************************************************************************/
-	return (1 - kappa) * z + gamma * z.conj() - alpha_star - alpha_local - alpha_smooth;
+	return (1 - kappa) * z + gamma * z.conj() - a_star - a_local - a_smooth;
 }
 
 /******************************************************************************
@@ -406,8 +56,8 @@ magnification at a point in the image plane
 \param gamma -- external shear
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
-\param nstars -- number of point mass lenses in array
 \param kappastar -- convergence in point mass lenses
+\param node -- node within which to calculate the deflection angle
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
@@ -421,13 +71,13 @@ template <typename T>
 __device__ T magnification(Complex<T> z, T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* node,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth)
 {
-	Complex<T> d_alpha_star_d_zbar = d_star_deflection_d_zbar<T>(z, theta, stars, node);
-	Complex<T> d_alpha_local_d_zbar = d_local_deflection_d_zbar<T>(z, theta, node);
-	T d_alpha_smooth_d_z = d_smooth_deflection_d_z<T>(z, kappastar, rectangular, corner, approx);
-	Complex<T> d_alpha_smooth_d_zbar = d_smooth_deflection_d_zbar<T>(z, kappastar, rectangular, corner, approx, taylor_smooth);
+	Complex<T> d_a_star_d_zbar = d_alpha_star_d_zbar<T>(z, theta, stars, node);
+	Complex<T> d_a_local_d_zbar = d_alpha_local_d_zbar<T>(z, theta, node);
+	T d_a_smooth_d_z = d_alpha_smooth_d_z<T>(z, kappastar, rectangular, corner, approx);
+	Complex<T> d_a_smooth_d_zbar = d_alpha_smooth_d_zbar<T>(z, kappastar, rectangular, corner, approx, taylor_smooth);
 
-	T d_w_d_z = (1 - kappa) - d_alpha_smooth_d_z;
-	Complex<T> d_w_d_zbar = gamma - d_alpha_star_d_zbar - d_alpha_local_d_zbar - d_alpha_smooth_d_zbar;
+	T d_w_d_z = (1 - kappa) - d_a_smooth_d_z;
+	Complex<T> d_w_d_zbar = gamma - d_a_star_d_zbar - d_a_local_d_zbar - d_a_smooth_d_zbar;
 
 	T mu_inv = d_w_d_z * d_w_d_z - d_w_d_zbar.abs() * d_w_d_zbar.abs();
 
@@ -467,9 +117,11 @@ shoot rays from image plane to source plane
 \param approx -- whether the smooth matter deflection is approximate or not
 \param taylor_smooth -- degree of the taylor series for alpha_smooth if 
                         approximate
+\param center_x -- center of the image plane shooting region
 \param hlx -- half length of the image plane shooting region
 \param numrayblocks -- number of ray blocks for the image plane shooting region
 \param raysep -- separation between central rays of shooting squares
+\param center_y -- center of the source plane receiving region
 \param hly -- half length of the source plane receiving region
 \param pixmin -- pointer to array of positive parity pixels
 \param pixsad -- pointer to array of negative parity pixels
@@ -479,7 +131,8 @@ shoot rays from image plane to source plane
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor, 
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
-	Complex<T> hlx, Complex<int> numrayblocks, T hly, int* pixmin, int* pixsad, int* pixels, int npixels, int* percentage)
+	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks, 
+	Complex<T> center_y, T hly, int* pixmin, int* pixsad, int* pixels, int npixels, int* percentage)
 {
 	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 	
@@ -492,7 +145,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	{
 		for (int k = blockIdx.x; k < numrayblocks.re; k += gridDim.x)
 		{
-			Complex<T> block_center = -hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
+			Complex<T> block_center = center_x - hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
 				*node = *(treenode::get_nearest_node(block_center, root));
@@ -543,6 +196,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					{
 						continue;
 					}
+
+					/******************************************************************************
+					shift ray position relative to center
+					******************************************************************************/
+					w -= center_y;
 
 					/******************************************************************************
 					if the ray landed outside the receiving region
@@ -602,13 +260,14 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 
 
 /******************************************************************************
-initialize array of pixels to 0
+initialize array of values to 0
 
-\param pixels -- pointer to array of pixels
-\param npixels -- number of pixels for one side of the receiving square
+\param vals -- pointer to array of values
+\param nrows -- number of rows in array
+\param ncols -- number of columns in array
 ******************************************************************************/
 template <typename T>
-__global__ void initialize_pixels_kernel(int* pixels, int npixels)
+__global__ void initialize_array_kernel(int* vals, int nrows, int ncols)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -616,30 +275,39 @@ __global__ void initialize_pixels_kernel(int* pixels, int npixels)
 	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
 	int y_stride = blockDim.y * gridDim.y;
 
-	for (int i = x_index; i < npixels; i += x_stride)
+	for (int i = x_index; i < ncols; i += x_stride)
 	{
-		for (int j = y_index; j < npixels; j += y_stride)
+		for (int j = y_index; j < nrows; j += y_stride)
 		{
-			pixels[j * npixels + i] = 0;
+			vals[j * ncols + i] = 0;
 		}
 	}
 }
 
 /******************************************************************************
-initialize histogram values to 0
+calculate the minimum and maximum number of rays in the pixel array
 
-\param histogram -- pointer to histogram
-\param n -- length of histogram
+\param pixels -- pointer to array of pixels
+\param npixels -- number of pixels for one side of the receiving square
+\param minrays -- pointer to minimum number of rays
+\param maxrays -- pointer to maximum number of rays
 ******************************************************************************/
 template <typename T>
-__global__ void initialize_histogram_kernel(int* histogram, int n)
+__global__ void histogram_min_max_kernel(int* pixels, int npixels, int* minrays, int* maxrays)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
 
-	for (int i = x_index; i < n; i += x_stride)
+  int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int y_stride = blockDim.y * gridDim.y;
+
+	for (int i = x_index; i < npixels; i += x_stride)
 	{
-		histogram[i] = 0;
+		for (int j = y_index; j < npixels; j += y_stride)
+		{
+			atomicMin(minrays, pixels[j * npixels + i]);
+			atomicMax(maxrays, pixels[j * npixels + i]);
+		}
 	}
 }
 

@@ -46,6 +46,7 @@ public:
 	int approx = 0;
 	T safety_scale = static_cast<T>(1.37);
 	std::string starfile = "";
+	Complex<T> center_y = Complex<T>();
 	T half_length_source = static_cast<T>(5);
 	int num_pixels = 1000;
 	int num_rays_source = 1000;
@@ -70,7 +71,6 @@ private:
 	constant variables
 	******************************************************************************/
 	const T PI = static_cast<T>(3.1415926535898);
-	const T E = static_cast<T>(2.718281828459);
 	const std::string outfile_type = ".bin";
 
 	/******************************************************************************
@@ -103,10 +103,13 @@ private:
 	T mu_ave;
 	T num_rays_lens;
 	T ray_sep;
+	Complex<T> center_x;
 	Complex<int> num_ray_blocks;
 	Complex<T> half_length_image;
 	Complex<T> corner;
 	int taylor_smooth;
+
+	T alpha_error; //error in the deflection angle
 
 	int expansion_order;
 
@@ -217,6 +220,12 @@ private:
 			return false;
 		}
 		
+		/******************************************************************************
+		if the alpha_smooth comes from a rectangular mass sheet, finding the caustics
+		requires a Taylor series approximation to alpha_smooth. a bound on the error of
+		that series necessitates having some minimum cutoff here for the ratio of the
+		size of the star field to the size of the shooting rectangle
+		******************************************************************************/
 		if (safety_scale < 1.1)
 		{
 			std::cerr << "Error. safety_scale must be >= 1.1\n";
@@ -347,6 +356,9 @@ private:
 			);
 		set_param("half_length_image", half_length_image, half_length_image, verbose);
 
+		center_x = Complex<T>(center_y.re / (1 - kappa_tot + shear), center_y.im / (1 - kappa_tot - shear));
+		set_param("center_x", center_x, center_x, verbose);
+
 		/******************************************************************************
 		if stars are not drawn from external file, calculate final number of stars to
 		use and corner of the star field
@@ -355,7 +367,7 @@ private:
 		{
 			if (rectangular)
 			{
-				num_stars = static_cast<int>((safety_scale * 2 * half_length_image.re) * (safety_scale * 2 * half_length_image.im) 
+				num_stars = static_cast<int>((safety_scale * 2 * (std::abs(center_x.re) + half_length_image.re)) * (safety_scale * 2 * (std::abs(center_x.im) + half_length_image.im)) 
 					* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
@@ -368,7 +380,7 @@ private:
 			}
 			else
 			{
-				num_stars = static_cast<int>(safety_scale * safety_scale * half_length_image.abs() * half_length_image.abs()
+				num_stars = static_cast<int>(safety_scale * safety_scale * (center_x + half_length_image).abs() * (center_x + half_length_image).abs()
 					* kappa_star / (theta_e * theta_e * mean_mass)) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
@@ -380,29 +392,40 @@ private:
 				set_param("corner", corner, corner, verbose);
 			}
 		}
+		/******************************************************************************
+		otherwise, check that the star file actually has a large enough field of stars
+		******************************************************************************/
+		else
+		{
+			if ((rectangular && 
+					(corner.re < safety_scale * (std::abs(center_x.re) + half_length_image.re) || 
+						corner.im < safety_scale * (std::abs(center_x.im) + half_length_image.im))) ||
+				(!rectangular && 
+					(corner.re * corner.re + corner.im * corner.im < safety_scale * safety_scale * (center_x + half_length_image).abs() * (center_x + half_length_image).abs()))
+				)
+			{
+				std::cerr << "Error. The provided star field is not large enough to cover the desired source plane region.\n";
+				std::cerr << "Try decreasing the safety_scale, or providing a larger field of stars.\n";
+				return false;
+			}
+			if (!rectangular)
+			{
+				corner = corner.abs() * std::sqrt(1 / (2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
+					* Complex<T>(
+						std::abs(1 - kappa_tot - shear),
+						std::abs(1 - kappa_tot + shear)
+					);
+				set_param("corner", corner, corner, verbose);
+			}
+		}
 
-		T error = 2 * half_length_source / (10 * num_pixels);
+		alpha_error = 2 * half_length_source / (10 * num_pixels); //error is 1/10 of a pixel
 
 		taylor_smooth = std::max(
-			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (error * PI)) / std::log(safety_scale)),
+			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),
 			1
 		);
 		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose && rectangular && approx);
-
-		expansion_order = static_cast<int>(std::log2(theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / (9 * error))) + 1;
-		while (
-			theta_e * theta_e * m_upper * treenode::MAX_NUM_STARS_DIRECT / 9 
-			* (4 * E * (expansion_order + 2) * 3 + 4) / (2 << (expansion_order + 1)) > error
-			)
-		{
-			expansion_order++;
-		}
-		set_param("expansion_order", expansion_order, expansion_order, verbose);
-		if (expansion_order > treenode::MAX_EXPANSION_ORDER)
-		{
-			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
-			return false;
-		}
 
 		t_elapsed = stopwatch.stop();
 		std::cout << "Done calculating derived parameters. Elapsed time: " << t_elapsed << " seconds.\n\n";
@@ -420,7 +443,7 @@ private:
 		******************************************************************************/
 		cudaMallocManaged(&states, num_stars * sizeof(curandState));
 		if (cuda_error("cudaMallocManaged(*states)", false, __FILE__, __LINE__)) return false;
-		if (stars == nullptr) // if memory wasn't allocated already due to reading a star file
+		if (stars == nullptr) //if memory wasn't allocated already due to reading a star file
 		{
 			cudaMallocManaged(&stars, num_stars * sizeof(star<T>));
 			if (cuda_error("cudaMallocManaged(*stars)", false, __FILE__, __LINE__)) return false;
@@ -431,7 +454,7 @@ private:
 		/******************************************************************************
 		allocate memory for binomial coefficients
 		******************************************************************************/
-		cudaMallocManaged(&binomial_coeffs, (2 * expansion_order * (2 * expansion_order + 3) / 2 + 1) * sizeof(int));
+		cudaMallocManaged(&binomial_coeffs, (2 * treenode::MAX_EXPANSION_ORDER * (2 * treenode::MAX_EXPANSION_ORDER + 3) / 2 + 1) * sizeof(int));
 		if (cuda_error("cudaMallocManaged(*binomial_coeffs)", false, __FILE__, __LINE__)) return false;
 
 		/******************************************************************************
@@ -460,14 +483,14 @@ private:
 		std::cout << "Initializing pixel values...\n";
 		stopwatch.start();
 
-		initialize_pixels_kernel<T> <<<blocks, threads>>> (pixels, num_pixels);
-		if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return false;
+		initialize_array_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, num_pixels);
+		if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		if (write_parities)
 		{
-			initialize_pixels_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels);
-			if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return false;
-			initialize_pixels_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels);
-			if (cuda_error("initialize_pixels_kernel", true, __FILE__, __LINE__)) return false;
+			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, num_pixels);
+			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
+			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, num_pixels);
+			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		}
 
 		t_elapsed = stopwatch.stop();
@@ -612,7 +635,7 @@ private:
 				if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 
 				print_verbose("Creating children...\n", verbose);
-				(*num_nonempty_nodes)--; // subtract one since value is size of array, and instead needs to be the first allocatable element
+				(*num_nonempty_nodes)--; //subtract one since value is size of array, and instead needs to be the first allocatable element
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::create_children_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
 				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
@@ -644,7 +667,8 @@ private:
 		ray_blocks_level = tree_levels;
 		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
 		Complex<T> tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
-		while (tmp_half_length_image.re > corner.re || tmp_half_length_image.im > corner.im)
+		while ((tmp_half_length_image.re > corner.re || tmp_half_length_image.im > corner.im) &&
+				ray_blocks_level <= rays_level)
 		{
 			ray_blocks_level++;
 			num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
@@ -657,11 +681,25 @@ private:
 			return false;
 		}
 		set_param("half_length_image", half_length_image, tmp_half_length_image, verbose);
-		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose, true);
+		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose);
 
 		/******************************************************************************
 		END create root node, then create children and sort stars
 		******************************************************************************/
+
+		expansion_order = static_cast<int>(2 * std::log2(theta_e) - std::log2(root_half_length * alpha_error))
+			 + tree_levels + 1;
+		set_param("expansion_order", expansion_order, expansion_order, verbose, true);
+		if (expansion_order < 3)
+		{
+			std::cerr << "Error. Expansion order needs to be >= 3\n";
+			return false;
+		}
+		else if (expansion_order > treenode::MAX_EXPANSION_ORDER)
+		{
+			std::cerr << "Error. Maximum allowed expansion order is " << treenode::MAX_EXPANSION_ORDER << "\n";
+			return false;
+		}
 
 		print_verbose("Calculating binomial coefficients...\n", verbose);
 		calculate_binomial_coeffs(binomial_coeffs, 2 * expansion_order);
@@ -728,8 +766,8 @@ private:
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
 		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
-			rectangular, corner, approx, taylor_smooth, half_length_image, num_ray_blocks,
-			half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
+			rectangular, corner, approx, taylor_smooth, center_x, half_length_image, num_ray_blocks,
+			center_y, half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();
 		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
@@ -809,14 +847,14 @@ private:
 			set_threads(threads, 512);
 			set_blocks(threads, blocks, histogram_length);
 
-			initialize_histogram_kernel<T> <<<blocks, threads>>> (histogram, histogram_length);
-			if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
+			initialize_array_kernel<T> <<<blocks, threads>>> (histogram, 1, histogram_length);
+			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				initialize_histogram_kernel<T> <<<blocks, threads>>> (histogram_minima, histogram_length);
-				if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
-				initialize_histogram_kernel<T> <<<blocks, threads>>> (histogram_saddles, histogram_length);
-				if (cuda_error("initialize_histogram_kernel", true, __FILE__, __LINE__)) return false;
+				initialize_array_kernel<T> <<<blocks, threads>>> (histogram_minima, 1, histogram_length);
+				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
+				initialize_array_kernel<T> <<<blocks, threads>>> (histogram_saddles, 1, histogram_length);
+				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 			}
 
 			
@@ -905,6 +943,8 @@ private:
 			outfile << "rad " << corner.abs() << "\n";
 		}
 		outfile << "safety_scale " << safety_scale << "\n";
+		outfile << "center_y1 " << center_y.re << "\n";
+		outfile << "center_y2 " << center_y.im << "\n";
 		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";

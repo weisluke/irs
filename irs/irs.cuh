@@ -11,6 +11,9 @@
 #include "util.cuh"
 
 #include <curand_kernel.h>
+#include <thrust/execution_policy.h> //for thrust::device
+#include <thrust/extrema.h> // for thrust::min_element, thrust::max_element
+#include <thrust/reduce.h> // for thrust::reduce
 
 #include <algorithm> //for std::min and std::max
 #include <chrono> //for setting random seed with clock
@@ -117,6 +120,9 @@ private:
 	std::vector<int> num_nodes = {};
 	int ray_blocks_level = 0;
 
+	unsigned long int num_rays_shot = 0;
+	unsigned long int num_rays_received = 0;
+
 	/******************************************************************************
 	dynamic memory
 	******************************************************************************/
@@ -130,8 +136,8 @@ private:
 	int* pixels_minima = nullptr;
 	int* pixels_saddles = nullptr;
 
-	int* min_rays = nullptr;
-	int* max_rays = nullptr;
+	int min_rays = std::numeric_limits<int>::max();
+	int max_rays = 0;
 	int histogram_length = 0;
 	int* histogram = nullptr;
 	int* histogram_minima = nullptr;
@@ -766,6 +772,13 @@ private:
 		t_ray_shoot = stopwatch.stop();
 		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
+		num_rays_shot = num_ray_blocks.re * num_ray_blocks.im;
+		num_rays_shot <<= 2 * (rays_level - ray_blocks_level + 1);
+		set_param("num_rays_shot", num_rays_shot, num_rays_shot, verbose);
+
+		num_rays_received = thrust::reduce(thrust::device, pixels, pixels + num_pixels * num_pixels, num_rays_received);
+		set_param("num_rays_received", num_rays_received, num_rays_received, verbose, true);
+
 		return true;
 	}
 
@@ -780,29 +793,45 @@ private:
 			std::cout << "Creating histograms...\n";
 			stopwatch.start();
 
-			cudaMallocManaged(&min_rays, sizeof(int));
-			if (cuda_error("cudaMallocManaged(*min_rays)", false, __FILE__, __LINE__)) return false;
-			cudaMallocManaged(&max_rays, sizeof(int));
-			if (cuda_error("cudaMallocManaged(*max_rays)", false, __FILE__, __LINE__)) return false;
+			min_rays = *thrust::min_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
+			max_rays = *thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
 
-			*min_rays = std::numeric_limits<int>::max();
-			*max_rays = 0;
+			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
+			T mu_min_actual = mu_ave * min_rays / num_rays_source;
 
-
-			set_threads(threads, 16, 16);
-			set_blocks(threads, blocks, num_pixels, num_pixels);
-
-			histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_rays, max_rays);
-			if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
-			if (write_parities)
+			if (mu_ave > 1 && mu_min_actual < mu_min_theor)
 			{
-				histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, max_rays);
-				if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_min_max_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, max_rays);
-				if (cuda_error("histogram_min_max_kernel", true, __FILE__, __LINE__)) return false;
+				std::cerr << "Warning. Minimum magnification after shooting rays is less than the theoretical minimum.\n";
+				std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+				std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
+				std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 			}
 
-			histogram_length = *max_rays - *min_rays + 1;
+			if (write_parities)
+			{
+				int min_rays_minima = *thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
+				int max_rays_minima = *thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
+				
+				mu_min_actual = mu_ave * min_rays_minima / num_rays_source;
+
+				if (mu_ave > 1 && mu_min_actual < mu_min_theor)
+				{
+					std::cerr << "Warning. Minimum positive parity magnification after shooting rays is less than the theoretical minimum.\n";
+					std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays_minima << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+					std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
+					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
+				}
+
+				int min_rays_saddles = *thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);
+				int max_rays_saddles = *thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);
+
+				min_rays = min_rays < min_rays_minima ? min_rays : 
+					(min_rays_minima < min_rays_saddles ? min_rays_minima : min_rays_saddles);
+				max_rays = max_rays > max_rays_minima ? max_rays : 
+					(max_rays_minima > max_rays_saddles ? max_rays_minima : max_rays_saddles);
+			}
+
+			histogram_length = max_rays - min_rays + 1;
 
 			cudaMallocManaged(&histogram, histogram_length * sizeof(int));
 			if (cuda_error("cudaMallocManaged(*histogram)", false, __FILE__, __LINE__)) return false;
@@ -832,13 +861,13 @@ private:
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
-			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, *min_rays, histogram);
+			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_rays, histogram);
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, *min_rays, histogram_minima);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, histogram_minima);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, *min_rays, histogram_saddles);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, histogram_saddles);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 			t_elapsed = stopwatch.stop();
@@ -919,10 +948,13 @@ private:
 		outfile << "half_length_source " << half_length_source << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
+		outfile << "mean_rays_per_pixel_actual " << (1.0 * num_rays_received / (num_pixels * num_pixels)) << "\n";
 		outfile << "half_length_image_x1 " << half_length_image.re << "\n";
 		outfile << "half_length_image_x2 " << half_length_image.im << "\n";
 		outfile << "ray_sep " << ray_sep << "\n";
 		outfile << "t_ray_shoot " << t_ray_shoot << "\n";
+		outfile << "num_rays_shot " << num_rays_shot << "\n";
+		outfile << "num_rays_received " << num_rays_received << "\n";
 		outfile.close();
 		std::cout << "Done writing parameter info to file " << fname << "\n\n";
 
@@ -945,7 +977,7 @@ private:
 			std::cout << "Writing magnification histograms...\n";
 
 			fname = outfile_prefix + "irs_numrays_numpixels.txt";
-			if (!write_histogram<T>(histogram, histogram_length, *min_rays, fname))
+			if (!write_histogram<T>(histogram, histogram_length, min_rays, fname))
 			{
 				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 				return false;
@@ -954,7 +986,7 @@ private:
 			if (write_parities)
 			{
 				fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
-				if (!write_histogram<T>(histogram_minima, histogram_length, *min_rays, fname))
+				if (!write_histogram<T>(histogram_minima, histogram_length, min_rays, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;
@@ -962,7 +994,7 @@ private:
 				std::cout << "Done writing magnification histogram to file " << fname << "\n";
 
 				fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
-				if (!write_histogram<T>(histogram_saddles, histogram_length, *min_rays, fname))
+				if (!write_histogram<T>(histogram_saddles, histogram_length, min_rays, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;

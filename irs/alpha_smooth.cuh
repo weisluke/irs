@@ -55,7 +55,7 @@ calculate the deflection angle due to smooth matter
 				 point mass lenses
 \param approx -- whether the smooth matter deflection is approximate or not
 \param taylor_smooth -- degree of the taylor series for alpha_smooth if
-                        approximate
+						approximate
 
 \return alpha_smooth
 ******************************************************************************/
@@ -161,7 +161,7 @@ respect to zbar
 				 rectangular field of point mass lenses
 \param approx -- whether the smooth matter deflection is approximate or not
 \param taylor_smooth -- degree of the taylor series for alpha_smooth if
-                        approximate
+						approximate
 
 \return d_alpha_smooth_d_zbar
 ******************************************************************************/
@@ -220,5 +220,71 @@ __device__ Complex<T> d_alpha_smooth_d_zbar(Complex<T> z, T kappastar, int recta
 	}
 
 	return d_a_smooth_d_zbar;
+}
+
+/******************************************************************************
+calculate the second derivative of the deflection angle due to smooth matter
+with respect to zbar^2
+
+\param z -- complex image plane position
+\param kappastar -- convergence in point mass lenses
+\param rectangular -- whether the star field is rectangular or not
+\param corner -- complex number denoting the corner of the rectangular field of
+				 point mass lenses
+\param approx -- whether the smooth matter deflection is approximate or not
+\param taylor_smooth -- degree of the taylor series for alpha_smooth if
+						approximate
+
+\return d2_alpha_smooth_d_zbar2
+******************************************************************************/
+template <typename T>
+__device__ Complex<T> d2_alpha_smooth_d_zbar2(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx, int taylor_smooth)
+{
+	T PI = static_cast<T>(3.1415926535898);
+	Complex<T> d2_a_smooth_d_zbar2;
+
+	if (rectangular)
+	{
+		if (approx)
+		{
+			Complex<T> r1 = z.conj() / corner;
+			Complex<T> r2 = z.conj() / corner.conj();
+
+			Complex<T> s1;
+			Complex<T> s2;
+
+			for (int i = (taylor_smooth % 2 == 0 ? taylor_smooth : taylor_smooth - 1); i >= 2; i -= 2)
+			{
+				s1 += 1;
+				s2 += 1;
+
+				s1 *= (r1 * r1);
+				s2 *= (r2 * r2);
+			}
+			d2_a_smooth_d_zbar2 += s1 - s2;
+			d2_a_smooth_d_zbar2 /= z.conj();
+			d2_a_smooth_d_zbar2 *= 2;
+
+			if (taylor_smooth % 2 == 0)
+			{
+				d2_a_smooth_d_zbar2 += taylor_smooth / corner * r1.pow(taylor_smooth - 1) * 2;
+				d2_a_smooth_d_zbar2 -= taylor_smooth / corner.conj() * r2.pow(taylor_smooth - 1) * 2;
+			}
+
+			d2_a_smooth_d_zbar2 *= Complex<T>(0, -kappastar / PI);
+		}
+		else
+		{
+			Complex<T> c1 = corner.conj() - z.conj();
+			Complex<T> c2 = corner - z.conj();
+			Complex<T> c3 = -corner - z.conj();
+			Complex<T> c4 = -corner.conj() - z.conj();
+
+			d2_a_smooth_d_zbar2 = (-1 / c1 + 1 / c2 + 1 / c3 - 1 / c4);
+			d2_a_smooth_d_zbar2 *= Complex<T>(0, -kappastar / PI);
+		}
+	}
+
+	return d2_a_smooth_d_zbar2;
 }
 

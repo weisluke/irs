@@ -76,3 +76,41 @@ __device__ Complex<T> d_alpha_star_d_zbar(Complex<T> z, T theta, star<T>* stars,
 	return d_a_star_bar_d_z.conj();
 }
 
+/******************************************************************************
+calculate the second derivative of the deflection angle due to nearby stars for
+a node with respect to zbar^2
+
+\param z -- complex image plane position
+\param theta -- size of the Einstein radius of a unit mass point lens
+\param stars -- pointer to array of point mass lenses
+\param node -- node within which to calculate the deflection angle
+
+\return d2_alpha_star / d_zbar2 = 2 * theta^2 * sum(m_i / (z - z_i)^3_bar)
+******************************************************************************/
+template <typename T>
+__device__ Complex<T> d2_alpha_star_d_zbar2(Complex<T> z, T theta, star<T>* stars, TreeNode<T>* node)
+{
+	Complex<T> d2_a_star_bar_d_z2;
+
+	/******************************************************************************
+	2 * theta^2 * sum(m_i / (z - z_i)^3)
+	******************************************************************************/
+	for (int i = 0; i < node->numstars; i++)
+	{
+		d2_a_star_bar_d_z2 += stars[node->stars + i].mass /
+			((z - stars[node->stars + i].position) * (z - stars[node->stars + i].position) * (z - stars[node->stars + i].position));
+	}
+	for (int j = 0; j < node->numneighbors; j++)
+	{
+		TreeNode<T>* neighbor = node->neighbors[j];
+		for (int i = 0; i < neighbor->numstars; i++)
+		{
+			d2_a_star_bar_d_z2 += stars[neighbor->stars + i].mass /
+				((z - stars[neighbor->stars + i].position) * (z - stars[neighbor->stars + i].position) * (z - stars[neighbor->stars + i].position));
+		}
+	}
+	d2_a_star_bar_d_z2 *= (2 * theta * theta);
+
+	return d2_a_star_bar_d_z2.conj();
+}
+

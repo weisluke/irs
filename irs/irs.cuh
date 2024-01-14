@@ -871,7 +871,7 @@ private:
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 			t_elapsed = stopwatch.stop();
-			std::cout << "Done creating histograms. Elapsed time: " + std::to_string(t_elapsed) + " seconds.\n\n";
+			std::cout << "Done creating histograms. Elapsed time: " << t_elapsed << " seconds.\n\n";
 		}
 
 		/******************************************************************************

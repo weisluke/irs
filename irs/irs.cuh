@@ -336,7 +336,7 @@ private:
 		number density of rays in the lens plane
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens, 
-			num_rays_source / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source),
+			1.0 * num_rays_source * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source),
 			verbose);
 		
 		/******************************************************************************
@@ -797,12 +797,12 @@ private:
 			max_rays = *thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
 
 			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
-			T mu_min_actual = mu_ave * min_rays / num_rays_source;
+			T mu_min_actual = 1.0 * min_rays / num_rays_source;
 
 			if (mu_ave > 1 && mu_min_actual < mu_min_theor)
 			{
 				std::cerr << "Warning. Minimum magnification after shooting rays is less than the theoretical minimum.\n";
-				std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+				std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays << " / " << num_rays_source << " = " << mu_min_actual << "\n";
 				std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
 				std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 			}
@@ -812,12 +812,12 @@ private:
 				int min_rays_minima = *thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
 				int max_rays_minima = *thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
 				
-				mu_min_actual = mu_ave * min_rays_minima / num_rays_source;
+				mu_min_actual = 1.0 * min_rays_minima / num_rays_source;
 
 				if (mu_ave > 1 && mu_min_actual < mu_min_theor)
 				{
 					std::cerr << "Warning. Minimum positive parity magnification after shooting rays is less than the theoretical minimum.\n";
-					std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays_minima << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+					std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays_minima << " / " << num_rays_source << " = " << mu_min_actual << "\n";
 					std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
 					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 				}

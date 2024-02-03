@@ -26,7 +26,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-v", "--verbose",
 	"-k", "--kappa_tot",
 	"-y", "--shear",
-	"-s", "--smooth_fraction", //provided as a courtesy in this executable. not part of the irs class
+	"-s", "--smooth_fraction", //provided as a courtesy in this executable. not part of the irs or ipm classes
 	"-ks", "--kappa_star",
 	"-t", "--theta_e",
 	"-mf", "--mass_function",
@@ -119,8 +119,9 @@ void display_usage(char* name)
 		<< "                          Default value: " << irs.half_length_source << "\n"
 		<< "  -px,--pixels            Specify the number of pixels per side for the\n"
 		<< "                          magnification map. Default value: " << irs.num_pixels << "\n"
-		<< "  -nr,--num_rays          Specify the average number of rays per pixel.\n"
-		<< "                          Default value: " << irs.num_rays_source << "\n"
+		<< "  -nr,--num_rays          Specify the average number of rays per pixel in the\n"
+		<< "                          absence of lensing (i.e. the number of rays per pixel\n"
+		<< "                          equal to unit magnification). Default value: " << irs.num_rays_source << "\n"
 		<< "  -rs,--random_seed       Specify the random seed for star field generation.\n"
 		<< "                          A value of 0 is reserved for star input files.\n"
 		<< "  -wm,--write_maps        Specify whether to write magnification maps (1) or\n"

@@ -332,7 +332,7 @@ private:
 		number density of rays in the lens plane
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens,
-			num_rays_source / std::abs(mu_ave) * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source),
+			1.0 * num_rays_source * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source),
 			verbose);
 
 		/******************************************************************************

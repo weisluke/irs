@@ -13,7 +13,6 @@
 #include <curand_kernel.h>
 #include <thrust/execution_policy.h> //for thrust::device
 #include <thrust/extrema.h> // for thrust::min_element, thrust::max_element
-#include <thrust/reduce.h> // for thrust::reduce
 
 #include <algorithm> //for std::min and std::max
 #include <chrono> //for setting random seed with clock
@@ -133,8 +132,8 @@ private:
 	T* pixels_minima = nullptr;
 	T* pixels_saddles = nullptr;
 
-	int min_rays = std::numeric_limits<int>::max();
-	int max_rays = 0;
+	int min_mag = std::numeric_limits<int>::max();
+	int max_mag = 0;
 	int histogram_length = 0;
 	int* histogram = nullptr;
 	int* histogram_minima = nullptr;
@@ -793,45 +792,52 @@ private:
 			std::cout << "Creating histograms...\n";
 			stopwatch.start();
 
-			min_rays = *thrust::min_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
-			max_rays = *thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
+			/******************************************************************************
+			factor by which to multiply magnifications before casting to integers
+			in this way, the histogram will be of the magnification * 1000
+			(i.e., accurate to 3 decimals)
+			******************************************************************************/
+			int factor = 1000;
+
+			min_mag = static_cast<int>(*thrust::min_element(thrust::device, pixels, pixels + num_pixels * num_pixels) * factor + 0.5);
+			max_mag = static_cast<int>(*thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels) * factor + 0.5);
 
 			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
-			T mu_min_actual = mu_ave * min_rays / num_rays_source;
+			T mu_min_actual = 1.0 * min_mag / factor;
 
 			if (mu_ave > 1 && mu_min_actual < mu_min_theor)
 			{
-				std::cerr << "Warning. Minimum magnification after shooting rays is less than the theoretical minimum.\n";
-				std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+				std::cerr << "Warning. Minimum magnification after shooting cells is less than the theoretical minimum.\n";
+				std::cerr << "mu_min_actual = " << mu_min_actual << "\n";
 				std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
 				std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 			}
 
 			if (write_parities)
 			{
-				int min_rays_minima = *thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
-				int max_rays_minima = *thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
+				int min_mag_minima = static_cast<int>(*thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels) * factor + 0.5);
+				int max_mag_minima = static_cast<int>(*thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels) * factor + 0.5);
 
-				mu_min_actual = mu_ave * min_rays_minima / num_rays_source;
+				mu_min_actual = 1.0 * min_mag_minima / factor;
 
 				if (mu_ave > 1 && mu_min_actual < mu_min_theor)
 				{
-					std::cerr << "Warning. Minimum positive parity magnification after shooting rays is less than the theoretical minimum.\n";
-					std::cerr << "mu_min_actual = mu_ave * min_num_rays / mean_num_rays = " << mu_ave << " * " << min_rays_minima << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+					std::cerr << "Warning. Minimum positive parity magnification after shooting cells is less than the theoretical minimum.\n";
+					std::cerr << "mu_min_actual = " << mu_min_actual << "\n";
 					std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
 					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 				}
 
-				int min_rays_saddles = *thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);
-				int max_rays_saddles = *thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels);
+				int min_mag_saddles = static_cast<int>(*thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels) * factor + 0.5);
+				int max_mag_saddles = static_cast<int>(*thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels) * factor + 0.5);
 
-				min_rays = min_rays < min_rays_minima ? min_rays :
-					(min_rays_minima < min_rays_saddles ? min_rays_minima : min_rays_saddles);
-				max_rays = max_rays > max_rays_minima ? max_rays :
-					(max_rays_minima > max_rays_saddles ? max_rays_minima : max_rays_saddles);
+				min_mag = min_mag < min_mag_minima ? min_mag :
+					(min_mag_minima < min_mag_saddles ? min_mag_minima : min_mag_saddles);
+				max_mag = max_mag > max_mag_minima ? max_mag :
+					(max_mag_minima > max_mag_saddles ? max_mag_minima : max_mag_saddles);
 			}
 
-			histogram_length = max_rays - min_rays + 1;
+			histogram_length = max_mag - min_mag + 1;
 
 			cudaMallocManaged(&histogram, histogram_length * sizeof(int));
 			if (cuda_error("cudaMallocManaged(*histogram)", false, __FILE__, __LINE__)) return false;
@@ -861,13 +867,13 @@ private:
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
-			histogram_kernel<T> << <blocks, threads >> > (pixels, num_pixels, min_rays, histogram);
+			histogram_kernel<T> << <blocks, threads >> > (pixels, num_pixels, min_mag, histogram, factor);
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				histogram_kernel<T> << <blocks, threads >> > (pixels_minima, num_pixels, min_rays, histogram_minima);
+				histogram_kernel<T> << <blocks, threads >> > (pixels_minima, num_pixels, min_mag, histogram_minima, factor);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_kernel<T> << <blocks, threads >> > (pixels_saddles, num_pixels, min_rays, histogram_saddles);
+				histogram_kernel<T> << <blocks, threads >> > (pixels_saddles, num_pixels, min_mag, histogram_saddles, factor);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 			t_elapsed = stopwatch.stop();

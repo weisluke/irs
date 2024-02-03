@@ -6,7 +6,13 @@ Email: weisluke@alum.mit.edu
 ******************************************************************************/
 
 
+#if defined(IRS_map) && !defined(IPM_map)
 #include "irs.cuh"
+#elif !defined(IRS_map) && defined(IPM_map)
+#include "ipm.cuh"
+#else
+#error "Error. One, and only one, of IPM_map or IRS_map must be defined"
+#endif
 #include "util.cuh"
 
 #include <iostream>
@@ -14,7 +20,13 @@ Email: weisluke@alum.mit.edu
 
 
 using dtype = float; //type to be used throughout this program. int, float, or double
-IRS<dtype> irs;
+#if defined(IRS_map) && !defined(IPM_map)
+IRS<dtype> map_maker;
+#elif !defined(IRS_map) && defined(IPM_map)
+IPM<dtype> map_maker;
+#else
+#error "Error. One, and only one, of IPM_map or IRS_map must be defined"
+#endif
 
 /******************************************************************************
 constants to be used
@@ -54,7 +66,7 @@ const std::string OPTS[OPTS_SIZE] =
 default input option values
 ******************************************************************************/
 bool verbose = false;
-dtype smooth_fraction = static_cast<dtype>(1 - irs.kappa_star / irs.kappa_tot);
+dtype smooth_fraction = static_cast<dtype>(1 - map_maker.kappa_star / map_maker.kappa_tot);
 
 
 
@@ -78,60 +90,60 @@ void display_usage(char* name)
 		<< "Options:\n"
 		<< "  -h,--help               Show this help message.\n"
 		<< "  -v,--verbose            Toggle verbose output. Takes no option value.\n"
-		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << irs.kappa_tot << "\n"
-		<< "  -y,--shear              Specify the shear. Default value: " << irs.shear << "\n"
+		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << map_maker.kappa_tot << "\n"
+		<< "  -y,--shear              Specify the shear. Default value: " << map_maker.shear << "\n"
 		<< "  -s,--smooth_fraction    Specify the fraction of convergence due to smoothly\n"
 		<< "                          distributed mass. Default value: " << smooth_fraction << "\n"
 		<< "  -ks,--kappa_star        Specify the convergence in point mass lenses. If\n"
 		<< "                          provided, this overrides any supplied value for the\n"
-		<< "                          smooth fraction. Default value: " << irs.kappa_star << "\n"
+		<< "                          smooth fraction. Default value: " << map_maker.kappa_star << "\n"
 		<< "  -t,--theta_e            Specify the size of the Einstein radius of a unit\n"
-		<< "                          mass point lens in arbitrary units. Default value: " << irs.theta_e << "\n"
+		<< "                          mass point lens in arbitrary units. Default value: " << map_maker.theta_e << "\n"
 		<< "  -mf,--mass_function     Specify the mass function to use for the point mass\n"
 		<< "                          lenses. Options are: equal, uniform, Salpeter, and\n"
-		<< "                          Kroupa. Default value: " << irs.mass_function_str << "\n"
+		<< "                          Kroupa. Default value: " << map_maker.mass_function_str << "\n"
 		<< "  -ms,--m_solar           Specify the solar mass in arbitrary units.\n"
-		<< "                          Default value: " << irs.m_solar << "\n"
+		<< "                          Default value: " << map_maker.m_solar << "\n"
 		<< "  -ml,--m_lower           Specify the lower mass cutoff in solar mass units.\n"
-		<< "                          Default value: " << irs.m_lower << "\n"
+		<< "                          Default value: " << map_maker.m_lower << "\n"
 		<< "  -mh,--m_upper           Specify the upper mass cutoff in solar mass units.\n"
-		<< "                          Default value: " << irs.m_upper << "\n"
+		<< "                          Default value: " << map_maker.m_upper << "\n"
 		<< "  -ll,--light_loss        Allowed average fraction of light lost due to scatter\n"
 		<< "                          by the microlenses in the large deflection limit.\n"
-		<< "                          Default value: " << irs.light_loss << "\n"
+		<< "                          Default value: " << map_maker.light_loss << "\n"
 		<< "  -r,--rectangular        Specify whether the star field should be\n"
-		<< "                          rectangular (1) or circular (0). Default value: " << irs.rectangular << "\n"
+		<< "                          rectangular (1) or circular (0). Default value: " << map_maker.rectangular << "\n"
 		<< "  -a,--approx             Specify whether terms for alpha_smooth should be\n"
-		<< "                          approximated (1) or exact (0). Default value: " << irs.approx << "\n"
+		<< "                          approximated (1) or exact (0). Default value: " << map_maker.approx << "\n"
 		<< "  -ss,--safety_scale      Specify the multiplicative safety factor over the\n"
 		<< "                          shooting region to be used when generating the star\n"
-		<< "                          field. Default value: " << irs.safety_scale << "\n"
+		<< "                          field. Default value: " << map_maker.safety_scale << "\n"
 		<< "  -sf,--starfile          Specify the location of a binary file containing\n"
 		<< "                          values for num_stars, rectangular, corner, theta_e,\n"
 		<< "                          and the star positions and masses, in an order as\n"
 		<< "                          defined in this source code.\n"
 		<< "  -cy1, --center_y1       Specify the y1 position of the center of the\n"
-		<< "                          magnification map. Default value: " << irs.center_y.re << "\n"
+		<< "                          magnification map. Default value: " << map_maker.center_y.re << "\n"
 		<< "  -cy2, --center_y2       Specify the y2 position of the center of the\n"
-		<< "                          magnification map. Default value: " << irs.center_y.im << "\n"
+		<< "                          magnification map. Default value: " << map_maker.center_y.im << "\n"
 		<< "  -hl,--half_length       Specify the half-length of the square source plane\n"
 		<< "                          region to find the magnification in.\n"
-		<< "                          Default value: " << irs.half_length_source << "\n"
+		<< "                          Default value: " << map_maker.half_length_source << "\n"
 		<< "  -px,--pixels            Specify the number of pixels per side for the\n"
-		<< "                          magnification map. Default value: " << irs.num_pixels << "\n"
+		<< "                          magnification map. Default value: " << map_maker.num_pixels << "\n"
 		<< "  -nr,--num_rays          Specify the average number of rays per pixel in the\n"
 		<< "                          absence of lensing (i.e. the number of rays per pixel\n"
-		<< "                          equal to unit magnification). Default value: " << irs.num_rays_source << "\n"
+		<< "                          equal to unit magnification). Default value: " << map_maker.num_rays_source << "\n"
 		<< "  -rs,--random_seed       Specify the random seed for star field generation.\n"
 		<< "                          A value of 0 is reserved for star input files.\n"
 		<< "  -wm,--write_maps        Specify whether to write magnification maps (1) or\n"
-		<< "                          not (0). Default value: " << irs.write_maps << "\n"
+		<< "                          not (0). Default value: " << map_maker.write_maps << "\n"
 		<< "  -wp,--write_parities    Specify whether to write parity specific\n"
-		<< "                          magnification maps (1) or not (0). Default value: " << irs.write_parities << "\n"
+		<< "                          magnification maps (1) or not (0). Default value: " << map_maker.write_parities << "\n"
 		<< "  -wh,--write_histograms  Specify whether to write histograms (1) or not (0).\n"
-		<< "                          Default value: " << irs.write_histograms << "\n"
+		<< "                          Default value: " << map_maker.write_histograms << "\n"
 		<< "  -o,--outfile_prefix     Specify the prefix to be used in output file names.\n"
-		<< "                          Default value: " << irs.outfile_prefix << "\n";
+		<< "                          Default value: " << map_maker.outfile_prefix << "\n";
 }
 
 
@@ -207,7 +219,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("kappa_tot", irs.kappa_tot, std::stod(cmdinput), verbose);
+				set_param("kappa_tot", map_maker.kappa_tot, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -219,7 +231,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("shear", irs.shear, std::stod(cmdinput), verbose);
+				set_param("shear", map_maker.shear, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -265,7 +277,7 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				set_param("kappa_star", irs.kappa_star, std::stod(cmdinput), verbose);
+				set_param("kappa_star", map_maker.kappa_star, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -281,7 +293,7 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				set_param("theta_e", irs.theta_e, std::stod(cmdinput), verbose);
+				set_param("theta_e", map_maker.theta_e, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -295,13 +307,13 @@ int main(int argc, char* argv[])
 			{
 				continue;
 			}
-			set_param("mass_function", irs.mass_function_str, make_lowercase(cmdinput), verbose);
+			set_param("mass_function", map_maker.mass_function_str, make_lowercase(cmdinput), verbose);
 		}
 		else if (argv[i] == std::string("-ms") || argv[i] == std::string("--m_solar"))
 		{
 			try
 			{
-				set_param("m_solar", irs.m_solar, std::stod(cmdinput), verbose);
+				set_param("m_solar", map_maker.m_solar, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -317,7 +329,7 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				set_param("m_lower", irs.m_lower, std::stod(cmdinput), verbose);
+				set_param("m_lower", map_maker.m_lower, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -333,7 +345,7 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				set_param("m_upper", irs.m_upper, std::stod(cmdinput), verbose);
+				set_param("m_upper", map_maker.m_upper, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -345,7 +357,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("light_loss", irs.light_loss, std::stod(cmdinput), verbose);
+				set_param("light_loss", map_maker.light_loss, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -361,7 +373,7 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				set_param("rectangular", irs.rectangular, std::stoi(cmdinput), verbose);
+				set_param("rectangular", map_maker.rectangular, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -373,7 +385,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("approx", irs.approx, std::stoi(cmdinput), verbose);
+				set_param("approx", map_maker.approx, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -385,7 +397,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("safety_scale", irs.safety_scale, std::stod(cmdinput), verbose);
+				set_param("safety_scale", map_maker.safety_scale, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -395,13 +407,13 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-sf") || argv[i] == std::string("--starfile"))
 		{
-			set_param("starfile", irs.starfile, cmdinput, verbose);
+			set_param("starfile", map_maker.starfile, cmdinput, verbose);
 		}
 		else if (argv[i] == std::string("-cy1") || argv[i] == std::string("--center_y1"))
 		{
 			try
 			{
-				set_param("center_y1", irs.center_y.re, std::stod(cmdinput), verbose);
+				set_param("center_y1", map_maker.center_y.re, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -413,7 +425,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("center_y2", irs.center_y.im, std::stod(cmdinput), verbose);
+				set_param("center_y2", map_maker.center_y.im, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -425,7 +437,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("half_length", irs.half_length_source, std::stod(cmdinput), verbose);
+				set_param("half_length", map_maker.half_length_source, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -437,7 +449,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("num_pixels", irs.num_pixels, std::stoi(cmdinput), verbose);
+				set_param("num_pixels", map_maker.num_pixels, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -449,7 +461,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("num_rays", irs.num_rays_source, std::stoi(cmdinput), verbose);
+				set_param("num_rays", map_maker.num_rays_source, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -465,7 +477,7 @@ int main(int argc, char* argv[])
 			}
 			try
 			{
-				set_param("random_seed", irs.random_seed, std::stoi(cmdinput), verbose);
+				set_param("random_seed", map_maker.random_seed, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -477,7 +489,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("write_maps", irs.write_maps, std::stoi(cmdinput), verbose);
+				set_param("write_maps", map_maker.write_maps, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -489,7 +501,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("write_parities", irs.write_parities, std::stoi(cmdinput), verbose);
+				set_param("write_parities", map_maker.write_parities, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -501,7 +513,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("write_histograms", irs.write_histograms, std::stoi(cmdinput), verbose);
+				set_param("write_histograms", map_maker.write_histograms, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -511,14 +523,14 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-o") || argv[i] == std::string("--outfile_prefix"))
 		{
-			set_param("outfile_prefix", irs.outfile_prefix, cmdinput, verbose);
+			set_param("outfile_prefix", map_maker.outfile_prefix, cmdinput, verbose);
 		}
 	}
 
 	if (!(cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file")) &&
 		!(cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star")))
 	{
-		set_param("kappa_star", irs.kappa_star, (1 - smooth_fraction) * irs.kappa_tot, verbose);
+		set_param("kappa_star", map_maker.kappa_star, (1 - smooth_fraction) * map_maker.kappa_tot, verbose);
 	}
 
 	std::cout << "\n";
@@ -561,8 +573,8 @@ int main(int argc, char* argv[])
 	/******************************************************************************
 	run and save files
 	******************************************************************************/
-	if (!irs.run(verbose)) return -1;
-	if (!irs.save(verbose)) return -1;
+	if (!map_maker.run(verbose)) return -1;
+	if (!map_maker.save(verbose)) return -1;
 
 
 	std::cout << "Done.\n";

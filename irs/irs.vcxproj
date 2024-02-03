@@ -17,9 +17,12 @@
     <ClInclude Include="binomial_coefficients.cuh" />
     <ClInclude Include="complex.cuh" />
     <ClInclude Include="fmm.cuh" />
+    <ClInclude Include="ipm.cuh" />
+    <ClInclude Include="ipm_functions.cuh" />
     <ClInclude Include="irs_functions.cuh" />
     <ClInclude Include="mass_function.cuh" />
     <ClInclude Include="irs.cuh" />
+    <ClInclude Include="polygon.cuh" />
     <ClInclude Include="stopwatch.hpp" />
     <ClInclude Include="tree_node.cuh" />
     <ClInclude Include="util.cuh" />

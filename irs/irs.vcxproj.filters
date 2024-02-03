@@ -53,5 +53,14 @@
     <ClInclude Include="alpha_star.cuh">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="ipm.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="ipm_functions.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="polygon.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

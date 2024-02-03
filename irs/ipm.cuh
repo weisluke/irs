@@ -980,7 +980,7 @@ private:
 			std::cout << "Writing magnification histograms...\n";
 
 			fname = outfile_prefix + "irs_numrays_numpixels.txt";
-			if (!write_histogram<int>(histogram, histogram_length, min_rays, fname))
+			if (!write_histogram<int>(histogram, histogram_length, min_mag, fname))
 			{
 				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 				return false;
@@ -989,7 +989,7 @@ private:
 			if (write_parities)
 			{
 				fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
-				if (!write_histogram<int>(histogram_minima, histogram_length, min_rays, fname))
+				if (!write_histogram<int>(histogram_minima, histogram_length, min_mag, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;
@@ -997,7 +997,7 @@ private:
 				std::cout << "Done writing magnification histogram to file " << fname << "\n";
 
 				fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
-				if (!write_histogram<int>(histogram_saddles, histogram_length, min_rays, fname))
+				if (!write_histogram<int>(histogram_saddles, histogram_length, min_mag, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;

@@ -479,13 +479,13 @@ private:
 		std::cout << "Initializing pixel values...\n";
 		stopwatch.start();
 
-		initialize_array_kernel<T> << <blocks, threads >> > (pixels, num_pixels, num_pixels);
+		initialize_array_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, num_pixels);
 		if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		if (write_parities)
 		{
-			initialize_array_kernel<T> << <blocks, threads >> > (pixels_minima, num_pixels, num_pixels);
+			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, num_pixels);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
-			initialize_array_kernel<T> << <blocks, threads >> > (pixels_saddles, num_pixels, num_pixels);
+			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, num_pixels);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		}
 
@@ -520,9 +520,9 @@ private:
 			/******************************************************************************
 			generate random star field if no star file has been given
 			******************************************************************************/
-			initialize_curand_states_kernel<T> << <blocks, threads >> > (states, num_stars, random_seed);
+			initialize_curand_states_kernel<T> <<<blocks, threads>>> (states, num_stars, random_seed);
 			if (cuda_error("initialize_curand_states_kernel", true, __FILE__, __LINE__)) return false;
-			generate_star_field_kernel<T> << <blocks, threads >> > (states, stars, num_stars, rectangular, corner, mass_function, m_solar, m_lower, m_upper);
+			generate_star_field_kernel<T> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, mass_function, m_solar, m_lower, m_upper);
 			if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return false;
 
 			t_elapsed = stopwatch.stop();
@@ -613,7 +613,7 @@ private:
 			*num_nonempty_nodes = 0;
 
 			set_blocks(threads, blocks, num_nodes[tree_levels]);
-			treenode::get_node_star_info_kernel<T> << <blocks, threads >> > (tree[tree_levels], num_nodes[tree_levels],
+			treenode::get_node_star_info_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels],
 				num_nonempty_nodes, min_num_stars_in_level, max_num_stars_in_level);
 			if (cuda_error("get_node_star_info_kernel", true, __FILE__, __LINE__)) return false;
 
@@ -633,19 +633,19 @@ private:
 				print_verbose("Creating children...\n", verbose);
 				(*num_nonempty_nodes)--; //subtract one since value is size of array, and instead needs to be the first allocatable element
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
-				treenode::create_children_kernel<T> << <blocks, threads >> > (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
+				treenode::create_children_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
 				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
 
 				print_verbose("Sorting stars...\n", verbose);
 				set_blocks(threads, blocks, 512 * num_nodes[tree_levels]);
-				treenode::sort_stars_kernel<T> << <blocks, threads >> > (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
+				treenode::sort_stars_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
 				if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return false;
 
 				tree_levels++;
 
 				print_verbose("Setting neighbors...\n", verbose);
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
-				treenode::set_neighbors_kernel<T> << <blocks, threads >> > (tree[tree_levels], num_nodes[tree_levels]);
+				treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels]);
 				if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
 			}
 		} while (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT);
@@ -711,13 +711,13 @@ private:
 
 		set_threads(threads, 16, expansion_order + 1);
 		set_blocks(threads, blocks, num_nodes[tree_levels], (expansion_order + 1));
-		fmm::calculate_multipole_coeffs_kernel<T> << <blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>) >> > (tree[tree_levels], num_nodes[tree_levels], expansion_order, stars);
+		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[tree_levels], num_nodes[tree_levels], expansion_order, stars);
 
 		set_threads(threads, 4, expansion_order + 1, 4);
 		for (int i = tree_levels - 1; i >= 0; i--)
 		{
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), 4);
-			fmm::calculate_M2M_coeffs_kernel<T> << <blocks, threads, 4 * 4 * (expansion_order + 1) * sizeof(Complex<T>) >> > (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 
 		/******************************************************************************
@@ -727,11 +727,11 @@ private:
 		{
 			set_threads(threads, 16, expansion_order + 1);
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1));
-			fmm::calculate_L2L_coeffs_kernel<T> << <blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>) >> > (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 
 			set_threads(threads, 1, expansion_order + 1, 27);
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), 27);
-			fmm::calculate_M2L_coeffs_kernel<T> << <blocks, threads, 1 * 27 * (expansion_order + 1) * sizeof(Complex<T>) >> > (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 1 * 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 
@@ -761,7 +761,7 @@ private:
 		******************************************************************************/
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> << <blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>) >> > (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
+		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
 			rectangular, corner, approx, taylor_smooth, center_x, half_length_image, num_ray_blocks,
 			center_y, half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
@@ -853,13 +853,13 @@ private:
 			set_threads(threads, 512);
 			set_blocks(threads, blocks, histogram_length);
 
-			initialize_array_kernel<int> << <blocks, threads >> > (histogram, 1, histogram_length);
+			initialize_array_kernel<int> <<<blocks, threads>>> (histogram, 1, histogram_length);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				initialize_array_kernel<int> << <blocks, threads >> > (histogram_minima, 1, histogram_length);
+				initialize_array_kernel<int> <<<blocks, threads>>> (histogram_minima, 1, histogram_length);
 				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
-				initialize_array_kernel<int> << <blocks, threads >> > (histogram_saddles, 1, histogram_length);
+				initialize_array_kernel<int> <<<blocks, threads>>> (histogram_saddles, 1, histogram_length);
 				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 			}
 
@@ -867,13 +867,13 @@ private:
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
-			histogram_kernel<T> << <blocks, threads >> > (pixels, num_pixels, min_mag, histogram, factor);
+			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_mag, histogram, factor);
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				histogram_kernel<T> << <blocks, threads >> > (pixels_minima, num_pixels, min_mag, histogram_minima, factor);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_mag, histogram_minima, factor);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_kernel<T> << <blocks, threads >> > (pixels_saddles, num_pixels, min_mag, histogram_saddles, factor);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_mag, histogram_saddles, factor);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 			t_elapsed = stopwatch.stop();
@@ -963,7 +963,7 @@ private:
 
 
 		std::cout << "Writing star info...\n";
-		fname = outfile_prefix + "irs_stars" + outfile_type;
+		fname = outfile_prefix + "ipm_stars" + outfile_type;
 		if (!write_star_file<T>(num_stars, rectangular, corner, theta_e, stars, fname))
 		{
 			std::cerr << "Error. Unable to write star info to file " << fname << "\n";
@@ -979,7 +979,7 @@ private:
 		{
 			std::cout << "Writing magnification histograms...\n";
 
-			fname = outfile_prefix + "irs_numrays_numpixels.txt";
+			fname = outfile_prefix + "ipm_mags_numpixels.txt";
 			if (!write_histogram<int>(histogram, histogram_length, min_mag, fname))
 			{
 				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
@@ -988,7 +988,7 @@ private:
 			std::cout << "Done writing magnification histogram to file " << fname << "\n";
 			if (write_parities)
 			{
-				fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
+				fname = outfile_prefix + "ipm_mags_numpixels_minima.txt";
 				if (!write_histogram<int>(histogram_minima, histogram_length, min_mag, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
@@ -996,7 +996,7 @@ private:
 				}
 				std::cout << "Done writing magnification histogram to file " << fname << "\n";
 
-				fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
+				fname = outfile_prefix + "ipm_mags_numpixels_saddles.txt";
 				if (!write_histogram<int>(histogram_saddles, histogram_length, min_mag, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
@@ -1015,7 +1015,7 @@ private:
 		{
 			std::cout << "Writing magnifications...\n";
 
-			fname = outfile_prefix + "irs_magnifications" + outfile_type;
+			fname = outfile_prefix + "ipm_magnifications" + outfile_type;
 			if (!write_array<T>(pixels, num_pixels, num_pixels, fname))
 			{
 				std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
@@ -1024,7 +1024,7 @@ private:
 			std::cout << "Done writing magnifications to file " << fname << "\n";
 			if (write_parities)
 			{
-				fname = outfile_prefix + "irs_magnifications_minima" + outfile_type;
+				fname = outfile_prefix + "ipm_magnifications_minima" + outfile_type;
 				if (!write_array<T>(pixels_minima, num_pixels, num_pixels, fname))
 				{
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
@@ -1032,7 +1032,7 @@ private:
 				}
 				std::cout << "Done writing magnifications to file " << fname << "\n";
 
-				fname = outfile_prefix + "irs_magnifications_saddles" + outfile_type;
+				fname = outfile_prefix + "ipm_magnifications_saddles" + outfile_type;
 				if (!write_array<T>(pixels_saddles, num_pixels, num_pixels, fname))
 				{
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";

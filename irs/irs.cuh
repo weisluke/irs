@@ -847,13 +847,13 @@ private:
 			set_threads(threads, 512);
 			set_blocks(threads, blocks, histogram_length);
 
-			initialize_array_kernel<T> <<<blocks, threads>>> (histogram, 1, histogram_length);
+			initialize_array_kernel<int> <<<blocks, threads>>> (histogram, 1, histogram_length);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				initialize_array_kernel<T> <<<blocks, threads>>> (histogram_minima, 1, histogram_length);
+				initialize_array_kernel<int> <<<blocks, threads>>> (histogram_minima, 1, histogram_length);
 				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
-				initialize_array_kernel<T> <<<blocks, threads>>> (histogram_saddles, 1, histogram_length);
+				initialize_array_kernel<int> <<<blocks, threads>>> (histogram_saddles, 1, histogram_length);
 				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 			}
 
@@ -977,7 +977,7 @@ private:
 			std::cout << "Writing magnification histograms...\n";
 
 			fname = outfile_prefix + "irs_numrays_numpixels.txt";
-			if (!write_histogram<T>(histogram, histogram_length, min_rays, fname))
+			if (!write_histogram<int>(histogram, histogram_length, min_rays, fname))
 			{
 				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 				return false;
@@ -986,7 +986,7 @@ private:
 			if (write_parities)
 			{
 				fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
-				if (!write_histogram<T>(histogram_minima, histogram_length, min_rays, fname))
+				if (!write_histogram<int>(histogram_minima, histogram_length, min_rays, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;
@@ -994,7 +994,7 @@ private:
 				std::cout << "Done writing magnification histogram to file " << fname << "\n";
 
 				fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
-				if (!write_histogram<T>(histogram_saddles, histogram_length, min_rays, fname))
+				if (!write_histogram<int>(histogram_saddles, histogram_length, min_rays, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;

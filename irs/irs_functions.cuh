@@ -267,7 +267,7 @@ initialize array of values to 0
 \param ncols -- number of columns in array
 ******************************************************************************/
 template <typename T>
-__global__ void initialize_array_kernel(int* vals, int nrows, int ncols)
+__global__ void initialize_array_kernel(T* vals, int nrows, int ncols)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -291,9 +291,11 @@ calculate the histogram of rays for the pixel array
 \param npixels -- number of pixels for one side of the receiving square
 \param minrays -- minimum number of rays
 \param histogram -- pointer to histogram
+\param factor -- factor by which to multiply the pixel values before casting
+				 to integers for the histogram
 ******************************************************************************/
 template <typename T>
-__global__ void histogram_kernel(int* pixels, int npixels, int minrays, int* histogram)
+__global__ void histogram_kernel(T* pixels, int npixels, int minrays, int* histogram, int factor = 1)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -305,7 +307,7 @@ __global__ void histogram_kernel(int* pixels, int npixels, int minrays, int* his
 	{
 		for (int j = y_index; j < npixels; j += y_stride)
 		{
-			atomicAdd(&histogram[pixels[j * npixels + i] - minrays], 1);
+			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels + i] * factor + 0.5 - minrays)], 1);
 		}
 	}
 }
@@ -359,7 +361,7 @@ write histogram
 \return bool -- true if file is successfully written, false if not
 ******************************************************************************/
 template <typename T>
-bool write_histogram(int* histogram, int n, int minrays, const std::string& fname)
+bool write_histogram(T* histogram, int n, int minrays, const std::string& fname)
 {
 	std::filesystem::path fpath = fname;
 

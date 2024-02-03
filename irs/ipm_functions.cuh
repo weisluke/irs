@@ -4,6 +4,7 @@
 #include "alpha_smooth.cuh"
 #include "alpha_star.cuh"
 #include "complex.cuh"
+#include "polygon.cuh"
 #include "star.cuh"
 #include "tree_node.cuh"
 #include "util.cuh"
@@ -132,7 +133,7 @@ template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks,
-	Complex<T> center_y, T hly, int* pixmin, int* pixsad, int* pixels, int npixels, int* percentage)
+	Complex<T> center_y, T hly, T* pixmin, T* pixsad, T* pixels, int npixels, int* percentage)
 {
 	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 
@@ -186,63 +187,93 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			{
 				for (int i = threadIdx.x; i < num_rays; i += blockDim.x)
 				{
-					z = block_center - block_half_length + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
-					w = complex_image_to_source<T>(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
+					Complex<T> x[4];
 
-					/******************************************************************************
-					if the ray location is the same as a star position, we will have a nan returned
-					******************************************************************************/
-					if (isnan(w.re) || isnan(w.im))
+					Complex<T> z = block_center - block_half_length + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
+
+					x[0] = z + ray_half_sep;
+					x[1] = z - ray_half_sep.conj();
+					x[2] = z - ray_half_sep;
+					x[3] = z + ray_half_sep.conj();
+
+					Complex<T> y[4];
+#pragma unroll
+					for (int a = 0; a < 4; a++)
 					{
-						continue;
-					}
-
-					/******************************************************************************
-					shift ray position relative to center
-					******************************************************************************/
-					w -= center_y;
-
-					/******************************************************************************
-					if the ray landed outside the receiving region
-					******************************************************************************/
-					if (w.re < -hly || w.re > hly || w.im < -hly || w.im > hly)
-					{
-						continue;
-					}
-
-					ypix = point_to_pixel<int, T>(w, hly, npixels);
-
-					/******************************************************************************
-					account for possible rounding issues when converting to integer pixels
-					******************************************************************************/
-					if (ypix.re == npixels)
-					{
-						ypix.re--;
-					}
-					if (ypix.im == npixels)
-					{
-						ypix.im--;
-					}
-
-					/******************************************************************************
-					reverse y coordinate so array forms image in correct orientation
-					******************************************************************************/
-					ypix.im = npixels - 1 - ypix.im;
-
-					if (pixmin && pixsad)
-					{
-						T mu = magnification<T>(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
-						if (mu >= 0)
+						y[a] = complex_image_to_source(x[a], kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
+						/******************************************************************************
+						if the ray location is the same as a star position, we will have a nan returned
+						******************************************************************************/
+						if (isnan(y[a].re) || isnan(y[a].im))
 						{
-							atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
+							break;
+							continue;
+						}
+						/******************************************************************************
+						shift ray position relative to center
+						******************************************************************************/
+						y[a] -= center_y;
+					}
+
+#pragma unroll
+					for (int a = 0; a < 4; a++)
+					{
+						y[a] = point_to_pixel<T, T>(y[a], hly, npixels);
+						/******************************************************************************
+						reverse y coordinate so array forms image in correct orientation
+						******************************************************************************/
+						y[a].im = npixels - y[a].im;
+					}
+
+					Polygon<T> y_poly;
+
+					T image_plane_area = 2 * ray_half_sep.re * ray_half_sep.im * npixels * npixels / (2 * hly * 2 * hly);
+
+					y_poly.points[0] = y[0];
+					y_poly.points[1] = y[1];
+					y_poly.points[2] = y[2];
+					y_poly.numsides = 3;
+					if (fabs(y_poly.area()) < 1000 * image_plane_area)
+					{
+						if (pixmin && pixsad)
+						{
+							if (y_poly.area() < 0)
+							{
+								y_poly.allocate_area_among_pixels(image_plane_area, pixmin, npixels);
+							}
+							else
+							{
+								y_poly.allocate_area_among_pixels(image_plane_area, pixsad, npixels);
+							}
 						}
 						else
 						{
-							atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
+							y_poly.allocate_area_among_pixels(image_plane_area, pixels, npixels);
 						}
 					}
-					atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
 
+					y_poly.points[0] = y[2];
+					y_poly.points[1] = y[3];
+					y_poly.points[2] = y[0];
+					y_poly.numsides = 3;
+					if (fabs(y_poly.area()) < 1000 * image_plane_area)
+					{
+						if (pixmin && pixsad)
+						{
+							if (y_poly.area() < 0)
+							{
+								y_poly.allocate_area_among_pixels(image_plane_area, pixmin, npixels);
+							}
+							else
+							{
+								y_poly.allocate_area_among_pixels(image_plane_area, pixsad, npixels);
+							}
+						}
+						else
+						{
+							y_poly.allocate_area_among_pixels(image_plane_area, pixels, npixels);
+						}
+					}
 				}
 			}
 			__syncthreads();
@@ -267,7 +298,7 @@ initialize array of values to 0
 \param ncols -- number of columns in array
 ******************************************************************************/
 template <typename T>
-__global__ void initialize_array_kernel(int* vals, int nrows, int ncols)
+__global__ void initialize_array_kernel(T* vals, int nrows, int ncols)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -285,15 +316,44 @@ __global__ void initialize_array_kernel(int* vals, int nrows, int ncols)
 }
 
 /******************************************************************************
+add two arrays together
+
+\param arr1 -- pointer to array of values
+\param arr2 -- pointer to array of values
+\param arr3 -- pointer to array of sum
+\param nrows -- number of rows in array
+\param ncols -- number of columns in array
+******************************************************************************/
+template <typename T>
+__global__ void add_arrays_kernel(T* arr1, T* arr2, T* arr3, int nrows, int ncols)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int y_stride = blockDim.y * gridDim.y;
+
+	for (int i = x_index; i < ncols; i += x_stride)
+	{
+		for (int j = y_index; j < nrows; j += y_stride)
+		{
+			arr3[j * ncols + i] = arr1[j * ncols + i] + arr2[j * ncols + i];
+		}
+	}
+}
+
+/******************************************************************************
 calculate the histogram of rays for the pixel array
 
 \param pixels -- pointer to array of pixels
 \param npixels -- number of pixels for one side of the receiving square
 \param minrays -- minimum number of rays
 \param histogram -- pointer to histogram
+\param factor -- factor by which to multiply the pixel values before casting
+                 to integers for the histogram
 ******************************************************************************/
 template <typename T>
-__global__ void histogram_kernel(int* pixels, int npixels, int minrays, int* histogram)
+__global__ void histogram_kernel(T* pixels, int npixels, int minrays, int* histogram, int factor = 1)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -305,7 +365,7 @@ __global__ void histogram_kernel(int* pixels, int npixels, int minrays, int* his
 	{
 		for (int j = y_index; j < npixels; j += y_stride)
 		{
-			atomicAdd(&histogram[pixels[j * npixels + i] - minrays], 1);
+			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels + i] * factor + 0.5 - minrays)], 1);
 		}
 	}
 }
@@ -359,7 +419,7 @@ write histogram
 \return bool -- true if file is successfully written, false if not
 ******************************************************************************/
 template <typename T>
-bool write_histogram(int* histogram, int n, int minrays, const std::string& fname)
+bool write_histogram(T* histogram, int n, int minrays, const std::string& fname)
 {
 	std::filesystem::path fpath = fname;
 

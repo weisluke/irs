@@ -2,6 +2,7 @@
 
 #include <algorithm> //for std::find, std::transform
 #include <cctype> //for std::tolower
+#include <cmath> //for std::cbrt
 #include <iostream>
 #include <string>
 
@@ -196,9 +197,33 @@ set the number of threads per block for the kernel
 ******************************************************************************/
 void set_threads(dim3& threads, int x = 1, int y = 1, int z = 1)
 {
+	cudaDeviceProp prop;
+	int device;
+	cudaGetDevice(&device);
+	cudaGetDeviceProperties(&prop, device);
+
 	threads.x = x;
 	threads.y = y;
 	threads.z = z;
+
+	if (threads.x * threads.y * threads.z > prop.maxThreadsPerBlock)
+	{
+		int t_x;
+		int t_y;
+		int t_z;
+		do
+		{
+			t_x = threads.x;
+			t_y = threads.y;
+			t_z = threads.z;
+
+			double factor = std::cbrt(1.0 * prop.maxThreadsPerBlock / (t_x * t_y * t_z));
+
+			threads.x = static_cast<int>(factor * t_x) + 1;
+			threads.y = static_cast<int>(factor * t_y) + 1;
+			threads.z = static_cast<int>(factor * t_z) + 1;
+		} while (threads.x != t_x || threads.y != t_y || threads.z != t_z);
+	}
 }
 
 /******************************************************************************
@@ -212,9 +237,33 @@ set the number of blocks for the kernel
 ******************************************************************************/
 void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
 {
+	cudaDeviceProp prop;
+	int device;
+	cudaGetDevice(&device);
+	cudaGetDeviceProperties(&prop, device);
+
 	blocks.x = (x - 1) / threads.x + 1;
 	blocks.y = (y - 1) / threads.y + 1;
 	blocks.z = (z - 1) / threads.z + 1;
+
+	if (blocks.x * blocks.y * blocks.z > prop.multiProcessorCount)
+	{
+		int b_x;
+		int b_y;
+		int b_z;
+		do
+		{
+			b_x = blocks.x;
+			b_y = blocks.y;
+			b_z = blocks.z;
+
+			double factor = std::cbrt(1.0 * prop.multiProcessorCount / (b_x * b_y * b_z));
+
+			blocks.x = static_cast<int>(factor * b_x) + 1;
+			blocks.y = static_cast<int>(factor * b_y) + 1;
+			blocks.z = static_cast<int>(factor * b_z) + 1;
+		} while (blocks.x != b_x || blocks.y != b_y || blocks.z != b_z);
+	}
 }
 
 /******************************************************************************
@@ -246,6 +295,6 @@ void show_device_info(int num, cudaDeviceProp& prop)
 	std::cout << "  Maximum (x, y, z) dimensions of grid: ("
 		<< prop.maxGridSize[0] << ", "
 		<< prop.maxGridSize[1] << ", "
-		<< prop.maxGridSize[2] << ")\n";
+		<< prop.maxGridSize[2] << ")\n\n";
 }
 

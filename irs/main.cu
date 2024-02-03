@@ -546,7 +546,6 @@ int main(int argc, char* argv[])
 			if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return -1;
 
 			show_device_info(i, prop);
-			std::cout << "\n";
 		}
 	}
 

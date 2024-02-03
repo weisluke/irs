@@ -483,13 +483,13 @@ private:
 		std::cout << "Initializing pixel values...\n";
 		stopwatch.start();
 
-		initialize_array_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, num_pixels);
+		initialize_array_kernel<int> <<<blocks, threads>>> (pixels, num_pixels, num_pixels);
 		if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		if (write_parities)
 		{
-			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, num_pixels);
+			initialize_array_kernel<int> <<<blocks, threads>>> (pixels_minima, num_pixels, num_pixels);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
-			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, num_pixels);
+			initialize_array_kernel<int> <<<blocks, threads>>> (pixels_saddles, num_pixels, num_pixels);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		}
 
@@ -861,13 +861,13 @@ private:
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels, num_pixels);
 
-			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_rays, histogram);
+			histogram_kernel<int> <<<blocks, threads>>> (pixels, num_pixels, min_rays, histogram);
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, histogram_minima);
+				histogram_kernel<int> <<<blocks, threads>>> (pixels_minima, num_pixels, min_rays, histogram_minima);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, histogram_saddles);
+				histogram_kernel<int> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_rays, histogram_saddles);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 			t_elapsed = stopwatch.stop();

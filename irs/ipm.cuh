@@ -899,7 +899,7 @@ private:
 
 
 		std::cout << "Writing parameter info...\n";
-		fname = outfile_prefix + "irs_parameter_info.txt";
+		fname = outfile_prefix + "ipm_parameter_info.txt";
 		outfile.open(fname);
 		if (!outfile.is_open())
 		{

@@ -6,10 +6,10 @@ Email: weisluke@alum.mit.edu
 ******************************************************************************/
 
 
-#if defined(IRS_map) && !defined(IPM_map)
-#include "irs.cuh"
-#elif !defined(IRS_map) && defined(IPM_map)
+#if defined(IPM_map) && !defined(IRS_map)
 #include "ipm.cuh"
+#elif !defined(IPM_map) && defined(IRS_map)
+#include "irs.cuh"
 #else
 #error "Error. One, and only one, of IPM_map or IRS_map must be defined"
 #endif
@@ -20,10 +20,10 @@ Email: weisluke@alum.mit.edu
 
 
 using dtype = float; //type to be used throughout this program. int, float, or double
-#if defined(IRS_map) && !defined(IPM_map)
-IRS<dtype> map_maker;
-#elif !defined(IRS_map) && defined(IPM_map)
+#if defined(IPM_map) && !defined(IRS_map)
 IPM<dtype> map_maker;
+#elif !defined(IPM_map) && defined(IRS_map)
+IRS<dtype> map_maker;
 #else
 #error "Error. One, and only one, of IPM_map or IRS_map must be defined"
 #endif

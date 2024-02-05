@@ -130,7 +130,7 @@ shoot rays from image plane to source plane
 \param npixels -- number of pixels for one side of the receiving square
 ******************************************************************************/
 template <typename T>
-__global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor,
+__global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks,
 	Complex<T> center_y, T hly, T* pixmin, T* pixsad, T* pixels, int npixels, int* percentage)

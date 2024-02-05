@@ -759,14 +759,14 @@ private:
 		/******************************************************************************
 		shoot rays and calculate time taken in seconds
 		******************************************************************************/
-		std::cout << "Shooting rays...\n";
+		std::cout << "Shooting cells...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
+		shoot_cells_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
 			rectangular, corner, approx, taylor_smooth, center_x, half_length_image, num_ray_blocks,
 			center_y, half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();
-		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
+		std::cout << "\nDone shooting cells. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
 
 		if (write_parities)
 		{

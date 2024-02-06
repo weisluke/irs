@@ -93,12 +93,12 @@ complex point in the source plane converted to pixel position
 \param npixels -- number of pixels per side for the source plane receiving
 				  region
 
-\return (w + hly * (1 + i)) * npixels / (2 * hly)
+\return (w + hly) * npixels / (2 * hly)
 ******************************************************************************/
 template <typename T, typename U>
-__device__ Complex<T> point_to_pixel(Complex<U> w, U hly, int npixels)
+__device__ Complex<T> point_to_pixel(Complex<U> w, Complex<U> hly, int npixels)
 {
-	Complex<T> result((w + hly * Complex<U>(1, 1)) * npixels / (2 * hly));
+	Complex<T> result((w + hly).re * npixels / (2 * hly.re), (w + hly).im * npixels / (2 * hly.im));
 	return result;
 }
 
@@ -133,7 +133,7 @@ template <typename T>
 __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks,
-	Complex<T> center_y, T hly, T* pixmin, T* pixsad, T* pixels, int npixels, int* percentage)
+	Complex<T> center_y, Complex<T> hly, T* pixmin, T* pixsad, T* pixels, int npixels, int* percentage)
 {
 	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 
@@ -227,7 +227,7 @@ __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T 
 
 					Polygon<T> y_poly;
 
-					T image_plane_area = 2 * ray_half_sep.re * ray_half_sep.im * npixels * npixels / (2 * hly * 2 * hly);
+					T image_plane_area = 2 * ray_half_sep.re * ray_half_sep.im * npixels * npixels / (2 * hly.re * 2 * hly.im);
 
 					y_poly.points[0] = y[0];
 					y_poly.points[1] = y[1];

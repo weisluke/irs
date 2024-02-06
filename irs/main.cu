@@ -31,7 +31,7 @@ IRS<dtype> map_maker;
 /******************************************************************************
 constants to be used
 ******************************************************************************/
-constexpr int OPTS_SIZE = 2 * 26;
+constexpr int OPTS_SIZE = 2 * 27;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -52,7 +52,8 @@ const std::string OPTS[OPTS_SIZE] =
 	"-sf", "--starfile",
 	"-cy1", "--center_y1",
 	"-cy2", "--center_y2",
-	"-hl", "--half_length",
+	"-hly1", "--half_length_y1",
+	"-hly2", "--half_length_y2",
 	"-px", "--pixels",
 	"-nr", "--num_rays",
 	"-rs", "--random_seed",
@@ -88,62 +89,62 @@ void display_usage(char* name)
 	std::cout
 		<< "                                                                               \n"
 		<< "Options:\n"
-		<< "  -h,--help               Show this help message.\n"
-		<< "  -v,--verbose            Toggle verbose output. Takes no option value.\n"
-		<< "  -k,--kappa_tot          Specify the total convergence. Default value: " << map_maker.kappa_tot << "\n"
-		<< "  -y,--shear              Specify the shear. Default value: " << map_maker.shear << "\n"
-		<< "  -s,--smooth_fraction    Specify the fraction of convergence due to smoothly\n"
-		<< "                          distributed mass. Default value: " << smooth_fraction << "\n"
-		<< "  -ks,--kappa_star        Specify the convergence in point mass lenses. If\n"
-		<< "                          provided, this overrides any supplied value for the\n"
-		<< "                          smooth fraction. Default value: " << map_maker.kappa_star << "\n"
-		<< "  -t,--theta_e            Specify the size of the Einstein radius of a unit\n"
-		<< "                          mass point lens in arbitrary units. Default value: " << map_maker.theta_e << "\n"
-		<< "  -mf,--mass_function     Specify the mass function to use for the point mass\n"
-		<< "                          lenses. Options are: equal, uniform, Salpeter, and\n"
-		<< "                          Kroupa. Default value: " << map_maker.mass_function_str << "\n"
-		<< "  -ms,--m_solar           Specify the solar mass in arbitrary units.\n"
-		<< "                          Default value: " << map_maker.m_solar << "\n"
-		<< "  -ml,--m_lower           Specify the lower mass cutoff in solar mass units.\n"
-		<< "                          Default value: " << map_maker.m_lower << "\n"
-		<< "  -mh,--m_upper           Specify the upper mass cutoff in solar mass units.\n"
-		<< "                          Default value: " << map_maker.m_upper << "\n"
-		<< "  -ll,--light_loss        Allowed average fraction of light lost due to scatter\n"
-		<< "                          by the microlenses in the large deflection limit.\n"
-		<< "                          Default value: " << map_maker.light_loss << "\n"
-		<< "  -r,--rectangular        Specify whether the star field should be\n"
-		<< "                          rectangular (1) or circular (0). Default value: " << map_maker.rectangular << "\n"
-		<< "  -a,--approx             Specify whether terms for alpha_smooth should be\n"
-		<< "                          approximated (1) or exact (0). Default value: " << map_maker.approx << "\n"
-		<< "  -ss,--safety_scale      Specify the multiplicative safety factor over the\n"
-		<< "                          shooting region to be used when generating the star\n"
-		<< "                          field. Default value: " << map_maker.safety_scale << "\n"
-		<< "  -sf,--starfile          Specify the location of a binary file containing\n"
-		<< "                          values for num_stars, rectangular, corner, theta_e,\n"
-		<< "                          and the star positions and masses, in an order as\n"
-		<< "                          defined in this source code.\n"
-		<< "  -cy1, --center_y1       Specify the y1 position of the center of the\n"
-		<< "                          magnification map. Default value: " << map_maker.center_y.re << "\n"
-		<< "  -cy2, --center_y2       Specify the y2 position of the center of the\n"
-		<< "                          magnification map. Default value: " << map_maker.center_y.im << "\n"
-		<< "  -hl,--half_length       Specify the half-length of the square source plane\n"
-		<< "                          region to find the magnification in.\n"
-		<< "                          Default value: " << map_maker.half_length_source << "\n"
-		<< "  -px,--pixels            Specify the number of pixels per side for the\n"
-		<< "                          magnification map. Default value: " << map_maker.num_pixels << "\n"
-		<< "  -nr,--num_rays          Specify the average number of rays per pixel in the\n"
-		<< "                          absence of lensing (i.e. the number of rays per pixel\n"
-		<< "                          equal to unit magnification). Default value: " << map_maker.num_rays_source << "\n"
-		<< "  -rs,--random_seed       Specify the random seed for star field generation.\n"
-		<< "                          A value of 0 is reserved for star input files.\n"
-		<< "  -wm,--write_maps        Specify whether to write magnification maps (1) or\n"
-		<< "                          not (0). Default value: " << map_maker.write_maps << "\n"
-		<< "  -wp,--write_parities    Specify whether to write parity specific\n"
-		<< "                          magnification maps (1) or not (0). Default value: " << map_maker.write_parities << "\n"
-		<< "  -wh,--write_histograms  Specify whether to write histograms (1) or not (0).\n"
-		<< "                          Default value: " << map_maker.write_histograms << "\n"
-		<< "  -o,--outfile_prefix     Specify the prefix to be used in output file names.\n"
-		<< "                          Default value: " << map_maker.outfile_prefix << "\n";
+		<< "  -h,--help                Show this help message.\n"
+		<< "  -v,--verbose             Toggle verbose output. Takes no option value.\n"
+		<< "  -k,--kappa_tot           Specify the total convergence. Default value: " << map_maker.kappa_tot << "\n"
+		<< "  -y,--shear               Specify the shear. Default value: " << map_maker.shear << "\n"
+		<< "  -s,--smooth_fraction     Specify the fraction of convergence due to smoothly\n"
+		<< "                           distributed mass. Default value: " << smooth_fraction << "\n"
+		<< "  -ks,--kappa_star         Specify the convergence in point mass lenses. If\n"
+		<< "                           provided, this overrides any supplied value for the\n"
+		<< "                           smooth fraction. Default value: " << map_maker.kappa_star << "\n"
+		<< "  -t,--theta_e             Specify the size of the Einstein radius of a unit\n"
+		<< "                           mass point lens in arbitrary units. Default value: " << map_maker.theta_e << "\n"
+		<< "  -mf,--mass_function      Specify the mass function to use for the point mass\n"
+		<< "                           lenses. Options are: equal, uniform, Salpeter, and\n"
+		<< "                           Kroupa. Default value: " << map_maker.mass_function_str << "\n"
+		<< "  -ms,--m_solar            Specify the solar mass in arbitrary units.\n"
+		<< "                           Default value: " << map_maker.m_solar << "\n"
+		<< "  -ml,--m_lower            Specify the lower mass cutoff in solar mass units.\n"
+		<< "                           Default value: " << map_maker.m_lower << "\n"
+		<< "  -mh,--m_upper            Specify the upper mass cutoff in solar mass units.\n"
+		<< "                           Default value: " << map_maker.m_upper << "\n"
+		<< "  -ll,--light_loss         Allowed average fraction of light lost due to\n"
+		<< "                           scatter by the microlenses in the large deflection\n"
+		<< "                           limit. Default value: " << map_maker.light_loss << "\n"
+		<< "  -r,--rectangular         Specify whether the star field should be\n"
+		<< "                           rectangular (1) or circular (0). Default value: " << map_maker.rectangular << "\n"
+		<< "  -a,--approx              Specify whether terms for alpha_smooth should be\n"
+		<< "                           approximated (1) or exact (0). Default value: " << map_maker.approx << "\n"
+		<< "  -ss,--safety_scale       Specify the multiplicative safety factor over the\n"
+		<< "                           shooting region to be used when generating the star\n"
+		<< "                           field. Default value: " << map_maker.safety_scale << "\n"
+		<< "  -sf,--starfile           Specify the location of a binary file containing\n"
+		<< "                           values for num_stars, rectangular, corner, theta_e,\n"
+		<< "                           and the star positions and masses, in an order as\n"
+		<< "                           defined in this source code.\n"
+		<< "  -cy1, --center_y1        Specify the y1 and y2 coordinates of the center of\n"
+		<< "  -cy2, --center_y2        the magnification map."
+		<< "                           Default value: " << map_maker.center_y << "\n"
+		<< "  -hly1,--half_length_y1   Specify the y1 and y2 extent of the half-length of\n"
+		<< "  -hly2,--half_length_y2   the magnification map.\n"
+		<< "                           Default value: " << map_maker.half_length_y << "\n"
+		<< "  -px,--pixels             Specify the number of pixels per side for the\n"
+		<< "                           magnification map. Default value: " << map_maker.num_pixels << "\n"
+		<< "  -nr,--num_rays           Specify the average number of rays per pixel in the\n"
+		<< "                           absence of lensing (i.e. the number of rays per\n"
+		<< "                           pixel equal to unit magnification).\n"
+		<< "                           Default value: " << map_maker.num_rays_source << "\n"
+		<< "  -rs,--random_seed        Specify the random seed for star field generation.\n"
+		<< "                           A value of 0 is reserved for star input files.\n"
+		<< "  -wm,--write_maps         Specify whether to write magnification maps (1) or\n"
+		<< "                           not (0). Default value: " << map_maker.write_maps << "\n"
+		<< "  -wp,--write_parities     Specify whether to write parity specific\n"
+		<< "                           magnification maps (1) or not (0). Default value: " << map_maker.write_parities << "\n"
+		<< "  -wh,--write_histograms   Specify whether to write histograms (1) or not (0).\n"
+		<< "                           Default value: " << map_maker.write_histograms << "\n"
+		<< "  -o,--outfile_prefix      Specify the prefix to be used in output file names.\n"
+		<< "                           Default value: " << map_maker.outfile_prefix << "\n";
 }
 
 
@@ -433,18 +434,30 @@ int main(int argc, char* argv[])
 				return -1;
 			}
 		}
-		else if (argv[i] == std::string("-hl") || argv[i] == std::string("--half_length"))
+		else if (argv[i] == std::string("-hly1") || argv[i] == std::string("--half_length_y1"))
 		{
 			try
 			{
-				set_param("half_length", map_maker.half_length_source, std::stod(cmdinput), verbose);
+				set_param("half_length", map_maker.half_length_y.re, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
-				std::cerr << "Error. Invalid half_length input.\n";
+				std::cerr << "Error. Invalid half_length_y1 input.\n";
 				return -1;
 			}
 		}
+		else if (argv[i] == std::string("-hly2") || argv[i] == std::string("--half_length_y2"))
+		{
+			try
+			{
+				set_param("half_length", map_maker.half_length_y.im, std::stod(cmdinput), verbose);
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid half_length_y2 input.\n";
+				return -1;
+			}
+			}
 		else if (argv[i] == std::string("-px") || argv[i] == std::string("--pixels"))
 		{
 			try

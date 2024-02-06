@@ -46,7 +46,7 @@ public:
 	T safety_scale = static_cast<T>(1.37);
 	std::string starfile = "";
 	Complex<T> center_y = Complex<T>();
-	T half_length_y = static_cast<T>(5);
+	Complex<T> half_length_y = Complex<T>(5, 5);
 	int num_pixels = 1000;
 	int num_rays_source = 1;
 	int random_seed = 0;
@@ -228,9 +228,9 @@ private:
 			return false;
 		}
 
-		if (half_length_y < std::numeric_limits<T>::min())
+		if (half_length_y.re < std::numeric_limits<T>::min() || half_length_y.im < std::numeric_limits<T>::min())
 		{
-			std::cerr << "Error. half_length must be >= " << std::numeric_limits<T>::min() << "\n";
+			std::cerr << "Error. half_length_y1 and half_length_y2 must both be >= " << std::numeric_limits<T>::min() << "\n";
 			return false;
 		}
 
@@ -332,7 +332,7 @@ private:
 		number density of rays in the lens plane
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens,
-			1.0 * num_rays_source * num_pixels * num_pixels / (2 * half_length_y * 2 * half_length_y),
+			1.0 * num_rays_source * num_pixels * num_pixels / (2 * half_length_y.re * 2 * half_length_y.im),
 			verbose);
 
 		/******************************************************************************
@@ -345,11 +345,8 @@ private:
 		the region of images visible for a macro-image which on average loses no more
 		than the desired amount of flux
 		******************************************************************************/
-		half_length_x = (half_length_y + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)))
-			* Complex<T>(
-				1 / std::abs(1 - kappa_tot + shear),
-				1 / std::abs(1 - kappa_tot - shear)
-			);
+		half_length_x = half_length_y + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)) * Complex<T>(1, 1);
+		half_length_x = Complex<T>(half_length_x.re / std::abs(1 - kappa_tot + shear), half_length_x.im / std::abs(1 - kappa_tot - shear));
 		set_param("half_length_x", half_length_x, half_length_x, verbose);
 
 		center_x = Complex<T>(center_y.re / (1 - kappa_tot + shear), center_y.im / (1 - kappa_tot - shear));
@@ -415,7 +412,7 @@ private:
 			}
 		}
 
-		alpha_error = 2 * half_length_y / (10 * num_pixels); //error is 1/10 of a pixel
+		alpha_error = 2 * half_length_y.abs() / (10 * num_pixels); //error is 1/10 of a pixel
 
 		taylor_smooth = std::max(
 			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),
@@ -951,7 +948,8 @@ private:
 		outfile << "safety_scale " << safety_scale << "\n";
 		outfile << "center_y1 " << center_y.re << "\n";
 		outfile << "center_y2 " << center_y.im << "\n";
-		outfile << "half_length_y " << half_length_y << "\n";
+		outfile << "half_length_y1 " << half_length_y.re << "\n";
+		outfile << "half_length_y2 " << half_length_y.im << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
 		outfile << "half_length_x1 " << half_length_x.re << "\n";

@@ -47,7 +47,7 @@ public:
 	std::string starfile = "";
 	Complex<T> center_y = Complex<T>();
 	Complex<T> half_length_y = Complex<T>(5, 5);
-	int num_pixels = 1000;
+	Complex<int> num_pixels_y = Complex<int>(1000, 1000);
 	int num_rays_y = 1;
 	int random_seed = 0;
 	int write_maps = 1;
@@ -234,9 +234,9 @@ private:
 			return false;
 		}
 
-		if (num_pixels < 1)
+		if (num_pixels_y.re < 1 || num_pixels_y.im < 1)
 		{
-			std::cerr << "Error. num_pixels must be an integer > 0\n";
+			std::cerr << "Error. num_pixels_y1 and num_pixels_y2 must both be integers > 0\n";
 			return false;
 		}
 
@@ -332,7 +332,7 @@ private:
 		number density of rays in the lens plane
 		******************************************************************************/
 		set_param("num_rays_x", num_rays_x,
-			1.0 * num_rays_y * num_pixels * num_pixels / (2 * half_length_y.re * 2 * half_length_y.im),
+			1.0 * num_rays_y * num_pixels_y.re * num_pixels_y.im / (2 * half_length_y.re * 2 * half_length_y.im),
 			verbose);
 
 		/******************************************************************************
@@ -411,7 +411,7 @@ private:
 			}
 		}
 
-		alpha_error = 2 * half_length_y.abs() / (10 * num_pixels); //error is 1/10 of a pixel
+		alpha_error = 2 * half_length_y.abs() / (10 * num_pixels_y.abs()); //error is 1/10 of a pixel
 
 		taylor_smooth = std::max(
 			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),
@@ -452,13 +452,13 @@ private:
 		/******************************************************************************
 		allocate memory for pixels
 		******************************************************************************/
-		cudaMallocManaged(&pixels, num_pixels * num_pixels * sizeof(T));
+		cudaMallocManaged(&pixels, num_pixels_y.re * num_pixels_y.im * sizeof(T));
 		if (cuda_error("cudaMallocManaged(*pixels)", false, __FILE__, __LINE__)) return false;
 		if (write_parities)
 		{
-			cudaMallocManaged(&pixels_minima, num_pixels * num_pixels * sizeof(T));
+			cudaMallocManaged(&pixels_minima, num_pixels_y.re * num_pixels_y.im * sizeof(T));
 			if (cuda_error("cudaMallocManaged(*pixels_minima)", false, __FILE__, __LINE__)) return false;
-			cudaMallocManaged(&pixels_saddles, num_pixels * num_pixels * sizeof(T));
+			cudaMallocManaged(&pixels_saddles, num_pixels_y.re * num_pixels_y.im * sizeof(T));
 			if (cuda_error("cudaMallocManaged(*pixels_saddles)", false, __FILE__, __LINE__)) return false;
 		}
 
@@ -470,18 +470,18 @@ private:
 		initialize pixel values
 		******************************************************************************/
 		set_threads(threads, 16, 16);
-		set_blocks(threads, blocks, num_pixels, num_pixels);
+		set_blocks(threads, blocks, num_pixels_y.re, num_pixels_y.im);
 
 		std::cout << "Initializing pixel values...\n";
 		stopwatch.start();
 
-		initialize_array_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, num_pixels);
+		initialize_array_kernel<T> <<<blocks, threads>>> (pixels, num_pixels_y.im, num_pixels_y.re);
 		if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		if (write_parities)
 		{
-			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, num_pixels);
+			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels_y.im, num_pixels_y.re);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
-			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, num_pixels);
+			initialize_array_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels_y.im, num_pixels_y.re);
 			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
 		}
 
@@ -759,7 +759,7 @@ private:
 		stopwatch.start();
 		shoot_cells_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_star, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
 			rectangular, corner, approx, taylor_smooth, center_x, half_length_x, num_ray_blocks,
-			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
+			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels_y, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();
 		std::cout << "\nDone shooting cells. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
@@ -768,8 +768,8 @@ private:
 		{
 			print_verbose("Adding arrays...\n", verbose);
 			set_threads(threads, 16, 16);
-			set_blocks(threads, blocks, num_pixels, num_pixels);
-			add_arrays_kernel<T> <<<blocks, threads>>> (pixels_minima, pixels_saddles, pixels, num_pixels, num_pixels);
+			set_blocks(threads, blocks, num_pixels_y.re, num_pixels_y.im);
+			add_arrays_kernel<T> <<<blocks, threads>>> (pixels_minima, pixels_saddles, pixels, num_pixels_y.im, num_pixels_y.re);
 			if (cuda_error("add_arrays_kernel", true, __FILE__, __LINE__)) return false;
 			print_verbose("Done adding arrays.\n\n", verbose);
 		}
@@ -795,8 +795,8 @@ private:
 			******************************************************************************/
 			int factor = 1000;
 
-			min_mag = static_cast<int>(*thrust::min_element(thrust::device, pixels, pixels + num_pixels * num_pixels) * factor + 0.5);
-			max_mag = static_cast<int>(*thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels) * factor + 0.5);
+			min_mag = static_cast<int>(*thrust::min_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
+			max_mag = static_cast<int>(*thrust::max_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
 
 			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
 			T mu_min_actual = 1.0 * min_mag / factor;
@@ -811,8 +811,8 @@ private:
 
 			if (write_parities)
 			{
-				int min_mag_minima = static_cast<int>(*thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels) * factor + 0.5);
-				int max_mag_minima = static_cast<int>(*thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels) * factor + 0.5);
+				int min_mag_minima = static_cast<int>(*thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
+				int max_mag_minima = static_cast<int>(*thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
 
 				mu_min_actual = 1.0 * min_mag_minima / factor;
 
@@ -824,8 +824,8 @@ private:
 					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 				}
 
-				int min_mag_saddles = static_cast<int>(*thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels) * factor + 0.5);
-				int max_mag_saddles = static_cast<int>(*thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels * num_pixels) * factor + 0.5);
+				int min_mag_saddles = static_cast<int>(*thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
+				int max_mag_saddles = static_cast<int>(*thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
 
 				min_mag = min_mag < min_mag_minima ? min_mag :
 					(min_mag_minima < min_mag_saddles ? min_mag_minima : min_mag_saddles);
@@ -861,15 +861,15 @@ private:
 
 
 			set_threads(threads, 16, 16);
-			set_blocks(threads, blocks, num_pixels, num_pixels);
+			set_blocks(threads, blocks, num_pixels_y.re, num_pixels_y.im);
 
-			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels, min_mag, histogram, factor);
+			histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels_y, min_mag, histogram, factor);
 			if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			if (write_parities)
 			{
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels, min_mag, histogram_minima, factor);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels_y, min_mag, histogram_minima, factor);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
-				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels, min_mag, histogram_saddles, factor);
+				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels_y, min_mag, histogram_saddles, factor);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
 			t_elapsed = stopwatch.stop();
@@ -949,7 +949,8 @@ private:
 		outfile << "center_y2 " << center_y.im << "\n";
 		outfile << "half_length_y1 " << half_length_y.re << "\n";
 		outfile << "half_length_y2 " << half_length_y.im << "\n";
-		outfile << "num_pixels " << num_pixels << "\n";
+		outfile << "num_pixels_y1 " << num_pixels_y.re << "\n";
+		outfile << "num_pixels_y2 " << num_pixels_y.im << "\n";
 		outfile << "num_rays_y " << num_rays_y << "\n";
 		outfile << "half_length_x1 " << half_length_x.re << "\n";
 		outfile << "half_length_x2 " << half_length_x.im << "\n";
@@ -1013,7 +1014,7 @@ private:
 			std::cout << "Writing magnifications...\n";
 
 			fname = outfile_prefix + "ipm_magnifications" + outfile_type;
-			if (!write_array<T>(pixels, num_pixels, num_pixels, fname))
+			if (!write_array<T>(pixels, num_pixels_y.im, num_pixels_y.re, fname))
 			{
 				std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 				return false;
@@ -1022,7 +1023,7 @@ private:
 			if (write_parities)
 			{
 				fname = outfile_prefix + "ipm_magnifications_minima" + outfile_type;
-				if (!write_array<T>(pixels_minima, num_pixels, num_pixels, fname))
+				if (!write_array<T>(pixels_minima, num_pixels_y.im, num_pixels_y.re, fname))
 				{
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 					return false;
@@ -1030,7 +1031,7 @@ private:
 				std::cout << "Done writing magnifications to file " << fname << "\n";
 
 				fname = outfile_prefix + "ipm_magnifications_saddles" + outfile_type;
-				if (!write_array<T>(pixels_saddles, num_pixels, num_pixels, fname))
+				if (!write_array<T>(pixels_saddles, num_pixels_y.im, num_pixels_y.re, fname))
 				{
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 					return false;

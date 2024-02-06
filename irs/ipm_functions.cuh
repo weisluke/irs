@@ -96,9 +96,9 @@ complex point in the source plane converted to pixel position
 \return (w + hly) * npixels / (2 * hly)
 ******************************************************************************/
 template <typename T, typename U>
-__device__ Complex<T> point_to_pixel(Complex<U> w, Complex<U> hly, int npixels)
+__device__ Complex<T> point_to_pixel(Complex<U> w, Complex<U> hly, Complex<int> npixels)
 {
-	Complex<T> result((w + hly).re * npixels / (2 * hly.re), (w + hly).im * npixels / (2 * hly.im));
+	Complex<T> result((w + hly).re * npixels.re / (2 * hly.re), (w + hly).im * npixels.im / (2 * hly.im));
 	return result;
 }
 
@@ -133,7 +133,7 @@ template <typename T>
 __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks,
-	Complex<T> center_y, Complex<T> hly, T* pixmin, T* pixsad, T* pixels, int npixels, int* percentage)
+	Complex<T> center_y, Complex<T> hly, T* pixmin, T* pixsad, T* pixels, Complex<int> npixels, int* percentage)
 {
 	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 
@@ -222,12 +222,12 @@ __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T 
 						/******************************************************************************
 						reverse y coordinate so array forms image in correct orientation
 						******************************************************************************/
-						y[a].im = npixels - y[a].im;
+						y[a].im = npixels.im - y[a].im;
 					}
 
 					Polygon<T> y_poly;
 
-					T image_plane_area = 2 * ray_half_sep.re * ray_half_sep.im * npixels * npixels / (2 * hly.re * 2 * hly.im);
+					T image_plane_area = 2 * ray_half_sep.re * ray_half_sep.im * npixels.re * npixels.im / (2 * hly.re * 2 * hly.im);
 
 					y_poly.points[0] = y[0];
 					y_poly.points[1] = y[1];
@@ -353,7 +353,7 @@ calculate the histogram of rays for the pixel array
                  to integers for the histogram
 ******************************************************************************/
 template <typename T>
-__global__ void histogram_kernel(T* pixels, int npixels, int minrays, int* histogram, int factor = 1)
+__global__ void histogram_kernel(T* pixels, Complex<int> npixels, int minrays, int* histogram, int factor = 1)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -361,11 +361,11 @@ __global__ void histogram_kernel(T* pixels, int npixels, int minrays, int* histo
 	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
 	int y_stride = blockDim.y * gridDim.y;
 
-	for (int i = x_index; i < npixels; i += x_stride)
+	for (int i = x_index; i < npixels.re; i += x_stride)
 	{
-		for (int j = y_index; j < npixels; j += y_stride)
+		for (int j = y_index; j < npixels.im; j += y_stride)
 		{
-			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels + i] * factor + 0.5 - minrays)], 1);
+			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels.re + i] * factor + 0.5 - minrays)], 1);
 		}
 	}
 }

@@ -31,7 +31,7 @@ IRS<dtype> map_maker;
 /******************************************************************************
 constants to be used
 ******************************************************************************/
-constexpr int OPTS_SIZE = 2 * 27;
+constexpr int OPTS_SIZE = 2 * 28;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -54,7 +54,8 @@ const std::string OPTS[OPTS_SIZE] =
 	"-cy2", "--center_y2",
 	"-hly1", "--half_length_y1",
 	"-hly2", "--half_length_y2",
-	"-px", "--pixels",
+	"-npy1", "--num_pixels_y1",
+	"-npy2", "--num_pixels_y2",
 	"-nry", "--num_rays_y",
 	"-rs", "--random_seed",
 	"-wm", "--write_maps",
@@ -129,8 +130,9 @@ void display_usage(char* name)
 		<< "  -hly1,--half_length_y1   Specify the y1 and y2 extent of the half-length of\n"
 		<< "  -hly2,--half_length_y2   the magnification map.\n"
 		<< "                           Default value: " << map_maker.half_length_y << "\n"
-		<< "  -px,--pixels             Specify the number of pixels per side for the\n"
-		<< "                           magnification map. Default value: " << map_maker.num_pixels << "\n"
+		<< "  -npy1,--num_pixels_y1    Specify the number of pixels per side for the\n"
+		<< "  -npy2,--num_pixels_y2    magnification map.\n"
+		<< "                           Default value: " << map_maker.num_pixels_y << "\n"
 		<< "  -nry,--num_rays_y        Specify the average number of rays per pixel in the\n"
 		<< "                           source plane in the absence of lensing.\n"
 		<< "                           Default value: " << map_maker.num_rays_y << "\n"
@@ -456,16 +458,28 @@ int main(int argc, char* argv[])
 				std::cerr << "Error. Invalid half_length_y2 input.\n";
 				return -1;
 			}
-			}
-		else if (argv[i] == std::string("-px") || argv[i] == std::string("--pixels"))
+		}
+		else if (argv[i] == std::string("-npy1") || argv[i] == std::string("--num_pixels_y1"))
 		{
 			try
 			{
-				set_param("num_pixels", map_maker.num_pixels, std::stoi(cmdinput), verbose);
+				set_param("num_pixels_y1", map_maker.num_pixels_y.re, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
-				std::cerr << "Error. Invalid num_pixels input.\n";
+				std::cerr << "Error. Invalid num_pixels_y1 input.\n";
+				return -1;
+			}
+		}
+		else if (argv[i] == std::string("-npy2") || argv[i] == std::string("--num_pixels_y2"))
+		{
+			try
+			{
+				set_param("num_pixels_y2", map_maker.num_pixels_y.im, std::stoi(cmdinput), verbose);
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid num_pixels_y2 input.\n";
 				return -1;
 			}
 		}
@@ -473,11 +487,11 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("num_rays", map_maker.num_rays_y, std::stoi(cmdinput), verbose);
+				set_param("num_rays_y", map_maker.num_rays_y, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{
-				std::cerr << "Error. Invalid num_rays input.\n";
+				std::cerr << "Error. Invalid num_rays_y input.\n";
 				return -1;
 			}
 		}

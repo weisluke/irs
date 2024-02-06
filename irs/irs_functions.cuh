@@ -95,9 +95,9 @@ complex point in the source plane converted to pixel position
 \return (w + hly) * npixels / (2 * hly)
 ******************************************************************************/
 template <typename T, typename U>
-__device__ Complex<T> point_to_pixel(Complex<U> w, Complex<U> hly, int npixels)
+__device__ Complex<T> point_to_pixel(Complex<U> w, Complex<U> hly, Complex<int> npixels)
 {
-	Complex<T> result((w + hly).re * npixels / (2 * hly.re), (w + hly).im * npixels / (2 * hly.im));
+	Complex<T> result((w + hly).re * npixels.re / (2 * hly.re), (w + hly).im * npixels.im / (2 * hly.im));
 	return result;
 }
 
@@ -132,7 +132,7 @@ template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor, 
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks, 
-	Complex<T> center_y, Complex<T> hly, int* pixmin, int* pixsad, int* pixels, int npixels, int* percentage)
+	Complex<T> center_y, Complex<T> hly, int* pixmin, int* pixsad, int* pixels, Complex<int> npixels, int* percentage)
 {
 	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
 	
@@ -215,11 +215,11 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					/******************************************************************************
 					account for possible rounding issues when converting to integer pixels
 					******************************************************************************/
-					if (ypix.re == npixels)
+					if (ypix.re == npixels.re)
 					{
 						ypix.re--;
 					}
-					if (ypix.im == npixels)
+					if (ypix.im == npixels.im)
 					{
 						ypix.im--;
 					}
@@ -227,21 +227,21 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					/******************************************************************************
 					reverse y coordinate so array forms image in correct orientation
 					******************************************************************************/
-					ypix.im = npixels - 1 - ypix.im;
+					ypix.im = npixels.im - 1 - ypix.im;
 
 					if (pixmin && pixsad)
 					{
 						T mu = magnification<T>(z, kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
 						if (mu >= 0)
 						{
-							atomicAdd(&pixmin[ypix.im * npixels + ypix.re], 1);
+							atomicAdd(&pixmin[ypix.im * npixels.re + ypix.re], 1);
 						}
 						else
 						{
-							atomicAdd(&pixsad[ypix.im * npixels + ypix.re], 1);
+							atomicAdd(&pixsad[ypix.im * npixels.re + ypix.re], 1);
 						}
 					}
-					atomicAdd(&pixels[ypix.im * npixels + ypix.re], 1);
+					atomicAdd(&pixels[ypix.im * npixels.re + ypix.re], 1);
 
 				}
 			}
@@ -295,7 +295,7 @@ calculate the histogram of rays for the pixel array
 				 to integers for the histogram
 ******************************************************************************/
 template <typename T>
-__global__ void histogram_kernel(T* pixels, int npixels, int minrays, int* histogram, int factor = 1)
+__global__ void histogram_kernel(T* pixels, Complex<int> npixels, int minrays, int* histogram, int factor = 1)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -303,11 +303,11 @@ __global__ void histogram_kernel(T* pixels, int npixels, int minrays, int* histo
 	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
 	int y_stride = blockDim.y * gridDim.y;
 
-	for (int i = x_index; i < npixels; i += x_stride)
+	for (int i = x_index; i < npixels.re; i += x_stride)
 	{
-		for (int j = y_index; j < npixels; j += y_stride)
+		for (int j = y_index; j < npixels.im; j += y_stride)
 		{
-			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels + i] * factor + 0.5 - minrays)], 1);
+			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels.re + i] * factor + 0.5 - minrays)], 1);
 		}
 	}
 }

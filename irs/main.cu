@@ -438,7 +438,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("half_length", map_maker.half_length_y.re, std::stod(cmdinput), verbose);
+				set_param("half_length_y1", map_maker.half_length_y.re, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{
@@ -450,7 +450,7 @@ int main(int argc, char* argv[])
 		{
 			try
 			{
-				set_param("half_length", map_maker.half_length_y.im, std::stod(cmdinput), verbose);
+				set_param("half_length_y2", map_maker.half_length_y.im, std::stod(cmdinput), verbose);
 			}
 			catch (...)
 			{

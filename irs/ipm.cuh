@@ -358,30 +358,32 @@ private:
 		******************************************************************************/
 		if (starfile == "")
 		{
+			corner = Complex<T>(std::abs(center_x.re) + half_length_x.re, std::abs(center_x.im) + half_length_x.im);
+
 			if (rectangular)
 			{
-				num_stars = static_cast<int>((safety_scale * 2 * (std::abs(center_x.re) + half_length_x.re)) * (safety_scale * 2 * (std::abs(center_x.im) + half_length_x.im))
-					* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
+				num_stars = static_cast<int>(
+					safety_scale * 2 * corner.re
+					* safety_scale * 2 * corner.im
+					* kappa_star / (PI * theta_e * theta_e * mean_mass)
+					) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
-				corner = std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star))
-					* Complex<T>(
-						std::sqrt(std::abs((1 - kappa_tot - shear) / (1 - kappa_tot + shear))),
-						std::sqrt(std::abs((1 - kappa_tot + shear) / (1 - kappa_tot - shear)))
-					);
+				corner = Complex<T>(std::sqrt(corner.re / corner.im), std::sqrt(corner.im / corner.re));
+				corner *= std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star));
 				set_param("corner", corner, corner, verbose);
 			}
 			else
 			{
-				num_stars = static_cast<int>(safety_scale * safety_scale * (center_x + half_length_x).abs() * (center_x + half_length_x).abs()
-					* kappa_star / (theta_e * theta_e * mean_mass)) + 1;
+				num_stars = static_cast<int>(
+					safety_scale * corner.abs()
+					* safety_scale * corner.abs()
+					* kappa_star / (theta_e * theta_e * mean_mass)
+					) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
-				corner = std::sqrt(theta_e * theta_e * num_stars * mean_mass / (kappa_star * 2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
-					* Complex<T>(
-						std::abs(1 - kappa_tot - shear),
-						std::abs(1 - kappa_tot + shear)
-					);
+				corner = corner / corner.abs();
+				corner *= std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
 				set_param("corner", corner, corner, verbose);
 			}
 		}
@@ -390,25 +392,22 @@ private:
 		******************************************************************************/
 		else
 		{
-			if ((rectangular &&
-				(corner.re < safety_scale * (std::abs(center_x.re) + half_length_x.re) ||
-					corner.im < safety_scale * (std::abs(center_x.im) + half_length_x.im))) ||
-				(!rectangular &&
-					(corner.re * corner.re + corner.im * corner.im < safety_scale * safety_scale * (center_x + half_length_x).abs() * (center_x + half_length_x).abs()))
+			Complex<T> tmp_corner = Complex<T>(std::abs(center_x.re) + half_length_x.re, std::abs(center_x.im) + half_length_x.im);
+
+			if (!rectangular)
+			{
+				corner = tmp_corner / tmp_corner.abs() * corner.abs();
+				set_param("corner", corner, corner, verbose);
+			}
+
+			if (
+				(rectangular && (corner.re < safety_scale * tmp_corner.re || corner.im < safety_scale * tmp_corner.im)) ||
+				(!rectangular && (corner.abs() < safety_scale * tmp_corner.abs()))
 				)
 			{
 				std::cerr << "Error. The provided star field is not large enough to cover the desired source plane region.\n";
 				std::cerr << "Try decreasing the safety_scale, or providing a larger field of stars.\n";
 				return false;
-			}
-			if (!rectangular)
-			{
-				corner = corner.abs() * std::sqrt(1 / (2 * ((1 - kappa_tot) * (1 - kappa_tot) + shear * shear)))
-					* Complex<T>(
-						std::abs(1 - kappa_tot - shear),
-						std::abs(1 - kappa_tot + shear)
-					);
-				set_param("corner", corner, corner, verbose);
 			}
 		}
 

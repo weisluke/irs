@@ -311,7 +311,7 @@ public:
 		}
 	}
 
-	__device__ bool allocate_area_among_pixels(T factor, T* pixels, int npixels)
+	__device__ bool allocate_area_among_pixels(T factor, T* pixels, Complex<int> npixels)
 	{
 		if (numsides < 3)
 		{
@@ -321,8 +321,8 @@ public:
 		/******************************************************************************
 		if the point is entirely outside the pixel region, return
 		******************************************************************************/
-		if (this->get_min_x() >= npixels || this->get_max_x() <= 0
-			|| this->get_min_y() >= npixels || this->get_max_y() <= 0)
+		if (this->get_min_x() >= npixels.re || this->get_max_x() <= 0
+			|| this->get_min_y() >= npixels.im || this->get_max_y() <= 0)
 		{
 			return false;
 		}
@@ -343,17 +343,17 @@ public:
 		{
 			this->clip_at_x(0, true);
 		}
-		if (this->get_max_x() > npixels)
+		if (this->get_max_x() > npixels.re)
 		{
-			this->clip_at_x(npixels, false);
+			this->clip_at_x(npixels.re, false);
 		}
 		if (this->get_min_y() < 0)
 		{
 			this->clip_at_y(0, true);
 		}
-		if (this->get_max_y() > npixels)
+		if (this->get_max_y() > npixels.im)
 		{
-			this->clip_at_y(npixels, false);
+			this->clip_at_y(npixels.im, false);
 		}
 
 		/******************************************************************************
@@ -367,7 +367,7 @@ public:
 
 		int xmin = static_cast<int>(this->get_min_x());
 		int xmax = static_cast<int>(this->get_max_x());
-		if (xmax == npixels)
+		if (xmax == npixels.re)
 		{
 			xmax--;
 		}
@@ -382,7 +382,7 @@ public:
 
 			int ymin = static_cast<int>(top_poly.get_min_y());
 			int ymax = static_cast<int>(top_poly.get_max_y());
-			if (ymax == npixels)
+			if (ymax == npixels.im)
 			{
 				ymax--;
 			}
@@ -395,10 +395,10 @@ public:
 					continue;
 				}
 				T to_add = factor * fabs(bottom_poly.area()) / whole_area;
-				atomicAdd(&pixels[npixels * y + x], to_add);
+				atomicAdd(&pixels[npixels.re * y + x], to_add);
 			}
 			T to_add = factor * fabs(top_poly.area()) / whole_area;
-			atomicAdd(&pixels[npixels * ymax + x], to_add);
+			atomicAdd(&pixels[npixels.re * ymax + x], to_add);
 		}
 
 		if (numsides < 3)
@@ -408,7 +408,7 @@ public:
 
 		int ymin = static_cast<int>(this->get_min_y());
 		int ymax = static_cast<int>(this->get_max_y());
-		if (ymax == npixels)
+		if (ymax == npixels.im)
 		{
 			ymax--;
 		}
@@ -421,11 +421,11 @@ public:
 				continue;
 			}
 			T to_add = factor * fabs(bottom_poly.area()) / whole_area;
-			atomicAdd(&pixels[npixels * y + xmax], to_add);
+			atomicAdd(&pixels[npixels.re * y + xmax], to_add);
 		}
 
 		T to_add = factor * fabs(this->area()) / whole_area;
-		atomicAdd(&pixels[npixels * ymax + xmax], to_add);
+		atomicAdd(&pixels[npixels.re * ymax + xmax], to_add);
 
 		return true;
 

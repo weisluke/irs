@@ -83,7 +83,7 @@ private:
 	******************************************************************************/
 	Stopwatch stopwatch;
 	double t_elapsed;
-	double t_ray_shoot;
+	double t_cell_shoot;
 
 	/******************************************************************************
 	derived variables
@@ -761,8 +761,8 @@ private:
 			rectangular, corner, approx, taylor_smooth, center_x, half_length_x, num_ray_blocks,
 			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels_y, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
-		t_ray_shoot = stopwatch.stop();
-		std::cout << "\nDone shooting cells. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
+		t_cell_shoot = stopwatch.stop();
+		std::cout << "\nDone shooting cells. Elapsed time: " << t_cell_shoot << " seconds.\n\n";
 
 		if (write_parities)
 		{
@@ -965,7 +965,7 @@ private:
 		outfile << "ray_blocks_level " << ray_blocks_level << "\n";
 		outfile << "num_ray_blocks " << num_ray_blocks << "\n";
 		outfile << "tree_levels " << tree_levels << "\n";
-		outfile << "t_ray_shoot " << t_ray_shoot << "\n";
+		outfile << "t_cell_shoot " << t_cell_shoot << "\n";
 		outfile.close();
 		std::cout << "Done writing parameter info to file " << fname << "\n\n";
 

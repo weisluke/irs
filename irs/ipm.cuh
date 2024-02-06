@@ -35,7 +35,7 @@ public:
 	T kappa_tot = static_cast<T>(0.3);
 	T shear = static_cast<T>(0.3);
 	T kappa_star = static_cast<T>(0.27);
-	T theta_e = static_cast<T>(1);
+	T theta_star = static_cast<T>(1);
 	std::string mass_function_str = "equal";
 	T m_solar = static_cast<T>(1);
 	T m_lower = static_cast<T>(0.01);
@@ -163,9 +163,9 @@ private:
 			return false;
 		}
 
-		if (theta_e < std::numeric_limits<T>::min())
+		if (theta_star < std::numeric_limits<T>::min())
 		{
-			std::cerr << "Error. theta_e must be >= " << std::numeric_limits<T>::min() << "\n";
+			std::cerr << "Error. theta_star must be >= " << std::numeric_limits<T>::min() << "\n";
 			return false;
 		}
 
@@ -296,14 +296,14 @@ private:
 		}
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
-		rectangular, corner, theta_e, stars, kappa_star, m_lower, m_upper, mean_mass,
-		and mean_mass2 based on star information
+		rectangular, corner, theta_star, stars, kappa_star, m_lower, m_upper,
+		mean_mass, and mean_mass2 based on star information
 		******************************************************************************/
 		else
 		{
 			std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
 
-			if (!read_star_file<T>(num_stars, rectangular, corner, theta_e, stars,
+			if (!read_star_file<T>(num_stars, rectangular, corner, theta_star, stars,
 				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, starfile))
 			{
 				std::cerr << "Error. Unable to read star field parameters from file " << starfile << "\n";
@@ -313,7 +313,7 @@ private:
 			set_param("num_stars", num_stars, num_stars, verbose);
 			set_param("rectangular", rectangular, rectangular, verbose);
 			set_param("corner", corner, corner, verbose);
-			set_param("theta_e", theta_e, theta_e, verbose);
+			set_param("theta_star", theta_star, theta_star, verbose);
 			set_param("kappa_star", kappa_star, kappa_star, verbose);
 			set_param("m_lower", m_lower, m_lower, verbose);
 			set_param("m_upper", m_upper, m_upper, verbose);
@@ -345,7 +345,7 @@ private:
 		the region of images visible for a macro-image which on average loses no more
 		than the desired amount of flux
 		******************************************************************************/
-		half_length_x = half_length_y + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)) * Complex<T>(1, 1);
+		half_length_x = half_length_y + theta_star * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)) * Complex<T>(1, 1);
 		half_length_x = Complex<T>(half_length_x.re / std::abs(1 - kappa_tot + shear), half_length_x.im / std::abs(1 - kappa_tot - shear));
 		set_param("half_length_x", half_length_x, half_length_x, verbose);
 
@@ -365,12 +365,12 @@ private:
 				num_stars = static_cast<int>(
 					safety_scale * 2 * corner.re
 					* safety_scale * 2 * corner.im
-					* kappa_star / (PI * theta_e * theta_e * mean_mass)
+					* kappa_star / (PI * theta_star * theta_star * mean_mass)
 					) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
 				corner = Complex<T>(std::sqrt(corner.re / corner.im), std::sqrt(corner.im / corner.re));
-				corner *= std::sqrt(PI * theta_e * theta_e * num_stars * mean_mass / (4 * kappa_star));
+				corner *= std::sqrt(PI * theta_star * theta_star * num_stars * mean_mass / (4 * kappa_star));
 				set_param("corner", corner, corner, verbose);
 			}
 			else
@@ -378,12 +378,12 @@ private:
 				num_stars = static_cast<int>(
 					safety_scale * corner.abs()
 					* safety_scale * corner.abs()
-					* kappa_star / (theta_e * theta_e * mean_mass)
+					* kappa_star / (theta_star * theta_star * mean_mass)
 					) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
 				corner = corner / corner.abs();
-				corner *= std::sqrt(theta_e * theta_e * num_stars * mean_mass / kappa_star);
+				corner *= std::sqrt(theta_star * theta_star * num_stars * mean_mass / kappa_star);
 				set_param("corner", corner, corner, verbose);
 			}
 		}
@@ -536,7 +536,7 @@ private:
 		calculate kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual,
 		and mean_mass2_actual based on star information
 		******************************************************************************/
-		calculate_star_params<T>(num_stars, rectangular, corner, theta_e, stars,
+		calculate_star_params<T>(num_stars, rectangular, corner, theta_star, stars,
 			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
 
 		set_param("kappa_star_actual", kappa_star_actual, kappa_star_actual, verbose);
@@ -679,7 +679,7 @@ private:
 		END create root node, then create children and sort stars
 		******************************************************************************/
 
-		expansion_order = static_cast<int>(2 * std::log2(theta_e) - std::log2(root_half_length * alpha_error))
+		expansion_order = static_cast<int>(2 * std::log2(theta_star) - std::log2(root_half_length * alpha_error))
 			+ tree_levels + 1;
 		set_param("expansion_order", expansion_order, expansion_order, verbose, true);
 		if (expansion_order < 3)
@@ -757,7 +757,7 @@ private:
 		******************************************************************************/
 		std::cout << "Shooting cells...\n";
 		stopwatch.start();
-		shoot_cells_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
+		shoot_cells_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_star, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
 			rectangular, corner, approx, taylor_smooth, center_x, half_length_x, num_ray_blocks,
 			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
@@ -911,7 +911,7 @@ private:
 		{
 			outfile << "kappa_star_actual " << kappa_star_actual << "\n";
 		}
-		outfile << "theta_e " << theta_e << "\n";
+		outfile << "theta_star " << theta_star << "\n";
 		outfile << "random_seed " << random_seed << "\n";
 		if (starfile == "")
 		{
@@ -961,7 +961,7 @@ private:
 
 		std::cout << "Writing star info...\n";
 		fname = outfile_prefix + "ipm_stars" + outfile_type;
-		if (!write_star_file<T>(num_stars, rectangular, corner, theta_e, stars, fname))
+		if (!write_star_file<T>(num_stars, rectangular, corner, theta_star, stars, fname))
 		{
 			std::cerr << "Error. Unable to write star info to file " << fname << "\n";
 			return false;

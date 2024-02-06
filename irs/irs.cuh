@@ -49,7 +49,7 @@ public:
 	Complex<T> center_y = Complex<T>();
 	Complex<T> half_length_y = Complex<T>(5, 5);
 	int num_pixels = 1000;
-	int num_rays_source = 1000;
+	int num_rays_y = 1000;
 	int random_seed = 0;
 	int write_maps = 1;
 	int write_parities = 0;
@@ -101,7 +101,7 @@ private:
 	T mean_mass2_actual;
 
 	T mu_ave;
-	T num_rays_lens;
+	T num_rays_x;
 	T ray_sep;
 	Complex<T> center_x;
 	Complex<int> num_ray_blocks;
@@ -244,9 +244,9 @@ private:
 			return false;
 		}
 
-		if (num_rays_source < 1)
+		if (num_rays_y < 1)
 		{
-			std::cerr << "Error. num_rays must be an integer > 0\n";
+			std::cerr << "Error. num_rays_y must be an integer > 0\n";
 			return false;
 		}
 
@@ -335,14 +335,14 @@ private:
 		/******************************************************************************
 		number density of rays in the lens plane
 		******************************************************************************/
-		set_param("num_rays_lens", num_rays_lens, 
-			1.0 * num_rays_source * num_pixels * num_pixels / (2 * half_length_y.re * 2 * half_length_y.im),
+		set_param("num_rays_x", num_rays_x, 
+			1.0 * num_rays_y * num_pixels * num_pixels / (2 * half_length_y.re * 2 * half_length_y.im),
 			verbose);
 		
 		/******************************************************************************
 		average separation between rays in one dimension is 1/sqrt(number density)
 		******************************************************************************/
-		set_param("ray_sep", ray_sep, 1 / std::sqrt(num_rays_lens), verbose);
+		set_param("ray_sep", ray_sep, 1 / std::sqrt(num_rays_x), verbose);
 
 		/******************************************************************************
 		shooting region is greater than outer boundary for macro-mapping by the size of
@@ -793,12 +793,12 @@ private:
 			max_rays = *thrust::max_element(thrust::device, pixels, pixels + num_pixels * num_pixels);
 
 			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
-			T mu_min_actual = 1.0 * min_rays / num_rays_source;
+			T mu_min_actual = 1.0 * min_rays / num_rays_y;
 
 			if (mu_ave > 1 && mu_min_actual < mu_min_theor)
 			{
 				std::cerr << "Warning. Minimum magnification after shooting rays is less than the theoretical minimum.\n";
-				std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+				std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays << " / " << num_rays_y << " = " << mu_min_actual << "\n";
 				std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
 				std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 			}
@@ -808,12 +808,12 @@ private:
 				int min_rays_minima = *thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
 				int max_rays_minima = *thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels * num_pixels);
 				
-				mu_min_actual = 1.0 * min_rays_minima / num_rays_source;
+				mu_min_actual = 1.0 * min_rays_minima / num_rays_y;
 
 				if (mu_ave > 1 && mu_min_actual < mu_min_theor)
 				{
 					std::cerr << "Warning. Minimum positive parity magnification after shooting rays is less than the theoretical minimum.\n";
-					std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays_minima << " / " << num_rays_source << " = " << mu_min_actual << "\n";
+					std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays_minima << " / " << num_rays_y << " = " << mu_min_actual << "\n";
 					std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
 					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 				}
@@ -944,7 +944,7 @@ private:
 		outfile << "half_length_y1 " << half_length_y.re << "\n";
 		outfile << "half_length_y2 " << half_length_y.im << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
-		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
+		outfile << "num_rays_y " << num_rays_y << "\n";
 		outfile << "mean_rays_per_pixel_actual " << (1.0 * num_rays_received / (num_pixels * num_pixels)) << "\n";
 		outfile << "half_length_x1 " << half_length_x.re << "\n";
 		outfile << "half_length_x2 " << half_length_x.im << "\n";

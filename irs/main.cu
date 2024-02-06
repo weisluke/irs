@@ -55,7 +55,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-hly1", "--half_length_y1",
 	"-hly2", "--half_length_y2",
 	"-px", "--pixels",
-	"-nr", "--num_rays",
+	"-nry", "--num_rays_y",
 	"-rs", "--random_seed",
 	"-wm", "--write_maps",
 	"-wp", "--write_parities",
@@ -131,10 +131,9 @@ void display_usage(char* name)
 		<< "                           Default value: " << map_maker.half_length_y << "\n"
 		<< "  -px,--pixels             Specify the number of pixels per side for the\n"
 		<< "                           magnification map. Default value: " << map_maker.num_pixels << "\n"
-		<< "  -nr,--num_rays           Specify the average number of rays per pixel in the\n"
-		<< "                           absence of lensing (i.e. the number of rays per\n"
-		<< "                           pixel equal to unit magnification).\n"
-		<< "                           Default value: " << map_maker.num_rays_source << "\n"
+		<< "  -nry,--num_rays_y        Specify the average number of rays per pixel in the\n"
+		<< "                           source plane in the absence of lensing.\n"
+		<< "                           Default value: " << map_maker.num_rays_y << "\n"
 		<< "  -rs,--random_seed        Specify the random seed for star field generation.\n"
 		<< "                           A value of 0 is reserved for star input files.\n"
 		<< "  -wm,--write_maps         Specify whether to write magnification maps (1) or\n"
@@ -470,11 +469,11 @@ int main(int argc, char* argv[])
 				return -1;
 			}
 		}
-		else if (argv[i] == std::string("-nr") || argv[i] == std::string("--num_rays"))
+		else if (argv[i] == std::string("-nry") || argv[i] == std::string("--num_rays_y"))
 		{
 			try
 			{
-				set_param("num_rays", map_maker.num_rays_source, std::stoi(cmdinput), verbose);
+				set_param("num_rays", map_maker.num_rays_y, std::stoi(cmdinput), verbose);
 			}
 			catch (...)
 			{

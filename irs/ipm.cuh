@@ -46,7 +46,7 @@ public:
 	T safety_scale = static_cast<T>(1.37);
 	std::string starfile = "";
 	Complex<T> center_y = Complex<T>();
-	T half_length_source = static_cast<T>(5);
+	T half_length_y = static_cast<T>(5);
 	int num_pixels = 1000;
 	int num_rays_source = 1;
 	int random_seed = 0;
@@ -104,7 +104,7 @@ private:
 	T ray_sep;
 	Complex<T> center_x;
 	Complex<int> num_ray_blocks;
-	Complex<T> half_length_image;
+	Complex<T> half_length_x;
 	Complex<T> corner;
 	int taylor_smooth;
 
@@ -228,7 +228,7 @@ private:
 			return false;
 		}
 
-		if (half_length_source < std::numeric_limits<T>::min())
+		if (half_length_y < std::numeric_limits<T>::min())
 		{
 			std::cerr << "Error. half_length must be >= " << std::numeric_limits<T>::min() << "\n";
 			return false;
@@ -332,7 +332,7 @@ private:
 		number density of rays in the lens plane
 		******************************************************************************/
 		set_param("num_rays_lens", num_rays_lens,
-			1.0 * num_rays_source * num_pixels * num_pixels / (2 * half_length_source * 2 * half_length_source),
+			1.0 * num_rays_source * num_pixels * num_pixels / (2 * half_length_y * 2 * half_length_y),
 			verbose);
 
 		/******************************************************************************
@@ -345,12 +345,12 @@ private:
 		the region of images visible for a macro-image which on average loses no more
 		than the desired amount of flux
 		******************************************************************************/
-		half_length_image = (half_length_source + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)))
+		half_length_x = (half_length_y + theta_e * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)))
 			* Complex<T>(
 				1 / std::abs(1 - kappa_tot + shear),
 				1 / std::abs(1 - kappa_tot - shear)
 			);
-		set_param("half_length_image", half_length_image, half_length_image, verbose);
+		set_param("half_length_x", half_length_x, half_length_x, verbose);
 
 		center_x = Complex<T>(center_y.re / (1 - kappa_tot + shear), center_y.im / (1 - kappa_tot - shear));
 		set_param("center_x", center_x, center_x, verbose);
@@ -363,7 +363,7 @@ private:
 		{
 			if (rectangular)
 			{
-				num_stars = static_cast<int>((safety_scale * 2 * (std::abs(center_x.re) + half_length_image.re)) * (safety_scale * 2 * (std::abs(center_x.im) + half_length_image.im))
+				num_stars = static_cast<int>((safety_scale * 2 * (std::abs(center_x.re) + half_length_x.re)) * (safety_scale * 2 * (std::abs(center_x.im) + half_length_x.im))
 					* kappa_star / (PI * theta_e * theta_e * mean_mass)) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
@@ -376,7 +376,7 @@ private:
 			}
 			else
 			{
-				num_stars = static_cast<int>(safety_scale * safety_scale * (center_x + half_length_image).abs() * (center_x + half_length_image).abs()
+				num_stars = static_cast<int>(safety_scale * safety_scale * (center_x + half_length_x).abs() * (center_x + half_length_x).abs()
 					* kappa_star / (theta_e * theta_e * mean_mass)) + 1;
 				set_param("num_stars", num_stars, num_stars, verbose);
 
@@ -394,10 +394,10 @@ private:
 		else
 		{
 			if ((rectangular &&
-				(corner.re < safety_scale * (std::abs(center_x.re) + half_length_image.re) ||
-					corner.im < safety_scale * (std::abs(center_x.im) + half_length_image.im))) ||
+				(corner.re < safety_scale * (std::abs(center_x.re) + half_length_x.re) ||
+					corner.im < safety_scale * (std::abs(center_x.im) + half_length_x.im))) ||
 				(!rectangular &&
-					(corner.re * corner.re + corner.im * corner.im < safety_scale * safety_scale * (center_x + half_length_image).abs() * (center_x + half_length_image).abs()))
+					(corner.re * corner.re + corner.im * corner.im < safety_scale * safety_scale * (center_x + half_length_x).abs() * (center_x + half_length_x).abs()))
 				)
 			{
 				std::cerr << "Error. The provided star field is not large enough to cover the desired source plane region.\n";
@@ -415,7 +415,7 @@ private:
 			}
 		}
 
-		alpha_error = 2 * half_length_source / (10 * num_pixels); //error is 1/10 of a pixel
+		alpha_error = 2 * half_length_y / (10 * num_pixels); //error is 1/10 of a pixel
 
 		taylor_smooth = std::max(
 			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),
@@ -661,14 +661,14 @@ private:
 		size of the corner
 		******************************************************************************/
 		ray_blocks_level = tree_levels;
-		num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
-		Complex<T> tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
-		while ((tmp_half_length_image.re > corner.re || tmp_half_length_image.im > corner.im) &&
+		num_ray_blocks = Complex<int>(half_length_x / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
+		Complex<T> tmp_half_length_x = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
+		while ((tmp_half_length_x.re > corner.re || tmp_half_length_x.im > corner.im) &&
 			ray_blocks_level <= rays_level)
 		{
 			ray_blocks_level++;
-			num_ray_blocks = Complex<int>(half_length_image / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
-			tmp_half_length_image = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
+			num_ray_blocks = Complex<int>(half_length_x / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
+			tmp_half_length_x = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
 		}
 		set_param("ray_blocks_level", ray_blocks_level, ray_blocks_level, verbose);
 		if (ray_blocks_level > rays_level)
@@ -676,7 +676,7 @@ private:
 			std::cerr << "Error. ray_blocks_level > rays_level\n";
 			return false;
 		}
-		set_param("half_length_image", half_length_image, tmp_half_length_image, verbose);
+		set_param("half_length_x", half_length_x, tmp_half_length_x, verbose);
 		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose);
 
 		/******************************************************************************
@@ -762,8 +762,8 @@ private:
 		std::cout << "Shooting cells...\n";
 		stopwatch.start();
 		shoot_cells_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_e, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
-			rectangular, corner, approx, taylor_smooth, center_x, half_length_image, num_ray_blocks,
-			center_y, half_length_source, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
+			rectangular, corner, approx, taylor_smooth, center_x, half_length_x, num_ray_blocks,
+			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_ray_shoot = stopwatch.stop();
 		std::cout << "\nDone shooting cells. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
@@ -951,11 +951,11 @@ private:
 		outfile << "safety_scale " << safety_scale << "\n";
 		outfile << "center_y1 " << center_y.re << "\n";
 		outfile << "center_y2 " << center_y.im << "\n";
-		outfile << "half_length_source " << half_length_source << "\n";
+		outfile << "half_length_y " << half_length_y << "\n";
 		outfile << "num_pixels " << num_pixels << "\n";
 		outfile << "mean_rays_per_pixel " << num_rays_source << "\n";
-		outfile << "half_length_image_x1 " << half_length_image.re << "\n";
-		outfile << "half_length_image_x2 " << half_length_image.im << "\n";
+		outfile << "half_length_x1 " << half_length_x.re << "\n";
+		outfile << "half_length_x2 " << half_length_x.im << "\n";
 		outfile << "ray_sep " << ray_sep << "\n";
 		outfile << "t_ray_shoot " << t_ray_shoot << "\n";
 		outfile.close();

@@ -953,7 +953,6 @@ private:
 		outfile << "num_pixels_y2 " << num_pixels_y.im << "\n";
 		outfile << "center_x1 " << center_x.re << "\n";
 		outfile << "center_x2 " << center_x.im << "\n";
-		outfile << "num_rays_y " << num_rays_y << "\n";
 		outfile << "half_length_x1 " << half_length_x.re << "\n";
 		outfile << "half_length_x2 " << half_length_x.im << "\n";
 		outfile << "num_rays_y " << num_rays_y << "\n";

@@ -84,7 +84,7 @@ private:
 	******************************************************************************/
 	Stopwatch stopwatch;
 	double t_elapsed;
-	double t_ray_shoot;
+	double t_shoot_rays;
 
 	/******************************************************************************
 	derived variables
@@ -765,8 +765,8 @@ private:
 			rectangular, corner, approx, taylor_smooth, center_x, half_length_x, num_ray_blocks,
 			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels_y, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
-		t_ray_shoot = stopwatch.stop();
-		std::cout << "\nDone shooting rays. Elapsed time: " << t_ray_shoot << " seconds.\n\n";
+		t_shoot_rays = stopwatch.stop();
+		std::cout << "\nDone shooting rays. Elapsed time: " << t_shoot_rays << " seconds.\n\n";
 
 		num_rays_shot = num_ray_blocks.re * num_ray_blocks.im;
 		num_rays_shot <<= 2 * (rays_level - ray_blocks_level + 1);
@@ -960,7 +960,7 @@ private:
 		outfile << "ray_blocks_level " << ray_blocks_level << "\n";
 		outfile << "num_ray_blocks " << num_ray_blocks << "\n";
 		outfile << "tree_levels " << tree_levels << "\n";
-		outfile << "t_ray_shoot " << t_ray_shoot << "\n";
+		outfile << "t_shoot_rays " << t_shoot_rays << "\n";
 		outfile << "num_rays_shot " << num_rays_shot << "\n";
 		outfile << "num_rays_received " << num_rays_received << "\n";
 		outfile.close();

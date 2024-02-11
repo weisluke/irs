@@ -229,15 +229,15 @@ public:
 
 	\param p -- number drawn uniformly in [0,1]
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	\param a -- slope for the distribution
 	******************************************************************************/
 	__host__ __device__ T salpeter_mass(T p, T msolar = 1, T mL = 0.01, T mH = 50, T a = -2.35)
 	{
 		if (mL == mH)
 		{
-			return mL;
+			return mL * msolar;
 		}
 
 		/******************************************************************************
@@ -245,10 +245,10 @@ public:
 		******************************************************************************/
 
 		/******************************************************************************
-		convert upper and lower bounds into solar mass units
+		upper and lower mass bounds
 		******************************************************************************/
-		T m_lower = mL / msolar;
-		T m_upper = mH / msolar;
+		T m_lower = mL;
+		T m_upper = mH;
 
 		/******************************************************************************
 		determine probability, integrating over entire range of masses
@@ -273,15 +273,15 @@ public:
 	calculate <mass> for a Salpeter mass function
 
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	\param a -- slope for the distribution
 	******************************************************************************/
 	__host__ __device__ T mean_salpeter_mass(T msolar = 1, T mL = 0.01, T mH = 50, T a = -2.35)
 	{
 		if (mL == mH)
 		{
-			return mL;
+			return mL * msolar;
 		}
 
 		/******************************************************************************
@@ -289,10 +289,10 @@ public:
 		******************************************************************************/
 
 		/******************************************************************************
-		convert upper and lower bounds into solar mass units
+		upper and lower mass bounds
 		******************************************************************************/
-		T m_lower = mL / msolar;
-		T m_upper = mH / msolar;
+		T m_lower = mL;
+		T m_upper = mH;
 
 		/******************************************************************************
 		determine probability, integrating over entire range of masses
@@ -317,15 +317,15 @@ public:
 	calculate <mass^2> for a Salpeter mass function
 
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	\param a -- slope for the distribution
 	******************************************************************************/
 	__host__ __device__ T mean_salpeter_mass2(T msolar = 1, T mL = 0.01, T mH = 50, T a = -2.35)
 	{
 		if (mL == mH)
 		{
-			return mL;
+			return mL * msolar * msolar;
 		}
 
 		/******************************************************************************
@@ -333,10 +333,10 @@ public:
 		******************************************************************************/
 
 		/******************************************************************************
-		convert upper and lower bounds into solar mass units
+		upper and lower mass bounds
 		******************************************************************************/
-		T m_lower = mL / msolar;
-		T m_upper = mH / msolar;
+		T m_lower = mL;
+		T m_upper = mH;
 
 		/******************************************************************************
 		determine probability, integrating over entire range of masses
@@ -366,8 +366,8 @@ public:
 
 	\param p -- number drawn uniformly in [0,1]
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	\param a1 -- first slope for the distribution
 	\param m1 -- cutoff for first slope in solar mass units
 	\param a2 -- second slope for the distribution
@@ -378,7 +378,7 @@ public:
 	{
 		if (mL == mH)
 		{
-			return mL;
+			return mL * msolar;
 		}
 
 		/******************************************************************************
@@ -389,10 +389,10 @@ public:
 		******************************************************************************/
 
 		/******************************************************************************
-		convert upper and lower bounds into solar mass units
+		upper and lower mass bounds
 		******************************************************************************/
-		T m_lower = mL / msolar;
-		T m_upper = mH / msolar;
+		T m_lower = mL;
+		T m_upper = mH;
 
 		/******************************************************************************
 		determine probabilities, integrating over entire range of masses
@@ -548,8 +548,8 @@ public:
 	calculate <mass> for a Kroupa mass function
 
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	\param a1 -- first slope for the distribution
 	\param m1 -- cutoff for first slope in solar mass units
 	\param a2 -- second slope for the distribution
@@ -560,7 +560,7 @@ public:
 	{
 		if (mL == mH)
 		{
-			return mL;
+			return mL * msolar;
 		}
 
 		/******************************************************************************
@@ -571,10 +571,10 @@ public:
 		******************************************************************************/
 
 		/******************************************************************************
-		convert upper and lower bounds into solar mass units
+		upper and lower mass bounds
 		******************************************************************************/
-		T m_lower = mL / msolar;
-		T m_upper = mH / msolar;
+		T m_lower = mL;
+		T m_upper = mH;
 
 		/******************************************************************************
 		determine probabilities, integrating over entire range of masses
@@ -734,8 +734,8 @@ public:
 	calculate <mass^2> for a Kroupa mass function
 
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	\param a1 -- first slope for the distribution
 	\param m1 -- cutoff for first slope in solar mass units
 	\param a2 -- second slope for the distribution
@@ -746,7 +746,7 @@ public:
 	{
 		if (mL == mH)
 		{
-			return mL;
+			return mL * msolar * msolar;
 		}
 
 		/******************************************************************************
@@ -757,10 +757,10 @@ public:
 		******************************************************************************/
 
 		/******************************************************************************
-		convert upper and lower bounds into solar mass units
+		upper and lower mass bounds
 		******************************************************************************/
-		T m_lower = mL / msolar;
-		T m_upper = mH / msolar;
+		T m_lower = mL;
+		T m_upper = mH;
 
 		/******************************************************************************
 		determine probabilities, integrating over entire range of masses
@@ -925,8 +925,8 @@ public:
 
 	\param p -- number drawn uniformly in [0,1]
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	******************************************************************************/
 	__host__ __device__ T mass(T p, T msolar = 1, T mL = 0.01, T mH = 50)
 	{
@@ -950,8 +950,8 @@ public:
 
 	\param p -- number drawn uniformly in [0,1]
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	******************************************************************************/
 	__host__ __device__ T mean_mass(T msolar = 1, T mL = 0.01, T mH = 50)
 	{
@@ -974,8 +974,8 @@ public:
 	calculate <mass^2> given a probability
 
 	\param msolar -- solar mass in arbitrary units
-	\param mL -- lower mass cutoff for the distribution in arbitrary units
-	\param mH -- upper mass cutoff for the distribution in arbitrary units
+	\param mL -- lower mass cutoff for the distribution in solar mass units
+	\param mH -- upper mass cutoff for the distribution in solar mass units
 	******************************************************************************/
 	__host__ __device__ T mean_mass2(T msolar = 1, T mL = 0.01, T mH = 50)
 	{

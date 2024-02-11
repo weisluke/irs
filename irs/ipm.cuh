@@ -963,7 +963,8 @@ private:
 		outfile << "root_half_length " << root_half_length << "\n";
 		outfile << "rays_level " << rays_level << "\n";
 		outfile << "ray_blocks_level " << ray_blocks_level << "\n";
-		outfile << "num_ray_blocks " << num_ray_blocks << "\n";
+		outfile << "num_ray_blocks_1 " << num_ray_blocks.re << "\n";
+		outfile << "num_ray_blocks_2 " << num_ray_blocks.im << "\n";
 		outfile << "tree_levels " << tree_levels << "\n";
 		outfile << "t_shoot_cells " << t_shoot_cells << "\n";
 		outfile.close();

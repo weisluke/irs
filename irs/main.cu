@@ -38,7 +38,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-v", "--verbose",
 	"-k", "--kappa_tot",
 	"-y", "--shear",
-	"-s", "--smooth_fraction", //provided as a courtesy in this executable. not part of the irs or ipm classes
+	"-s", "--smooth_fraction", //provided as a courtesy in this executable. not part of the ipm or irs classes
 	"-ks", "--kappa_star",
 	"-t", "--theta_star",
 	"-mf", "--mass_function",

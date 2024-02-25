@@ -40,7 +40,7 @@ public:
 	T m_solar = static_cast<T>(1);
 	T m_lower = static_cast<T>(0.01);
 	T m_upper = static_cast<T>(50);
-	T light_loss = static_cast<T>(0.01);
+	T light_loss = static_cast<T>(0.001);
 	int rectangular = 1;
 	int approx = 0;
 	T safety_scale = static_cast<T>(1.37);

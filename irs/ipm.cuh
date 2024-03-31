@@ -741,7 +741,7 @@ private:
 		return true;
 	}
 
-	bool shoot_rays(bool verbose)
+	bool shoot_cells(bool verbose)
 	{
 		set_threads(threads, 16, 16);
 		set_blocks(threads, blocks, 16 * num_ray_blocks.re, 16 * num_ray_blocks.im);
@@ -1065,7 +1065,7 @@ public:
 		if (!allocate_initialize_memory(verbose)) return false;
 		if (!populate_star_array(verbose)) return false;
 		if (!create_tree(verbose)) return false;
-		if (!shoot_rays(verbose)) return false;
+		if (!shoot_cells(verbose)) return false;
 
 		return true;
 	}

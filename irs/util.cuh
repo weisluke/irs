@@ -286,7 +286,7 @@ void show_device_info(int num, cudaDeviceProp& prop)
 	std::cout << "  Clock rate (kHz): " << prop.clockRate << "\n";
 	std::cout << "  Number of multiprocessors: " << prop.multiProcessorCount << "\n";
 	std::cout << "  Max block size: " << prop.maxThreadsPerBlock << "\n";
-	
+
 	std::cout << "  Maximum (x, y, z) dimensions of block: ("
 		<< prop.maxThreadsDim[0] << ", "
 		<< prop.maxThreadsDim[1] << ", "

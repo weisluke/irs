@@ -17,9 +17,12 @@
     <ClInclude Include="binomial_coefficients.cuh" />
     <ClInclude Include="complex.cuh" />
     <ClInclude Include="fmm.cuh" />
+    <ClInclude Include="ipm.cuh" />
+    <ClInclude Include="ipm_functions.cuh" />
     <ClInclude Include="irs_functions.cuh" />
     <ClInclude Include="mass_function.cuh" />
     <ClInclude Include="irs.cuh" />
+    <ClInclude Include="polygon.cuh" />
     <ClInclude Include="stopwatch.hpp" />
     <ClInclude Include="tree_node.cuh" />
     <ClInclude Include="util.cuh" />
@@ -95,7 +98,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" -DIPM_map %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_75,sm_75</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>

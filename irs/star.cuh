@@ -503,7 +503,15 @@ bool write_star_file(int nstars, int rectangular, Complex<T> corner, T theta, st
 
 	outfile.write((char*)(&nstars), sizeof(int));
 	outfile.write((char*)(&rectangular), sizeof(int));
-	outfile.write((char*)(&corner), sizeof(Complex<T>));
+	if (rectangular)
+	{
+		outfile.write((char*)(&corner), sizeof(Complex<T>));
+	}
+	else
+	{
+		Complex<T> tmp_corner = Complex<T>(corner.abs(), 0);
+		outfile.write((char*)(&tmp_corner), sizeof(Complex<T>));
+	}
 	outfile.write((char*)(&theta), sizeof(T));
 	outfile.write((char*)stars, nstars * sizeof(star<T>));
 	outfile.close();

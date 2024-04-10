@@ -347,13 +347,13 @@ calculate the histogram of rays for the pixel array
 
 \param pixels -- pointer to array of pixels
 \param npixels -- number of pixels for one side of the receiving square
-\param minrays -- minimum number of rays
+\param hist_min -- minimum value in the histogram
 \param histogram -- pointer to histogram
 \param factor -- factor by which to multiply the pixel values before casting
                  to integers for the histogram
 ******************************************************************************/
 template <typename T>
-__global__ void histogram_kernel(T* pixels, Complex<int> npixels, int minrays, int* histogram, int factor = 1)
+__global__ void histogram_kernel(T* pixels, Complex<int> npixels, int hist_min, int* histogram, int factor = 1)
 {
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
@@ -365,7 +365,7 @@ __global__ void histogram_kernel(T* pixels, Complex<int> npixels, int minrays, i
 	{
 		for (int j = y_index; j < npixels.im; j += y_stride)
 		{
-			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels.re + i] * factor + 0.5 - minrays)], 1);
+			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels.re + i] * factor + 0.5 - hist_min)], 1);
 		}
 	}
 }

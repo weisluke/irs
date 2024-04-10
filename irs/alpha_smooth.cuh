@@ -13,7 +13,7 @@ Heaviside Step Function
 template <typename T>
 __device__ T heaviside(T x)
 {
-	if (x > 0)
+	if (x >= 0)
 	{
 		return 1;
 	}
@@ -35,7 +35,7 @@ __device__ T heaviside(T x)
 template <typename T>
 __device__ T boxcar(Complex<T> z, Complex<T> corner)
 {
-	if (-corner.re < z.re && z.re < corner.re && -corner.im < z.im && z.im < corner.im)
+	if (-corner.re <= z.re && z.re <= corner.re && -corner.im <= z.im && z.im <= corner.im)
 	{
 		return 1;
 	}

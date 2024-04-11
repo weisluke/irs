@@ -228,8 +228,8 @@ public:
 
             if (neighbor->num_children == 0)
             {
-                if (fabs(neighbor->center.re - center.re) < 4 * half_length
-                    && fabs(neighbor->center.im - center.im) < 4 * half_length)
+                if (fabs(neighbor->center.re - center.re) < 3.5 * half_length
+                    && fabs(neighbor->center.im - center.im) < 3.5 * half_length)
                 {
                     neighbors[num_neighbors++] = neighbor;
                 }

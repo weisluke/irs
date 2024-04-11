@@ -394,7 +394,7 @@ namespace fmm
             star<T> star = stars[node_from->stars + i];
 
             /******************************************************************************
-            dz = (star_position - nodeto_center) / nodefrom_halflength
+            dz = (star_position - nodeto_center) / nodeto_halflength
             ******************************************************************************/
             Complex<T> dz = (star.position - node_to->center) / node_to->half_length;
 

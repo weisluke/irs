@@ -216,7 +216,7 @@ public:
                 if (fabs(node->center.re - center.re) < 3 * half_length
                     && fabs(node->center.im - center.im) < 3 * half_length)
                 {
-                    neighbors[numneighbors++] = node;
+                    neighbors[num_neighbors++] = node;
                 }
                 else
                 {
@@ -289,7 +289,7 @@ namespace treenode
             TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
             
-            for (int j = 0; j < node->numneighbors; j++)
+            for (int j = 0; j < node->num_neighbors; j++)
             {
                 nstars += node->neighbors[j]->numstars;
             }
@@ -323,7 +323,7 @@ namespace treenode
             TreeNode<T>* node = &nodes[i];
             int nstars = node->numstars;
 
-            for (int j = 0; j < node->numneighbors; j++)
+            for (int j = 0; j < node->num_neighbors; j++)
             {
                 nstars += node->neighbors[j]->numstars;
             }

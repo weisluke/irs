@@ -161,7 +161,7 @@ namespace fmm
             each thread calculates a shifted multipole coefficient in the y thread
             direction for a child node in the z thread direction
             ******************************************************************************/
-            for (int j = threadIdx.z; j < node->numchildren; j += blockDim.z)
+            for (int j = threadIdx.z; j < node->num_children; j += blockDim.z)
             {
                 TreeNode<T>* child = node->children[j];
                 for (int i = threadIdx.y; i <= power; i += blockDim.y)
@@ -177,7 +177,7 @@ namespace fmm
             ******************************************************************************/
             if (threadIdx.y == 0 && threadIdx.z == 0)
             {
-                for (int j = 0; j < node->numchildren; j++)
+                for (int j = 0; j < node->num_children; j++)
                 {
                     node->add_multipole_coeffs(&coeffs[(power + 1) * 4 * threadIdx.x + (power + 1) * j], power);
                 }

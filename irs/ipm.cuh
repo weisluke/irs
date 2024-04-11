@@ -618,11 +618,11 @@ private:
 
 			if (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT)
 			{
-				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * 4) + "\n", verbose);
+				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * treenode::MAX_NUM_CHILDREN) + "\n", verbose);
 
 				print_verbose("Allocating memory for children...\n", verbose);
 				tree.push_back(nullptr);
-				num_nodes.push_back(*num_nonempty_nodes * 4);
+				num_nodes.push_back(*num_nonempty_nodes * treenode::MAX_NUM_CHILDREN);
 				cudaMallocManaged(&tree.back(), num_nodes.back() * sizeof(TreeNode<T>));
 				if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 

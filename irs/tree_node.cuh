@@ -371,11 +371,11 @@ namespace treenode
             if (nstars > treenode::MAX_NUM_STARS_DIRECT)
             {
                 /******************************************************************************
-                assumes that array of child nodes has 4 * num_nonempty_nodes at the start
-                every 4 elements are then the children of this node
+                assumes that array of child nodes has MAX_NUM_CHILDREN * num_nonempty_nodes at
+                the start. every MAX_NUM_CHILDREN elements are then the children of this node
                 atomicSub ensures that children are placed at unique locations
                 ******************************************************************************/
-                node->make_children(children, 4 * atomicSub(num_nonempty_nodes, 1));
+                node->make_children(children, treenode::MAX_NUM_CHILDREN * atomicSub(num_nonempty_nodes, 1));
             }
         }
     }
@@ -394,7 +394,7 @@ namespace treenode
     {
         __shared__ int n_stars_top;
         __shared__ int n_stars_bottom;
-        __shared__ int n_stars_children[4];
+        __shared__ int n_stars_children[treenode::MAX_NUM_CHILDREN];
 
         /******************************************************************************
         each block is a node
@@ -489,7 +489,7 @@ namespace treenode
                 node->children[0]->numstars = n_stars_children[0];
 
 #pragma unroll
-                for (int i = 1; i < 4; i++)
+                for (int i = 1; i < treenode::MAX_NUM_CHILDREN; i++)
                 {
                     node->children[i]->stars = node->children[i - 1]->stars + node->children[i - 1]->numstars;
                     node->children[i]->numstars = n_stars_children[i];

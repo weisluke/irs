@@ -159,7 +159,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					tmp_stars[atomicAdd(&nstars, 1)] = stars[node->stars + j];
 				}
 			}
-			for (int i = threadIdx.x; i < node->numneighbors; i += blockDim.x)
+			for (int i = threadIdx.x; i < node->num_neighbors; i += blockDim.x)
 			{
 				TreeNode<T>* neighbor = node->neighbors[i];
 				for (int j = threadIdx.y; j < neighbor->numstars; j += blockDim.y)
@@ -171,7 +171,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
-				node->numneighbors = 0;
+				node->num_neighbors = 0;
 				node->stars = 0;
 				node->numstars = nstars;
 			}

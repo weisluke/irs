@@ -392,14 +392,15 @@ namespace treenode
     template <typename T>
     __global__ void sort_stars_kernel(TreeNode<T>* nodes, int numnodes, star<T>* stars, star<T>* temp_stars)
     {
-        __shared__ int n_stars_top;
-        __shared__ int n_stars_bottom;
-        __shared__ int n_stars_children[treenode::MAX_NUM_CHILDREN];
+	    extern __shared__ int shared_memory[];
+        int* n_stars_top = &shared_memory[0];
+        int* n_stars_bottom = &n_stars_top[blockDim.x];
+        int* n_stars_children = &n_stars_bottom[blockDim.x];
 
         /******************************************************************************
-        each block is a node
+        each thread is a node in the x thread direction
         ******************************************************************************/
-        for (int j = blockIdx.x; j < numnodes; j += gridDim.x)
+        for (int j = blockIdx.x * blockDim.x + threadIdx.x; j < numnodes; j += blockDim.x * gridDim.x)
         {
             TreeNode<T>* node = &nodes[j];
 
@@ -411,22 +412,22 @@ namespace treenode
                 continue;
             }
 
-            if (threadIdx.x == 0)
+            if (threadIdx.y == 0)
             {
-                n_stars_top = 0;
-                n_stars_bottom = 0;
-                n_stars_children[0] = 0;
-                n_stars_children[1] = 0;
-                n_stars_children[2] = 0;
-                n_stars_children[3] = 0;
+                n_stars_top[threadIdx.x] = 0;
+                n_stars_bottom[threadIdx.x] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 0] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 1] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 2] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 3] = 0;
             }
             __syncthreads();
 
             /******************************************************************************
-            each thread is a star within the parent node
+            each thread is a star within the parent node in the y direction
             in the first pass, figure out whether the star is above or below the center
             ******************************************************************************/
-            for (int i = threadIdx.x; i < node->numstars; i += blockDim.x)
+            for (int i = threadIdx.y; i < node->numstars; i += blockDim.y)
             {
                 if (stars[node->stars + i].position.im >= node->center.im)
                 {
@@ -434,11 +435,11 @@ namespace treenode
                     atomic addition returns the old value, so this is guaranteed to copy the star
                     to a unique location in the temp array
                     ******************************************************************************/
-                    temp_stars[node->stars + atomicAdd(&n_stars_top, 1)] = stars[node->stars + i];
+                    temp_stars[node->stars + atomicAdd(&n_stars_top[threadIdx.x], 1)] = stars[node->stars + i];
                 }
                 else
                 {
-                    temp_stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_bottom, 1)] = stars[node->stars + i];
+                    temp_stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_bottom[threadIdx.x], 1)] = stars[node->stars + i];
                 }
             }
             __syncthreads();
@@ -446,20 +447,20 @@ namespace treenode
             /******************************************************************************
             in the second pass, figure out whether the star is left or right of the center
             ******************************************************************************/
-            for (int i = threadIdx.x; i < node->numstars; i += blockDim.x)
+            for (int i = threadIdx.y; i < node->numstars; i += blockDim.y)
             {
                 /******************************************************************************
                 if the star was in the top, then sort left and right
                 ******************************************************************************/
-                if (i < n_stars_top)
+                if (i < n_stars_top[threadIdx.x])
                 {
                     if (temp_stars[node->stars + i].position.re >= node->center.re)
                     {
-                        stars[node->stars + atomicAdd(&n_stars_children[0], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 0], 1)] = temp_stars[node->stars + i];
                     }
                     else
                     {
-                        stars[node->stars + n_stars_top - 1 - atomicAdd(&n_stars_children[1], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + n_stars_top[threadIdx.x] - 1 - atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 1], 1)] = temp_stars[node->stars + i];
                     }
                 }
                 /******************************************************************************
@@ -469,11 +470,11 @@ namespace treenode
                 {
                     if (temp_stars[node->stars + i].position.re < node->center.re)
                     {
-                        stars[node->stars + n_stars_top + atomicAdd(&n_stars_children[2], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + n_stars_top[threadIdx.x] + atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 2], 1)] = temp_stars[node->stars + i];
                     }
                     else
                     {
-                        stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_children[3], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 3], 1)] = temp_stars[node->stars + i];
                     }
                 }
             }
@@ -483,16 +484,16 @@ namespace treenode
             once the sorting is done, assign the starting position of stars to the children
             along with the number of stars
             ******************************************************************************/
-            if (threadIdx.x == 0)
+            if (threadIdx.y == 0)
             {
                 node->children[0]->stars = node->stars;
-                node->children[0]->numstars = n_stars_children[0];
+                node->children[0]->numstars = n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 0];
 
 #pragma unroll
                 for (int i = 1; i < treenode::MAX_NUM_CHILDREN; i++)
                 {
                     node->children[i]->stars = node->children[i - 1]->stars + node->children[i - 1]->numstars;
-                    node->children[i]->numstars = n_stars_children[i];
+                    node->children[i]->numstars = n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + i];
                 }
             }
             __syncthreads();

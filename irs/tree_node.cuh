@@ -19,9 +19,9 @@ namespace treenode
     ******************************************************************************/
     const int MAX_EXPANSION_ORDER = 31;
 
-    const int MAX_NUM_CHILDREN = 4; // a node has at most 4 children
-    const int MAX_NUM_NEIGHBORS = 8; // a node has at most 8 neighbors
-    const int MAX_NUM_SAME_LEVEL_INTERACTION_LIST = 27; // a node has at most 27 elements in its interaction list from the same level
+    const int MAX_NUM_CHILDREN = 4; //a node has at most 4 children
+    const int MAX_NUM_NEIGHBORS = 8; //a node has at most 8 neighbors
+    const int MAX_NUM_SAME_LEVEL_INTERACTION_LIST = 27; //a node has at most 27 elements in its interaction list from the same level
     const int MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST = 5; //a node has at most 5 elements in its interaction list from different levels
 
 }

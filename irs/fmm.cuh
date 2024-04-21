@@ -377,7 +377,7 @@ namespace fmm
     calculate the local coefficient for a node for a given power from the stars
     of a far node
 
-    \param node_from -- pointer to node whose multipole expansion is being used
+    \param node_from -- pointer to node whose stars are being used
     \param node_to -- pointer to node whose local expansion is being calculated
     \param coeffs -- pointer to array of local coefficients
     \param power -- what order to find the local coefficient of

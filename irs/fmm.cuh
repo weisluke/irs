@@ -71,6 +71,11 @@ namespace fmm
         {
             TreeNode<T>* node = &nodes[j];
 
+            if (node->num_children != 0 || node->numstars == 0)
+            {
+                continue;
+            }
+
             /******************************************************************************
             each thread calculates a multipole coefficient in the y thread direction
             ******************************************************************************/
@@ -166,7 +171,7 @@ namespace fmm
                 TreeNode<T>* child = node->children[j];
                 for (int i = threadIdx.y; i <= power; i += blockDim.y)
                 {
-                    calculate_M2M_coeff<T>(child, &coeffs[(power + 1) * 4 * threadIdx.x + (power + 1) * j], i, binomcoeffs);
+                    calculate_M2M_coeff<T>(child, &coeffs[(power + 1) * treenode::MAX_NUM_CHILDREN * threadIdx.x + (power + 1) * j], i, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -179,7 +184,7 @@ namespace fmm
             {
                 for (int j = 0; j < node->num_children; j++)
                 {
-                    node->add_multipole_coeffs(&coeffs[(power + 1) * 4 * threadIdx.x + (power + 1) * j], power);
+                    node->add_multipole_coeffs(&coeffs[(power + 1) * treenode::MAX_NUM_CHILDREN * threadIdx.x + (power + 1) * j], power);
                 }
             }
             __syncthreads();
@@ -344,11 +349,11 @@ namespace fmm
             each thread calculates a local coefficient in the y thread direction for a
             member of the interaction list in the z thread direction
             ******************************************************************************/
-            for (int j = threadIdx.z; j < node->numinterlist; j += blockDim.z)
+            for (int j = threadIdx.z; j < node->num_same_level_interaction_list; j += blockDim.z)
             {
                 for (int i = threadIdx.y; i <= power; i += blockDim.y)
                 {
-                    calculate_M2L_coeff<T>(node->interactionlist[j], node, &coeffs[(power + 1) * 27 * threadIdx.x + (power + 1) * j], i, power, binomcoeffs);
+                    calculate_M2L_coeff<T>(node->same_level_interaction_list[j], node, &coeffs[(power + 1) * treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST * threadIdx.x + (power + 1) * j], i, power, binomcoeffs);
                 }
             }
             __syncthreads();
@@ -359,9 +364,99 @@ namespace fmm
             ******************************************************************************/
             if (threadIdx.y == 0 && threadIdx.z == 0)
             {
-                for (int j = 0; j < node->numinterlist; j++)
+                for (int j = 0; j < node->num_same_level_interaction_list; j++)
                 {
-                    node->add_local_coeffs(&coeffs[(power + 1) * 27 * threadIdx.x + (power + 1) * j], power);
+                    node->add_local_coeffs(&coeffs[(power + 1) * treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST * threadIdx.x + (power + 1) * j], power);
+                }
+            }
+            __syncthreads();
+        }
+    }
+
+    /******************************************************************************
+    calculate the local coefficient for a node for a given power from the stars
+    of a far node
+
+    \param node_from -- pointer to node whose stars are being used
+    \param node_to -- pointer to node whose local expansion is being calculated
+    \param coeffs -- pointer to array of local coefficients
+    \param power -- what order to find the local coefficient of
+    \param maxpower -- maximum order to find the local coefficient of
+    \param binomcoeffs -- pointer to array of binomial coefficients
+    ******************************************************************************/
+    template <typename T>
+    __device__ void calculate_P2L_coeff(TreeNode<T>* node_from, TreeNode<T>* node_to, Complex<T>* coeffs, int power, int maxpower, int* binomcoeffs, star<T>* stars)
+    {
+        Complex<T> result;
+
+        for (int i = 0; i < node_from->numstars; i++)
+        {
+            star<T> star = stars[node_from->stars + i];
+
+            /******************************************************************************
+            dz = (star_position - nodeto_center) / nodeto_halflength
+            ******************************************************************************/
+            Complex<T> dz = (star.position - node_to->center) / node_to->half_length;
+
+            if (power == 0)
+            {
+                result += star.mass * (-dz).log();
+                result += star.mass * log(node_to->half_length);
+            }
+            else
+            {
+                result -= star.mass / (power * dz.pow(power));
+            }
+        }
+
+        coeffs[power] = result;
+    }
+
+    /******************************************************************************
+    calculate the local coefficients for a given power from the stars of far nodes
+
+    \param nodes -- pointer to tree
+    \param numnodes -- number of nodes in the tree
+    \param power -- maximum expansion order to find the local coefficients of
+    \param binomcoeffs -- pointer to array of binomial coefficients
+    ******************************************************************************/
+    template <typename T>
+    __global__ void calculate_P2L_coeffs_kernel(TreeNode<T>* nodes, int numnodes, int power, int* binomcoeffs, star<T>* stars)
+    {
+        /******************************************************************************
+        array to hold local coefficients
+        ******************************************************************************/
+        extern __shared__ Complex<T> coeffs[];
+
+        /******************************************************************************
+        each thread is a node in the x thread direction
+        ******************************************************************************/
+        for (int k = blockIdx.x * blockDim.x + threadIdx.x; k < numnodes; k += blockDim.x * gridDim.x)
+        {
+            TreeNode<T>* node = &nodes[k];
+
+            /******************************************************************************
+            each thread calculates a local coefficient in the y thread direction for a
+            member of the interaction list in the z thread direction
+            ******************************************************************************/
+            for (int j = threadIdx.z; j < node->num_different_level_interaction_list; j += blockDim.z)
+            {
+                for (int i = threadIdx.y; i <= power; i += blockDim.y)
+                {
+                    calculate_P2L_coeff<T>(node->different_level_interaction_list[j], node, &coeffs[(power + 1) * treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST * threadIdx.x + (power + 1) * j], i, power, binomcoeffs, stars);
+                }
+            }
+            __syncthreads();
+
+            /******************************************************************************
+            finally, add the local coefficients from the interaction list onto the node
+            this must be sequentially carried out by one thread
+            ******************************************************************************/
+            if (threadIdx.y == 0 && threadIdx.z == 0)
+            {
+                for (int j = 0; j < node->num_different_level_interaction_list; j++)
+                {
+                    node->add_local_coeffs(&coeffs[(power + 1) * treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST * threadIdx.x + (power + 1) * j], power);
                 }
             }
             __syncthreads();

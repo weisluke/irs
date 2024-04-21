@@ -11,13 +11,18 @@ namespace treenode
     number of stars to use directly when shooting rays
     this helps determine the size of the tree
     ******************************************************************************/
-    const int MAX_NUM_STARS_DIRECT = 16;
+    const int MAX_NUM_STARS_DIRECT = 32;
     
     /******************************************************************************
     maximum expansion order for the fast multipole method
     uses 31 so that maximum number of coefficients is 32
     ******************************************************************************/
     const int MAX_EXPANSION_ORDER = 31;
+
+    const int MAX_NUM_CHILDREN = 4; //a node has at most 4 children
+    const int MAX_NUM_NEIGHBORS = 8; //a node has at most 8 neighbors
+    const int MAX_NUM_SAME_LEVEL_INTERACTION_LIST = 27; //a node has at most 27 elements in its interaction list from the same level
+    const int MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST = 5; //a node has at most 5 elements in its interaction list from different levels
 
 }
 
@@ -34,12 +39,14 @@ public:
     int level;
 
     TreeNode* parent;
-    TreeNode* children[4]; //a node has at most 4 children
+    TreeNode* children[treenode::MAX_NUM_CHILDREN];
     int num_children;
-    TreeNode* neighbors[8]; //a node has at most 8 neighbors
+    TreeNode* neighbors[treenode::MAX_NUM_NEIGHBORS];
     int num_neighbors;
-    TreeNode* interactionlist[27]; //a node has at most 27 elements in its interaction list
-    int numinterlist;
+    TreeNode* same_level_interaction_list[treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST];
+    int num_same_level_interaction_list;
+    TreeNode* different_level_interaction_list[treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST];
+    int num_different_level_interaction_list;
 
     int stars; //position of this node's stars in array of stars
     int numstars; //number of stars in this node
@@ -59,21 +66,26 @@ public:
         level = lvl;
 
 		parent = p;
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < treenode::MAX_NUM_CHILDREN; i++)
         {
             children[i] = nullptr;
         }
         num_children = 0;
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < treenode::MAX_NUM_NEIGHBORS; i++)
         {
             neighbors[i] = nullptr;
         }
         num_neighbors = 0;
-        for (int i = 0; i < 27; i++)
+        for (int i = 0; i < treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST; i++)
         {
-            interactionlist[i] = nullptr;
+            same_level_interaction_list[i] = nullptr;
         }
-        numinterlist = 0;
+        num_same_level_interaction_list = 0;
+        for (int i = 0; i < treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST; i++)
+        {
+            different_level_interaction_list[i] = nullptr;
+        }
+        num_different_level_interaction_list = 0;
 
         stars = 0;
         numstars = 0;
@@ -96,21 +108,26 @@ public:
         level = n.level;
 
         parent = n.parent;
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < treenode::MAX_NUM_CHILDREN; i++)
         {
             children[i] = n.children[i];
         }
         num_children = n.num_children;
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < treenode::MAX_NUM_NEIGHBORS; i++)
         {
             neighbors[i] = n.neighbors[i];
         }
         num_neighbors = n.num_neighbors;
-        for (int i = 0; i < 27; i++)
+        for (int i = 0; i < treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST; i++)
         {
-            interactionlist[i] = n.interactionlist[i];
+            same_level_interaction_list[i] = n.same_level_interaction_list[i];
         }
-        numinterlist = n.numinterlist;
+        num_same_level_interaction_list = n.num_same_level_interaction_list;
+        for (int i = 0; i < treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST; i++)
+        {
+            different_level_interaction_list[i] = n.different_level_interaction_list[i];
+        }
+        num_different_level_interaction_list = n.num_different_level_interaction_list;
 
         stars = n.stars;
         numstars = n.numstars;
@@ -135,7 +152,7 @@ public:
     {
         T new_half_length = half_length / 2;
 
-        Complex<T> offsets[4] = 
+        Complex<T> offsets[treenode::MAX_NUM_CHILDREN] = 
         {
             Complex<T>(1, 1),
             Complex<T>(-1, 1),
@@ -152,11 +169,11 @@ public:
 
     __host__ __device__ void make_children(TreeNode* nodes, int start)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < treenode::MAX_NUM_CHILDREN; i++)
         {
             make_child(nodes, start, i);
         }
-        num_children = 4;
+        num_children = treenode::MAX_NUM_CHILDREN;
     }
 
 
@@ -200,27 +217,50 @@ public:
         for (int i = 0; i < parent->num_neighbors; i++)
         {
             TreeNode* neighbor = parent->neighbors[i];
-            
-            for (int j = 0; j < neighbor->num_children; j++)
+
+            /******************************************************************************
+            if neighbor is empty, skip it
+            ******************************************************************************/
+            if (neighbor->numstars == 0)
             {
-                TreeNode* node = neighbor->children[j];
+                continue;
+            }
 
-                /******************************************************************************
-                if node is empty, skip it
-                ******************************************************************************/
-                if (node->numstars == 0)
+            if (neighbor->num_children == 0)
+            {
+                if (fabs(neighbor->center.re - center.re) < 3.5 * half_length
+                    && fabs(neighbor->center.im - center.im) < 3.5 * half_length)
                 {
-                    continue;
-                }
-
-                if (fabs(node->center.re - center.re) < 3 * half_length
-                    && fabs(node->center.im - center.im) < 3 * half_length)
-                {
-                    neighbors[num_neighbors++] = node;
+                    neighbors[num_neighbors++] = neighbor;
                 }
                 else
                 {
-                    interactionlist[numinterlist++] = node;
+                    different_level_interaction_list[num_different_level_interaction_list++] = neighbor;
+                }
+            }
+            else
+            {
+                for (int j = 0; j < neighbor->num_children; j++)
+                {
+                    TreeNode* node = neighbor->children[j];
+
+                    /******************************************************************************
+                    if node is empty, skip it
+                    ******************************************************************************/
+                    if (node->numstars == 0)
+                    {
+                        continue;
+                    }
+
+                    if (fabs(node->center.re - center.re) < 3 * half_length
+                        && fabs(node->center.im - center.im) < 3 * half_length)
+                    {
+                        neighbors[num_neighbors++] = node;
+                    }
+                    else
+                    {
+                        same_level_interaction_list[num_same_level_interaction_list++] = node;
+                    }
                 }
             }
         }
@@ -294,7 +334,7 @@ namespace treenode
                 nstars += node->neighbors[j]->numstars;
             }
 
-            if (nstars > 0)
+            if (nstars > treenode::MAX_NUM_STARS_DIRECT)
             {
                 atomicAdd(num_nonempty_nodes, 1);
             }
@@ -328,14 +368,14 @@ namespace treenode
                 nstars += node->neighbors[j]->numstars;
             }
 
-            if (nstars > 0)
+            if (nstars > treenode::MAX_NUM_STARS_DIRECT)
             {
                 /******************************************************************************
-                assumes that array of child nodes has 4 * num_nonempty_nodes at the start
-                every 4 elements are then the children of this node
+                assumes that array of child nodes has MAX_NUM_CHILDREN * num_nonempty_nodes at
+                the start. every MAX_NUM_CHILDREN elements are then the children of this node
                 atomicSub ensures that children are placed at unique locations
                 ******************************************************************************/
-                node->make_children(children, 4 * atomicSub(num_nonempty_nodes, 1));
+                node->make_children(children, treenode::MAX_NUM_CHILDREN * atomicSub(num_nonempty_nodes, 1));
             }
         }
     }
@@ -352,41 +392,42 @@ namespace treenode
     template <typename T>
     __global__ void sort_stars_kernel(TreeNode<T>* nodes, int numnodes, star<T>* stars, star<T>* temp_stars)
     {
-        __shared__ int n_stars_top;
-        __shared__ int n_stars_bottom;
-        __shared__ int n_stars_children[4];
+	    extern __shared__ int shared_memory[];
+        int* n_stars_top = &shared_memory[0];
+        int* n_stars_bottom = &n_stars_top[blockDim.x];
+        int* n_stars_children = &n_stars_bottom[blockDim.x];
 
         /******************************************************************************
-        each block is a node
+        each thread is a node in the x thread direction
         ******************************************************************************/
-        for (int j = blockIdx.x; j < numnodes; j += gridDim.x)
+        for (int j = blockIdx.x * blockDim.x + threadIdx.x; j < numnodes; j += blockDim.x * gridDim.x)
         {
             TreeNode<T>* node = &nodes[j];
 
             /******************************************************************************
-            if node is empty, skip it
+            if node is empty or has no children, skip it
             ******************************************************************************/
-            if (node->numstars == 0)
+            if (node->numstars == 0 || node->num_children == 0)
             {
                 continue;
             }
 
-            if (threadIdx.x == 0)
+            if (threadIdx.y == 0)
             {
-                n_stars_top = 0;
-                n_stars_bottom = 0;
-                n_stars_children[0] = 0;
-                n_stars_children[1] = 0;
-                n_stars_children[2] = 0;
-                n_stars_children[3] = 0;
+                n_stars_top[threadIdx.x] = 0;
+                n_stars_bottom[threadIdx.x] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 0] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 1] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 2] = 0;
+                n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 3] = 0;
             }
             __syncthreads();
 
             /******************************************************************************
-            each thread is a star within the parent node
+            each thread is a star within the parent node in the y direction
             in the first pass, figure out whether the star is above or below the center
             ******************************************************************************/
-            for (int i = threadIdx.x; i < node->numstars; i += blockDim.x)
+            for (int i = threadIdx.y; i < node->numstars; i += blockDim.y)
             {
                 if (stars[node->stars + i].position.im >= node->center.im)
                 {
@@ -394,11 +435,11 @@ namespace treenode
                     atomic addition returns the old value, so this is guaranteed to copy the star
                     to a unique location in the temp array
                     ******************************************************************************/
-                    temp_stars[node->stars + atomicAdd(&n_stars_top, 1)] = stars[node->stars + i];
+                    temp_stars[node->stars + atomicAdd(&n_stars_top[threadIdx.x], 1)] = stars[node->stars + i];
                 }
                 else
                 {
-                    temp_stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_bottom, 1)] = stars[node->stars + i];
+                    temp_stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_bottom[threadIdx.x], 1)] = stars[node->stars + i];
                 }
             }
             __syncthreads();
@@ -406,20 +447,20 @@ namespace treenode
             /******************************************************************************
             in the second pass, figure out whether the star is left or right of the center
             ******************************************************************************/
-            for (int i = threadIdx.x; i < node->numstars; i += blockDim.x)
+            for (int i = threadIdx.y; i < node->numstars; i += blockDim.y)
             {
                 /******************************************************************************
                 if the star was in the top, then sort left and right
                 ******************************************************************************/
-                if (i < n_stars_top)
+                if (i < n_stars_top[threadIdx.x])
                 {
                     if (temp_stars[node->stars + i].position.re >= node->center.re)
                     {
-                        stars[node->stars + atomicAdd(&n_stars_children[0], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 0], 1)] = temp_stars[node->stars + i];
                     }
                     else
                     {
-                        stars[node->stars + n_stars_top - 1 - atomicAdd(&n_stars_children[1], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + n_stars_top[threadIdx.x] - 1 - atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 1], 1)] = temp_stars[node->stars + i];
                     }
                 }
                 /******************************************************************************
@@ -429,11 +470,11 @@ namespace treenode
                 {
                     if (temp_stars[node->stars + i].position.re < node->center.re)
                     {
-                        stars[node->stars + n_stars_top + atomicAdd(&n_stars_children[2], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + n_stars_top[threadIdx.x] + atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 2], 1)] = temp_stars[node->stars + i];
                     }
                     else
                     {
-                        stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_children[3], 1)] = temp_stars[node->stars + i];
+                        stars[node->stars + node->numstars - 1 - atomicAdd(&n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 3], 1)] = temp_stars[node->stars + i];
                     }
                 }
             }
@@ -443,16 +484,16 @@ namespace treenode
             once the sorting is done, assign the starting position of stars to the children
             along with the number of stars
             ******************************************************************************/
-            if (threadIdx.x == 0)
+            if (threadIdx.y == 0)
             {
                 node->children[0]->stars = node->stars;
-                node->children[0]->numstars = n_stars_children[0];
+                node->children[0]->numstars = n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + 0];
 
 #pragma unroll
-                for (int i = 1; i < 4; i++)
+                for (int i = 1; i < treenode::MAX_NUM_CHILDREN; i++)
                 {
                     node->children[i]->stars = node->children[i - 1]->stars + node->children[i - 1]->numstars;
-                    node->children[i]->numstars = n_stars_children[i];
+                    node->children[i]->numstars = n_stars_children[threadIdx.x * treenode::MAX_NUM_CHILDREN + i];
                 }
             }
             __syncthreads();

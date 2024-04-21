@@ -12,7 +12,7 @@
 
 #include <curand_kernel.h>
 #include <thrust/execution_policy.h> //for thrust::device
-#include <thrust/extrema.h> // for thrust::min_element, thrust::max_element
+#include <thrust/extrema.h> //for thrust::min_element, thrust::max_element
 
 #include <algorithm> //for std::min and std::max
 #include <chrono> //for setting random seed with clock
@@ -599,7 +599,7 @@ private:
 
 		std::cout << "Creating children and sorting stars...\n";
 		stopwatch.start();
-		set_threads(threads, 512);
+
 		do
 		{
 			print_verbose("\nProcessing level " + std::to_string(tree_levels) + "\n", verbose);
@@ -608,6 +608,7 @@ private:
 			*min_num_stars_in_level = num_stars;
 			*num_nonempty_nodes = 0;
 
+			set_threads(threads, 512);
 			set_blocks(threads, blocks, num_nodes[tree_levels]);
 			treenode::get_node_star_info_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels],
 				num_nonempty_nodes, min_num_stars_in_level, max_num_stars_in_level);
@@ -618,28 +619,31 @@ private:
 
 			if (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT)
 			{
-				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * 4) + "\n", verbose);
+				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * treenode::MAX_NUM_CHILDREN) + "\n", verbose);
 
 				print_verbose("Allocating memory for children...\n", verbose);
 				tree.push_back(nullptr);
-				num_nodes.push_back(*num_nonempty_nodes * 4);
+				num_nodes.push_back(*num_nonempty_nodes * treenode::MAX_NUM_CHILDREN);
 				cudaMallocManaged(&tree.back(), num_nodes.back() * sizeof(TreeNode<T>));
 				if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 
 				print_verbose("Creating children...\n", verbose);
 				(*num_nonempty_nodes)--; //subtract one since value is size of array, and instead needs to be the first allocatable element
+				set_threads(threads, 512);
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::create_children_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
 				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
 
 				print_verbose("Sorting stars...\n", verbose);
-				set_blocks(threads, blocks, 512 * num_nodes[tree_levels]);
-				treenode::sort_stars_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
+				set_threads(threads, static_cast<int>(512 / *max_num_stars_in_level) + 1, std::min(512, *max_num_stars_in_level));
+				set_blocks(threads, blocks, num_nodes[tree_levels], std::min(512, *max_num_stars_in_level));
+				treenode::sort_stars_kernel<T> <<<blocks, threads, (threads.x + threads.x + threads.x * treenode::MAX_NUM_CHILDREN) * sizeof(int)>>> (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
 				if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return false;
 
 				tree_levels++;
 
 				print_verbose("Setting neighbors...\n", verbose);
+				set_threads(threads, 512);
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels]);
 				if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
@@ -705,15 +709,15 @@ private:
 		std::cout << "Calculating multipole and local coefficients...\n";
 		stopwatch.start();
 
-		set_threads(threads, 16, expansion_order + 1);
-		set_blocks(threads, blocks, num_nodes[tree_levels], (expansion_order + 1));
-		fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[tree_levels], num_nodes[tree_levels], expansion_order, stars);
-
-		set_threads(threads, 4, expansion_order + 1, 4);
-		for (int i = tree_levels - 1; i >= 0; i--)
+		for (int i = tree_levels; i >= 0; i--)
 		{
-			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), 4);
-			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * 4 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			set_threads(threads, 16, expansion_order + 1);
+			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1));
+			fmm::calculate_multipole_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, stars);
+
+			set_threads(threads, 4, expansion_order + 1, treenode::MAX_NUM_CHILDREN);
+			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), treenode::MAX_NUM_CHILDREN);
+			fmm::calculate_M2M_coeffs_kernel<T> <<<blocks, threads, 4 * treenode::MAX_NUM_CHILDREN * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 		}
 
 		/******************************************************************************
@@ -725,9 +729,13 @@ private:
 			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1));
 			fmm::calculate_L2L_coeffs_kernel<T> <<<blocks, threads, 16 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
 
-			set_threads(threads, 1, expansion_order + 1, 27);
-			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), 27);
-			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 1 * 27 * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+			set_threads(threads, 1, expansion_order + 1, treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST);
+			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST);
+			fmm::calculate_M2L_coeffs_kernel<T> <<<blocks, threads, 1 * treenode::MAX_NUM_SAME_LEVEL_INTERACTION_LIST * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs);
+
+			set_threads(threads, 4, expansion_order + 1, treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST);
+			set_blocks(threads, blocks, num_nodes[i], (expansion_order + 1), treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST);
+			fmm::calculate_P2L_coeffs_kernel<T> <<<blocks, threads, 4 * treenode::MAX_NUM_DIFFERENT_LEVEL_INTERACTION_LIST * (expansion_order + 1) * sizeof(Complex<T>)>>> (tree[i], num_nodes[i], expansion_order, binomial_coeffs, stars);
 		}
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 

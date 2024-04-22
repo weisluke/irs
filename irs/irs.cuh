@@ -1,5 +1,6 @@
 #pragma once
 
+#include "array_functions.cuh"
 #include "binomial_coefficients.cuh"
 #include "complex.cuh"
 #include "fmm.cuh"

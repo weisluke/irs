@@ -30,6 +30,23 @@ __global__ void initialize_array_kernel(T* vals, int nrows, int ncols)
 }
 
 /******************************************************************************
+complex point in the source plane converted to pixel position
+
+\param w -- complex source plane position
+\param hly -- half length of the source plane receiving region
+\param npixels -- number of pixels per side for the source plane receiving
+				  region
+
+\return (w + hly) * npixels / (2 * hly)
+******************************************************************************/
+template <typename T, typename U>
+__device__ Complex<T> point_to_pixel(Complex<U> w, Complex<U> hly, Complex<int> npixels)
+{
+	Complex<T> result((w + hly).re * npixels.re / (2 * hly.re), (w + hly).im * npixels.im / (2 * hly.im));
+	return result;
+}
+
+/******************************************************************************
 add two arrays together
 
 \param arr1 -- pointer to array of values

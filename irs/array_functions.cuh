@@ -1,3 +1,7 @@
+#pragma once
+
+#include "complex.cuh"
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>

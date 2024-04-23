@@ -276,16 +276,20 @@ void show_device_info(int num, cudaDeviceProp& prop)
 {
 	std::cout << "Device Number: " << num << "\n";
 	std::cout << "  Device name: " << prop.name << "\n";
+	std::cout << "  Compute capability (major.minor): " << prop.major << "." << prop.minor << "\n";
+	std::cout << "  Clock rate (kHz): " << prop.clockRate << "\n";
 	std::cout << "  Memory clock rate (kHz): " << prop.memoryClockRate << "\n";
 	std::cout << "  Memory bus width (bits): " << prop.memoryBusWidth << "\n";
 	std::cout << "  Peak memory bandwidth (GB/s): " << 2 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / (1024 * 1024) << "\n";
+	std::cout << "  Single-to-double precision performance ratio: " << prop.singleToDoublePrecisionPerfRatio << "\n";
 	std::cout << "  Total global memory (GB): " << prop.totalGlobalMem / (1024 * 1024 * 1024) << "\n";
+	std::cout << "  Shared memory per multiprocessor (kbytes): " << prop.sharedMemPerMultiprocessor / 1024 << "\n";
 	std::cout << "  Shared memory per block (kbytes): " << prop.sharedMemPerBlock / 1024 << "\n";
-	std::cout << "  Compute capability (major.minor): " << prop.major << "." << prop.minor << "\n";
-	std::cout << "  Warp size: " << prop.warpSize << "\n";
-	std::cout << "  Clock rate (kHz): " << prop.clockRate << "\n";
 	std::cout << "  Number of multiprocessors: " << prop.multiProcessorCount << "\n";
-	std::cout << "  Max block size: " << prop.maxThreadsPerBlock << "\n";
+	std::cout << "  Max blocks per multiprocessor: " << prop.maxBlocksPerMultiProcessor << " blocks\n";
+	std::cout << "  Max threads per multiprocessor: " << prop.maxThreadsPerMultiProcessor << " threads\n";
+	std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << " threads\n";
+	std::cout << "  Warp size: " << prop.warpSize << " threads\n";
 
 	std::cout << "  Maximum (x, y, z) dimensions of block: ("
 		<< prop.maxThreadsDim[0] << ", "

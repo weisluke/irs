@@ -571,36 +571,6 @@ int main(int argc, char* argv[])
 
 
 	/******************************************************************************
-	check that a CUDA capable device is present
-	******************************************************************************/
-	int n_devices = 0;
-
-	cudaGetDeviceCount(&n_devices);
-	if (cuda_error("cudaGetDeviceCount", false, __FILE__, __LINE__)) return -1;
-
-	if (verbose)
-	{
-		std::cout << "Available CUDA capable devices:\n\n";
-
-		for (int i = 0; i < n_devices; i++)
-		{
-			cudaDeviceProp prop;
-			cudaGetDeviceProperties(&prop, i);
-			if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return -1;
-
-			show_device_info(i, prop);
-		}
-	}
-
-	if (n_devices > 1)
-	{
-		std::cout << "More than one CUDA capable device detected. Defaulting to first device.\n\n";
-	}
-	cudaSetDevice(0);
-	if (cuda_error("cudaSetDevice", false, __FILE__, __LINE__)) return -1;
-
-
-	/******************************************************************************
 	run and save files
 	******************************************************************************/
 	if (!map_maker.run(verbose)) return -1;

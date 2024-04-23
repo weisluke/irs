@@ -75,8 +75,9 @@ private:
 	const std::string outfile_type = ".bin";
 
 	/******************************************************************************
-	variables for kernel threads and blocks
+	variables for cuda device, kernel threads, and kernel blocks
 	******************************************************************************/
+	cudaDeviceProp cuda_device_prop;
 	dim3 threads;
 	dim3 blocks;
 
@@ -145,6 +146,48 @@ private:
 	int* histogram_saddles = nullptr;
 
 
+
+	bool set_cuda_devices(bool verbose)
+	{
+		/******************************************************************************
+		check that a CUDA capable device is present
+		******************************************************************************/
+		int n_devices = 0;
+
+		cudaGetDeviceCount(&n_devices);
+		if (cuda_error("cudaGetDeviceCount", false, __FILE__, __LINE__)) return false;
+
+		if (n_devices < 1)
+		{
+			std::cerr << "Error. No CUDA capable devices detected.\n";
+			return false;
+		}
+
+		if (verbose)
+		{
+			std::cout << "Available CUDA capable devices:\n\n";
+
+			for (int i = 0; i < n_devices; i++)
+			{
+				cudaDeviceProp prop;
+				cudaGetDeviceProperties(&prop, i);
+				if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return false;
+
+				show_device_info(i, prop);
+			}
+		}
+
+		if (n_devices > 1)
+		{
+			std::cout << "More than one CUDA capable device detected. Defaulting to first device.\n\n";
+		}
+		cudaSetDevice(0);
+		if (cuda_error("cudaSetDevice", false, __FILE__, __LINE__)) return false;
+		cudaGetDeviceProperties(&cuda_device_prop, 0);
+		if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return false;
+
+		return true;
+	}
 
 	bool check_input_params(bool verbose)
 	{
@@ -1071,6 +1114,7 @@ public:
 
 	bool run(bool verbose)
 	{
+		if (!set_cuda_devices(verbose)) return false;
 		if (!check_input_params(verbose)) return false;
 		if (!calculate_derived_params(verbose)) return false;
 		if (!allocate_initialize_memory(verbose)) return false;

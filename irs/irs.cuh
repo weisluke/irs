@@ -723,6 +723,20 @@ private:
 			num_ray_blocks = Complex<int>(half_length_x / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
 			tmp_half_length_x = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
 		}
+
+		/******************************************************************************
+		if number of ray blocks needed is less than the number of blocks available on
+		the device, increase the ray blocks level to better take advantage of
+		parallelization
+		******************************************************************************/
+		while ((2 * num_ray_blocks.re * 2 * num_ray_blocks.im < cuda_device_prop.multiProcessorCount) &&
+			ray_blocks_level <= rays_level)
+		{
+			ray_blocks_level++;
+			num_ray_blocks = Complex<int>(half_length_x / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
+			tmp_half_length_x = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
+		}
+
 		set_param("ray_blocks_level", ray_blocks_level, ray_blocks_level, verbose);
 		if (ray_blocks_level > rays_level)
 		{

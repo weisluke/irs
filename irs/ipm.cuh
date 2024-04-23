@@ -158,37 +158,37 @@ private:
 			std::cerr << "Error. kappa_star must be >= " << std::numeric_limits<T>::min() << "\n";
 			return false;
 		}
-		if (kappa_star > kappa_tot)
+		if (starfile == "" && kappa_star > kappa_tot)
 		{
 			std::cerr << "Error. kappa_star must be <= kappa_tot\n";
 			return false;
 		}
 
-		if (theta_star < std::numeric_limits<T>::min())
+		if (starfile == "" && theta_star < std::numeric_limits<T>::min())
 		{
 			std::cerr << "Error. theta_star must be >= " << std::numeric_limits<T>::min() << "\n";
 			return false;
 		}
 
-		if (!massfunctions::MASS_FUNCTIONS.count(mass_function_str))
+		if (starfile == "" && !massfunctions::MASS_FUNCTIONS.count(mass_function_str))
 		{
 			std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
 			return false;
 		}
 
-		if (m_solar < std::numeric_limits<T>::min())
+		if (starfile == "" && m_solar < std::numeric_limits<T>::min())
 		{
 			std::cerr << "Error. m_solar must be >= " << std::numeric_limits<T>::min() << "\n";
 			return false;
 		}
 
-		if (m_lower < std::numeric_limits<T>::min())
+		if (starfile == "" && m_lower < std::numeric_limits<T>::min())
 		{
 			std::cerr << "Error. m_lower must be >= " << std::numeric_limits<T>::min() << "\n";
 			return false;
 		}
 
-		if (m_upper < m_lower)
+		if (starfile == "" && m_upper < m_lower)
 		{
 			std::cerr << "Error. m_upper must be >= m_lower.\n";
 			return false;
@@ -205,7 +205,7 @@ private:
 			return false;
 		}
 
-		if (rectangular != 0 && rectangular != 1)
+		if (starfile == "" && rectangular != 0 && rectangular != 1)
 		{
 			std::cerr << "Error. rectangular must be 1 (rectangular) or 0 (circular).\n";
 			return false;
@@ -316,6 +316,11 @@ private:
 			set_param("corner", corner, corner, verbose);
 			set_param("theta_star", theta_star, theta_star, verbose);
 			set_param("kappa_star", kappa_star, kappa_star, verbose);
+			if (kappa_star > kappa_tot)
+			{
+				std::cerr << "Error. kappa_star must be <= kappa_tot\n";
+				return false;
+			}
 			set_param("m_lower", m_lower, m_lower, verbose);
 			set_param("m_upper", m_upper, m_upper, verbose);
 			set_param("mean_mass", mean_mass, mean_mass, verbose);

@@ -313,6 +313,10 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ms") || argv[i] == std::string("--m_solar"))
 		{
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			{
+				continue;
+			}
 			try
 			{
 				set_param("m_solar", map_maker.m_solar, std::stod(cmdinput), verbose);

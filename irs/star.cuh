@@ -301,6 +301,17 @@ bool read_star_file_bin(int& nstars, int& rectangular, Complex<T>& corner, T& th
 
 	infile.close();
 
+	if (corner.re < 0 || corner.im < 0)
+	{
+		std::cerr << "Error. Real and imaginary parts of the corner of the star field must both be >= 0\n";
+		return false;
+	}
+	if (theta < std::numeric_limits<T>::min())
+	{
+		std::cerr << "Error. theta_star must be >= " << std::numeric_limits<T>::min() << "\n";
+		return false;
+	}
+
 	return true;
 }
 

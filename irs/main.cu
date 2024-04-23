@@ -125,7 +125,7 @@ void display_usage(char* name)
 		<< "                           theta_star, and the star positions and masses, in an\n"
 		<< "                           order as defined in this source code.\n"
 		<< "  -cy1, --center_y1        Specify the y1 and y2 coordinates of the center of\n"
-		<< "  -cy2, --center_y2        the magnification map."
+		<< "  -cy2, --center_y2        the magnification map.\n"
 		<< "                           Default value: " << map_maker.center_y << "\n"
 		<< "  -hly1,--half_length_y1   Specify the y1 and y2 extent of the half-length of\n"
 		<< "  -hly2,--half_length_y2   the magnification map.\n"

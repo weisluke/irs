@@ -281,7 +281,7 @@ void show_device_info(int num, cudaDeviceProp& prop)
 	std::cout << "  Memory clock rate (kHz): " << prop.memoryClockRate << "\n";
 	std::cout << "  Memory bus width (bits): " << prop.memoryBusWidth << "\n";
 	std::cout << "  Peak memory bandwidth (GB/s): " << 2 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / (1024 * 1024) << "\n";
-	std::cout << "  Single-to-double precision performance ratio: " << prop.singleToDoublePrecisionPerfRatio << "\n";
+	std::cout << "  Single to double precision performance ratio: " << prop.singleToDoublePrecisionPerfRatio << "\n";
 	std::cout << "  Total global memory (GB): " << prop.totalGlobalMem / (1024 * 1024 * 1024) << "\n";
 	std::cout << "  Shared memory per multiprocessor (kbytes): " << prop.sharedMemPerMultiprocessor / 1024 << "\n";
 	std::cout << "  Shared memory per block (kbytes): " << prop.sharedMemPerBlock / 1024 << "\n";

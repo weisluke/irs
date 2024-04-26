@@ -111,7 +111,7 @@ template <typename T>
 __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> ray_half_sep, Complex<int> num_ray_threads, Complex<T> center_x, Complex<T> hlx,
-	Complex<T> center_y, Complex<T> hly, T* pixmin, T* pixsad, T* pixels, Complex<int> npixels, int* percentage)
+	Complex<T> center_y, Complex<T> hly, T* pixmin, T* pixsad, T* pixels, Complex<int> npixels, unsigned long long int* percentage)
 {
 	for (int j = blockIdx.y * blockDim.y + threadIdx.y; j < num_ray_threads.im; j += blockDim.y * gridDim.y)
 	{
@@ -139,11 +139,13 @@ __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T 
 				{
 					if (threadIdx.x == 0 && threadIdx.y == 0)
 					{
-						int p = atomicAdd(percentage, 1);
-						if (p * 100 / (num_ray_threads.re / blockDim.x * num_ray_threads.im / blockDim.y) 
-							> (p - 1) * 100 / (num_ray_threads.re / blockDim.x * num_ray_threads.im / blockDim.y))
+						unsigned long long int p = atomicAdd(percentage, 1);
+						unsigned long long int imax = num_ray_threads.re;
+						imax *= num_ray_threads.im;
+						imax /= (blockDim.x * blockDim.y);
+						if (p * 100 / imax > (p - 1) * 100 / imax)
 						{
-							device_print_progress(p, num_ray_threads.re / blockDim.x * num_ray_threads.im / blockDim.y);
+							device_print_progress(p, imax);
 						}
 					}
 					break;
@@ -213,11 +215,13 @@ __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T 
 			
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
-				int p = atomicAdd(percentage, 1);
-				if (p * 100 / (num_ray_threads.re / blockDim.x * num_ray_threads.im / blockDim.y) 
-					> (p - 1) * 100 / (num_ray_threads.re / blockDim.x * num_ray_threads.im / blockDim.y))
+				unsigned long long int p = atomicAdd(percentage, 1);
+				unsigned long long int imax = num_ray_threads.re;
+				imax *= num_ray_threads.im;
+				imax /= (blockDim.x * blockDim.y);
+				if (p * 100 / imax > (p - 1) * 100 / imax)
 				{
-					device_print_progress(p, num_ray_threads.re / blockDim.x * num_ray_threads.im / blockDim.y);
+					device_print_progress(p, imax);
 				}
 			}
 		}

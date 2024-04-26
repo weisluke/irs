@@ -786,8 +786,8 @@ private:
 		set_threads(threads, 16, 16);
 		set_blocks(threads, blocks, num_ray_threads.re, num_ray_threads.im);
 
-		int* percentage = nullptr;
-		cudaMallocManaged(&percentage, sizeof(int));
+		unsigned long long int* percentage = nullptr;
+		cudaMallocManaged(&percentage, sizeof(unsigned long long int));
 		if (cuda_error("cudaMallocManaged(*percentage)", false, __FILE__, __LINE__)) return false;
 
 		*percentage = 1;

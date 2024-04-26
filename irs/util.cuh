@@ -120,7 +120,7 @@ examples: [====    ] 50%       [=====  ] 73%
 \param num_bars -- number of = symbols inside the bar
 				   default value: 50
 ******************************************************************************/
-void print_progress(int icurr, int imax, int num_bars = 50)
+void print_progress(unsigned long long int icurr, unsigned long long int imax, int num_bars = 50)
 {
 	std::cout << "\r[";
 	for (int i = 0; i < num_bars; i++)
@@ -136,9 +136,9 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 	}
 	std::cout << "] " << icurr * 100 / imax << " %" << std::flush;
 }
-__device__ void device_print_progress(int icurr, int imax)
+__device__ void device_print_progress(unsigned long long int icurr, unsigned long long int imax)
 {
-	printf("\r%d %%", icurr * 100 / imax);
+	printf("\r%llu %%", icurr * 100 / imax);
 }
 
 /******************************************************************************

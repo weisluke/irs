@@ -62,5 +62,8 @@
     <ClInclude Include="polygon.cuh">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="array_functions.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

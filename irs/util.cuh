@@ -120,7 +120,7 @@ examples: [====    ] 50%       [=====  ] 73%
 \param num_bars -- number of = symbols inside the bar
 				   default value: 50
 ******************************************************************************/
-void print_progress(int icurr, int imax, int num_bars = 50)
+void print_progress(unsigned long long int icurr, unsigned long long int imax, int num_bars = 50)
 {
 	std::cout << "\r[";
 	for (int i = 0; i < num_bars; i++)
@@ -136,9 +136,9 @@ void print_progress(int icurr, int imax, int num_bars = 50)
 	}
 	std::cout << "] " << icurr * 100 / imax << " %" << std::flush;
 }
-__device__ void device_print_progress(int icurr, int imax)
+__device__ void device_print_progress(unsigned long long int icurr, unsigned long long int imax)
 {
-	printf("\r%d %%", icurr * 100 / imax);
+	printf("\r%llu %%", icurr * 100 / imax);
 }
 
 /******************************************************************************
@@ -281,7 +281,7 @@ void show_device_info(int num, cudaDeviceProp& prop)
 	std::cout << "  Memory clock rate (kHz): " << prop.memoryClockRate << "\n";
 	std::cout << "  Memory bus width (bits): " << prop.memoryBusWidth << "\n";
 	std::cout << "  Peak memory bandwidth (GB/s): " << 2 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / (1024 * 1024) << "\n";
-	std::cout << "  Single-to-double precision performance ratio: " << prop.singleToDoublePrecisionPerfRatio << "\n";
+	std::cout << "  Single to double precision performance ratio: " << prop.singleToDoublePrecisionPerfRatio << "\n";
 	std::cout << "  Total global memory (GB): " << prop.totalGlobalMem / (1024 * 1024 * 1024) << "\n";
 	std::cout << "  Shared memory per multiprocessor (kbytes): " << prop.sharedMemPerMultiprocessor / 1024 << "\n";
 	std::cout << "  Shared memory per block (kbytes): " << prop.sharedMemPerBlock / 1024 << "\n";

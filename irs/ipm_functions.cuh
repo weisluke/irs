@@ -90,17 +90,16 @@ shoot rays from image plane to source plane
 \param stars -- pointer to array of point mass lenses
 \param kappastar -- convergence in point mass lenses
 \param root -- pointer to root node
-\param num_rays_factor -- log2(number of rays per unit half length)
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the rectangular field of
 				 point mass lenses
 \param approx -- whether the smooth matter deflection is approximate or not
 \param taylor_smooth -- degree of the taylor series for alpha_smooth if
 						approximate
+\param ray_half_sep -- half separation between central rays of shooting squares
+\param num_ray_threads -- number of threads of rays for the image plane shooting region
 \param center_x -- center of the image plane shooting region
 \param hlx -- half length of the image plane shooting region
-\param numrayblocks -- number of ray blocks for the image plane shooting region
-\param raysep -- separation between central rays of shooting squares
 \param center_y -- center of the source plane receiving region
 \param hly -- half length of the source plane receiving region
 \param pixmin -- pointer to array of positive parity pixels
@@ -109,159 +108,120 @@ shoot rays from image plane to source plane
 \param npixels -- number of pixels for one side of the receiving square
 ******************************************************************************/
 template <typename T>
-__global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, int num_rays_factor,
+__global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root,
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
-	Complex<T> center_x, Complex<T> hlx, Complex<int> numrayblocks,
-	Complex<T> center_y, Complex<T> hly, T* pixmin, T* pixsad, T* pixels, Complex<int> npixels, int* percentage)
+	Complex<T> ray_half_sep, Complex<int> num_ray_threads, Complex<T> center_x, Complex<T> hlx,
+	Complex<T> center_y, Complex<T> hly, T* pixmin, T* pixsad, T* pixels, Complex<int> npixels, unsigned long long int* percentage)
 {
-	Complex<T> block_half_length = Complex<T>(hlx.re / numrayblocks.re, hlx.im / numrayblocks.im);
-
-	extern __shared__ int shared_memory[];
-	TreeNode<T>* node = reinterpret_cast<TreeNode<T>*>(&shared_memory[0]);
-	star<T>* tmp_stars = reinterpret_cast<star<T>*>(&node[1]);
-	__shared__ int nstars;
-
-	for (int l = blockIdx.y; l < numrayblocks.im; l += gridDim.y)
+	for (int j = blockIdx.y * blockDim.y + threadIdx.y; j < num_ray_threads.im; j += blockDim.y * gridDim.y)
 	{
-		for (int k = blockIdx.x; k < numrayblocks.re; k += gridDim.x)
+		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < num_ray_threads.re; i += blockDim.x * gridDim.x)
 		{
-			Complex<T> block_center = center_x - hlx + block_half_length + 2 * Complex<T>(block_half_length.re * k, block_half_length.im * l);
-			if (threadIdx.x == 0 && threadIdx.y == 0)
-			{
-				*node = *(treenode::get_nearest_node(block_center, root));
-				nstars = 0;
-			}
-			__syncthreads();
-			if (threadIdx.x == 0)
-			{
-				for (int j = threadIdx.y; j < node->numstars; j += blockDim.y)
-				{
-					tmp_stars[atomicAdd(&nstars, 1)] = stars[node->stars + j];
-				}
-			}
-			for (int i = threadIdx.x; i < node->num_neighbors; i += blockDim.x)
-			{
-				TreeNode<T>* neighbor = node->neighbors[i];
-				for (int j = threadIdx.y; j < neighbor->numstars; j += blockDim.y)
-				{
-					tmp_stars[atomicAdd(&nstars, 1)] = stars[neighbor->stars + j];
-				}
-			}
-			__syncthreads();
+			Complex<T> x[4];
 
-			if (threadIdx.x == 0 && threadIdx.y == 0)
-			{
-				node->num_neighbors = 0;
-				node->stars = 0;
-				node->numstars = nstars;
-			}
-			__syncthreads();
+			Complex<T> z = -hlx + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
 
-			int num_rays = (2 << num_rays_factor);
-			Complex<T> ray_half_sep = block_half_length / num_rays;
-			Complex<int> ypix;
-			Complex<T> z;
-			Complex<T> w;
-			for (int j = threadIdx.y; j < num_rays; j += blockDim.y)
-			{
-				for (int i = threadIdx.x; i < num_rays; i += blockDim.x)
-				{
-					Complex<T> x[4];
+			x[0] = z + ray_half_sep;
+			x[1] = z - ray_half_sep.conj();
+			x[2] = z - ray_half_sep;
+			x[3] = z + ray_half_sep.conj();
 
-					Complex<T> z = block_center - block_half_length + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
-
-					x[0] = z + ray_half_sep;
-					x[1] = z - ray_half_sep.conj();
-					x[2] = z - ray_half_sep;
-					x[3] = z + ray_half_sep.conj();
-
-					Complex<T> y[4];
+			Complex<T> y[4];
 #pragma unroll
-					for (int a = 0; a < 4; a++)
+			for (int a = 0; a < 4; a++)
+			{
+				TreeNode<T>* node = treenode::get_nearest_node(x[a], root);
+				y[a] = complex_image_to_source(x[a], kappa, gamma, theta, stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
+				/******************************************************************************
+				if the ray location is the same as a star position, we will have a nan returned
+				******************************************************************************/
+				if (isnan(y[a].re) || isnan(y[a].im))
+				{
+					if (threadIdx.x == 0 && threadIdx.y == 0)
 					{
-						y[a] = complex_image_to_source(x[a], kappa, gamma, theta, tmp_stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
-						/******************************************************************************
-						if the ray location is the same as a star position, we will have a nan returned
-						******************************************************************************/
-						if (isnan(y[a].re) || isnan(y[a].im))
+						unsigned long long int p = atomicAdd(percentage, 1);
+						unsigned long long int imax = num_ray_threads.re;
+						imax *= num_ray_threads.im;
+						imax /= (blockDim.x * blockDim.y);
+						if (p * 100 / imax > (p - 1) * 100 / imax)
 						{
-							break;
-							continue;
-						}
-						/******************************************************************************
-						shift ray position relative to center
-						******************************************************************************/
-						y[a] -= center_y;
-					}
-
-#pragma unroll
-					for (int a = 0; a < 4; a++)
-					{
-						y[a] = point_to_pixel<T, T>(y[a], hly, npixels);
-						/******************************************************************************
-						reverse y coordinate so array forms image in correct orientation
-						******************************************************************************/
-						y[a].im = npixels.im - y[a].im;
-					}
-
-					Polygon<T> y_poly;
-
-					T image_plane_area = 2 * ray_half_sep.re * ray_half_sep.im * npixels.re * npixels.im / (2 * hly.re * 2 * hly.im);
-
-					y_poly.points[0] = y[0];
-					y_poly.points[1] = y[1];
-					y_poly.points[2] = y[2];
-					y_poly.numsides = 3;
-					if (fabs(y_poly.area()) < 1000 * image_plane_area)
-					{
-						if (pixmin && pixsad)
-						{
-							if (y_poly.area() < 0)
-							{
-								y_poly.allocate_area_among_pixels(image_plane_area, pixmin, npixels);
-							}
-							else
-							{
-								y_poly.allocate_area_among_pixels(image_plane_area, pixsad, npixels);
-							}
-						}
-						else
-						{
-							y_poly.allocate_area_among_pixels(image_plane_area, pixels, npixels);
+							device_print_progress(p, imax);
 						}
 					}
+					break;
+					continue;
+				}
+				/******************************************************************************
+				shift ray position relative to center
+				******************************************************************************/
+				y[a] -= center_y;
+				
+				y[a] = point_to_pixel<T, T>(y[a], hly, npixels);
+				/******************************************************************************
+				reverse y coordinate so array forms image in correct orientation
+				******************************************************************************/
+				y[a].im = npixels.im - y[a].im;
+			}
 
-					y_poly.points[0] = y[2];
-					y_poly.points[1] = y[3];
-					y_poly.points[2] = y[0];
-					y_poly.numsides = 3;
-					if (fabs(y_poly.area()) < 1000 * image_plane_area)
+			Polygon<T> y_poly;
+
+			T image_plane_area = 2 * ray_half_sep.re * ray_half_sep.im * npixels.re * npixels.im / (2 * hly.re * 2 * hly.im);
+
+			y_poly.points[0] = y[0];
+			y_poly.points[1] = y[1];
+			y_poly.points[2] = y[2];
+			y_poly.numsides = 3;
+			if (fabs(y_poly.area()) < 1000 * image_plane_area)
+			{
+				if (pixmin && pixsad)
+				{
+					if (y_poly.area() < 0)
 					{
-						if (pixmin && pixsad)
-						{
-							if (y_poly.area() < 0)
-							{
-								y_poly.allocate_area_among_pixels(image_plane_area, pixmin, npixels);
-							}
-							else
-							{
-								y_poly.allocate_area_among_pixels(image_plane_area, pixsad, npixels);
-							}
-						}
-						else
-						{
-							y_poly.allocate_area_among_pixels(image_plane_area, pixels, npixels);
-						}
+						y_poly.allocate_area_among_pixels(image_plane_area, pixmin, npixels);
+					}
+					else
+					{
+						y_poly.allocate_area_among_pixels(image_plane_area, pixsad, npixels);
 					}
 				}
+				else
+				{
+					y_poly.allocate_area_among_pixels(image_plane_area, pixels, npixels);
+				}
 			}
-			__syncthreads();
+
+			y_poly.points[0] = y[2];
+			y_poly.points[1] = y[3];
+			y_poly.points[2] = y[0];
+			y_poly.numsides = 3;
+			if (fabs(y_poly.area()) < 1000 * image_plane_area)
+			{
+				if (pixmin && pixsad)
+				{
+					if (y_poly.area() < 0)
+					{
+						y_poly.allocate_area_among_pixels(image_plane_area, pixmin, npixels);
+					}
+					else
+					{
+						y_poly.allocate_area_among_pixels(image_plane_area, pixsad, npixels);
+					}
+				}
+				else
+				{
+					y_poly.allocate_area_among_pixels(image_plane_area, pixels, npixels);
+				}
+			}
+			
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
-				int p = atomicAdd(percentage, 1);
-				if (p * 100 / (numrayblocks.re * numrayblocks.im) > (p - 1) * 100 / (numrayblocks.re * numrayblocks.im))
+				unsigned long long int p = atomicAdd(percentage, 1);
+				unsigned long long int imax = num_ray_threads.re;
+				imax *= num_ray_threads.im;
+				imax /= (blockDim.x * blockDim.y);
+				if (p * 100 / imax > (p - 1) * 100 / imax)
 				{
-					device_print_progress(p, numrayblocks.re * numrayblocks.im);
+					device_print_progress(p, imax);
 				}
 			}
 		}

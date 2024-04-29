@@ -42,15 +42,15 @@ public:
 	T m_solar = static_cast<T>(1);
 	T m_lower = static_cast<T>(0.01);
 	T m_upper = static_cast<T>(50);
-	T light_loss = static_cast<T>(0.01);
-	int rectangular = 1;
-	int approx = 0;
-	T safety_scale = static_cast<T>(1.37);
+	T light_loss = static_cast<T>(0.01); //average fraction of light lost due to scatter by the microlenses in the large deflection angle limit
+	int rectangular = 1; //whether star field is rectangular or circular
+	int approx = 0; //whether terms for alpha_smooth are exact or approximate
+	T safety_scale = static_cast<T>(1.37); //multiplicative factor over the shooting region to distribute the microlenses within
 	std::string starfile = "";
 	Complex<T> center_y = Complex<T>();
 	Complex<T> half_length_y = Complex<T>(5, 5);
 	Complex<int> num_pixels_y = Complex<int>(1000, 1000);
-	int num_rays_y = 1000;
+	int num_rays_y = 100; //number density of rays per pixel in the source plane
 	int random_seed = 0;
 	int write_maps = 1;
 	int write_parities = 0;
@@ -103,11 +103,11 @@ private:
 	T mean_mass2_actual;
 
 	T mu_ave;
-	T num_rays_x;
-	T ray_sep;
+	T num_rays_x; //number density of rays per unit area in the image plane
+	Complex<T> ray_half_sep; //distance between rays, center to corner
 	Complex<T> center_x;
-	Complex<int> num_ray_blocks;
 	Complex<T> half_length_x;
+	Complex<int> num_ray_threads; //number of threads in x1 and x2 directions 
 	Complex<T> corner;
 	int taylor_smooth;
 
@@ -116,11 +116,9 @@ private:
 	int expansion_order;
 
 	T root_half_length;
-	int rays_level; //ray_sep * 2 ^ rays_level = root_half_length
 	int tree_levels = 0;
 	std::vector<TreeNode<T>*> tree = {};
 	std::vector<int> num_nodes = {};
-	int ray_blocks_level = 0;
 
 	unsigned long int num_rays_shot = 0;
 	unsigned long int num_rays_received = 0;
@@ -389,9 +387,13 @@ private:
 			verbose);
 		
 		/******************************************************************************
-		average separation between rays in one dimension is 1/sqrt(number density)
+		average area covered by one ray is 1 / number density
+		account for potential rectangular pixels and use half_length
 		******************************************************************************/
-		set_param("ray_sep", ray_sep, 1 / std::sqrt(num_rays_x), verbose);
+		ray_half_sep = Complex<T>(std::sqrt(half_length_y.re / half_length_y.im * num_pixels_y.im / num_pixels_y.re),
+							 std::sqrt(half_length_y.im / half_length_y.re * num_pixels_y.re / num_pixels_y.im));
+		ray_half_sep /= (2 * std::sqrt(num_rays_x));
+		set_param("ray_half_sep", ray_half_sep, ray_half_sep, verbose);
 
 		/******************************************************************************
 		shooting region is greater than outer boundary for macro-mapping by the size of
@@ -400,7 +402,13 @@ private:
 		******************************************************************************/
 		half_length_x = half_length_y + theta_star * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)) * Complex<T>(1, 1);
 		half_length_x = Complex<T>(half_length_x.re / std::abs(1 - kappa_tot + shear), half_length_x.im / std::abs(1 - kappa_tot - shear));
+		/******************************************************************************
+		make shooting region a multiple of the ray separation
+		******************************************************************************/
+		num_ray_threads = Complex<int>(half_length_x.re / (2 * ray_half_sep.re), half_length_x.im / (2 * ray_half_sep.im)) + Complex<int>(1, 1);
+		half_length_x = Complex<T>(2 * ray_half_sep.re * num_ray_threads.re, 2 * ray_half_sep.im * num_ray_threads.im);
 		set_param("half_length_x", half_length_x, half_length_x, verbose);
+		set_param("num_ray_threads", num_ray_threads, 2 * num_ray_threads, verbose);
 
 		center_x = Complex<T>(center_y.re / (1 - kappa_tot + shear), center_y.im / (1 - kappa_tot - shear));
 		set_param("center_x", center_x, center_x, verbose);
@@ -619,11 +627,7 @@ private:
 		{
 			root_half_length = corner.abs();
 		}
-		/******************************************************************************
-		upscale root half length so it is a power of 2 multiple of the ray separation
-		******************************************************************************/
-		set_param("rays_level", rays_level, static_cast<int>(std::log2(root_half_length) - std::log2(ray_sep)) + 1, verbose);
-		set_param("root_half_length", root_half_length, ray_sep * (1 << rays_level), verbose);
+		root_half_length *= 1.1; //slight buffer for containing all the stars
 
 		/******************************************************************************
 		push empty pointer into tree, add 1 to number of nodes, and allocate memory
@@ -707,45 +711,6 @@ private:
 		t_elapsed = stopwatch.stop();
 		std::cout << "Done creating children and sorting stars. Elapsed time: " << t_elapsed << " seconds.\n\n";
 
-
-		/******************************************************************************
-		make shooting region a multiple of the lowest level node length, or a multiple
-		of a factor of two smaller version of the root length that doesn't exceed the
-		size of the corner
-		******************************************************************************/
-		ray_blocks_level = tree_levels;
-		num_ray_blocks = Complex<int>(half_length_x / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
-		Complex<T> tmp_half_length_x = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
-		while ((tmp_half_length_x.re > corner.re || tmp_half_length_x.im > corner.im) &&
-				ray_blocks_level <= rays_level)
-		{
-			ray_blocks_level++;
-			num_ray_blocks = Complex<int>(half_length_x / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
-			tmp_half_length_x = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
-		}
-
-		/******************************************************************************
-		if number of ray blocks needed is less than the number of blocks available on
-		the device, increase the ray blocks level to better take advantage of
-		parallelization
-		******************************************************************************/
-		while ((2 * num_ray_blocks.re * 2 * num_ray_blocks.im < cuda_device_prop.multiProcessorCount) &&
-			ray_blocks_level <= rays_level)
-		{
-			ray_blocks_level++;
-			num_ray_blocks = Complex<int>(half_length_x / (2 * root_half_length) * (1 << ray_blocks_level)) + Complex<int>(1, 1);
-			tmp_half_length_x = Complex<T>(2 * root_half_length / (1 << ray_blocks_level)) * num_ray_blocks;
-		}
-
-		set_param("ray_blocks_level", ray_blocks_level, ray_blocks_level, verbose);
-		if (ray_blocks_level > rays_level)
-		{
-			std::cerr << "Error. ray_blocks_level > rays_level\n";
-			return false;
-		}
-		set_param("half_length_x", half_length_x, tmp_half_length_x, verbose);
-		set_param("num_ray_blocks", num_ray_blocks, 2 * num_ray_blocks, verbose);
-
 		/******************************************************************************
 		END create root node, then create children and sort stars
 		******************************************************************************/
@@ -819,10 +784,10 @@ private:
 	bool shoot_rays(bool verbose)
 	{
 		set_threads(threads, 16, 16);
-		set_blocks(threads, blocks, 16 * num_ray_blocks.re, 16 * num_ray_blocks.im);
+		set_blocks(threads, blocks, num_ray_threads.re, num_ray_threads.im);
 
-		int* percentage = nullptr;
-		cudaMallocManaged(&percentage, sizeof(int));
+		unsigned long long int* percentage = nullptr;
+		cudaMallocManaged(&percentage, sizeof(unsigned long long int));
 		if (cuda_error("cudaMallocManaged(*percentage)", false, __FILE__, __LINE__)) return false;
 
 		*percentage = 1;
@@ -832,15 +797,15 @@ private:
 		******************************************************************************/
 		std::cout << "Shooting rays...\n";
 		stopwatch.start();
-		shoot_rays_kernel<T> <<<blocks, threads, sizeof(TreeNode<T>) + treenode::MAX_NUM_STARS_DIRECT * sizeof(star<T>)>>> (kappa_tot, shear, theta_star, stars, kappa_star, tree[0], rays_level - ray_blocks_level,
-			rectangular, corner, approx, taylor_smooth, center_x, half_length_x, num_ray_blocks,
+		shoot_rays_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_star, stars, kappa_star, tree[0],
+			rectangular, corner, approx, taylor_smooth, ray_half_sep, num_ray_threads, center_x, half_length_x,
 			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels_y, percentage);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_shoot_rays = stopwatch.stop();
 		std::cout << "\nDone shooting rays. Elapsed time: " << t_shoot_rays << " seconds.\n\n";
 
-		num_rays_shot = num_ray_blocks.re * num_ray_blocks.im;
-		num_rays_shot <<= 2 * (rays_level - ray_blocks_level + 1);
+		num_rays_shot = num_ray_threads.re;
+		num_rays_shot *= num_ray_threads.im;
 		set_param("num_rays_shot", num_rays_shot, num_rays_shot, verbose);
 
 		num_rays_received = thrust::reduce(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im, num_rays_received);
@@ -1023,14 +988,13 @@ private:
 		outfile << "num_rays_y " << num_rays_y << "\n";
 		outfile << "mean_num_rays_y " << (1.0 * num_rays_received / (num_pixels_y.re * num_pixels_y.im)) << "\n";
 		outfile << "num_rays_x " << num_rays_x << "\n";
-		outfile << "ray_sep " << ray_sep << "\n";
+		outfile << "ray_half_sep_1 " << ray_half_sep.re << "\n";
+		outfile << "ray_half_sep_2 " << ray_half_sep.im << "\n";
 		outfile << "alpha_error " << alpha_error << "\n";
 		outfile << "expansion_order " << expansion_order << "\n";
 		outfile << "root_half_length " << root_half_length << "\n";
-		outfile << "rays_level " << rays_level << "\n";
-		outfile << "ray_blocks_level " << ray_blocks_level << "\n";
-		outfile << "num_ray_blocks_1 " << num_ray_blocks.re << "\n";
-		outfile << "num_ray_blocks_2 " << num_ray_blocks.im << "\n";
+		outfile << "num_ray_threads_1 " << num_ray_threads.re << "\n";
+		outfile << "num_ray_threads_2 " << num_ray_threads.im << "\n";
 		outfile << "tree_levels " << tree_levels << "\n";
 		outfile << "t_shoot_rays " << t_shoot_rays << "\n";
 		outfile << "num_rays_shot " << num_rays_shot << "\n";

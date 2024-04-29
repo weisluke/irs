@@ -623,7 +623,7 @@ private:
 		{
 			root_half_length = corner.abs();
 		}
-		root_half_length *= 1.1; //slight buffer for containing all the stars
+		set_param("root_half_length", root_half_length, root_half_length * 1.1, verbose); //slight buffer for containing all the stars
 
 		/******************************************************************************
 		push empty pointer into tree, add 1 to number of nodes, and allocate memory

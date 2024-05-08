@@ -99,7 +99,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" -DIPM_map %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" -D IPM_map %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_75,sm_75</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>

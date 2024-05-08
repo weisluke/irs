@@ -171,7 +171,7 @@ __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T 
 			y_poly.points[1] = y[1];
 			y_poly.points[2] = y[2];
 			y_poly.numsides = 3;
-			if (fabs(y_poly.area()) < 1000 * image_plane_area)
+			if (fabs(y_poly.area()) < 10000 * image_plane_area)
 			{
 				if (pixmin && pixsad)
 				{
@@ -194,7 +194,7 @@ __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T 
 			y_poly.points[1] = y[3];
 			y_poly.points[2] = y[0];
 			y_poly.numsides = 3;
-			if (fabs(y_poly.area()) < 1000 * image_plane_area)
+			if (fabs(y_poly.area()) < 10000 * image_plane_area)
 			{
 				if (pixmin && pixsad)
 				{

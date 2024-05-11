@@ -61,8 +61,9 @@ protected:
 	\param a -- exponent of x
 	\param b -- coefficient of x^a
 
-	\return b * (x2 ^ (a + 1) - x1 ^ (a + 1)) / (a + 1) if a =/= -1
-			b * (log(x2) - log(x1)) if a == -1
+	\return b * (x2 ^ (a + 1) * ((a + 1) * log(x2) - 1) 
+	             - x1 ^ (a + 1) * ((a + 1) * log(x1) - 1)) / (a + 1)^2 if a =/= -1
+			b * (log(x2)^2 - log(x1)^2) / 2 if a == -1
 	******************************************************************************/
 	__host__ __device__ T power_log_integral(T x1, T x2, T a, T b = 1)
 	{
@@ -70,7 +71,7 @@ protected:
 #ifdef CUDA_ARCH
 		if (a != -1)
 		{
-			result = b * (pow(x2, a + 1) * ((1 + a) * log(x2) - 1) - pow(x1, a + 1) * ((1 + a) * log(x1) - 1)) / ((a + 1) * (a + 1));
+			result = b * (pow(x2, a + 1) * ((a + 1) * log(x2) - 1) - pow(x1, a + 1) * ((a + 1) * log(x1) - 1)) / ((a + 1) * (a + 1));
 		}
 		else
 		{
@@ -79,7 +80,7 @@ protected:
 #else
 		if (a != -1)
 		{
-			result = b * (std::pow(x2, a + 1) * ((1 + a) * std::log(x2) - 1) - std::pow(x1, a + 1) * ((1 + a) * std::log(x1) - 1)) / ((a + 1) * (a + 1));
+			result = b * (std::pow(x2, a + 1) * ((a + 1) * std::log(x2) - 1) - std::pow(x1, a + 1) * ((a + 1) * std::log(x1) - 1)) / ((a + 1) * (a + 1));
 		}
 		else
 		{
@@ -107,7 +108,7 @@ protected:
 #ifdef CUDA_ARCH
 		if (a != -1)
 		{
-			result = pow(p * (1 + a) / b + pow(x1, 1 + a), 1 / (1 + a));
+			result = pow(p * (a + 1) / b + pow(x1, a + 1), 1 / (a + 1));
 		}
 		else
 		{
@@ -116,7 +117,7 @@ protected:
 #else
 		if (a != -1)
 		{
-			result = std::pow(p * (1 + a) / b + std::pow(x1, 1 + a), 1 / (1 + a));
+			result = std::pow(p * (a + 1) / b + std::pow(x1, a + 1), 1 / (a + 1));
 		}
 		else
 		{

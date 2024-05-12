@@ -130,24 +130,27 @@ protected:
 
 public:
 
+	T slope; //slope a of the distribution p(m) = b * m^a
+
+	template <typename U>
+	__host__ __device__ PowerLaw(U a)
+	{
+		slope = static_cast<T>(a);
+	}
+
 	/******************************************************************************
 	calculate mass drawn from a mass function given a probability.
 
 	\param p -- number drawn uniformly in [0,1]
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
-	\param slope -- slope for the distribution
 	******************************************************************************/
-	__host__ __device__ virtual T mass(T p, T m_lower, T m_upper, T slope, ...)
+	__host__ __device__ virtual T mass(T p, T m_lower, T m_upper) override
     {
 		if (m_lower == m_upper)
 		{
 			return m_lower;
 		}
-
-		/******************************************************************************
-		p(m) = b * m^a
-		******************************************************************************/
 
 		/******************************************************************************
 		integrate over entire range of masses to get normalization factor
@@ -167,18 +170,13 @@ public:
 
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
-	\param slope -- slope for the distribution
 	******************************************************************************/
-	__host__ __device__ virtual T mean_mass(T m_lower, T m_upper, T slope, ...)
+	__host__ __device__ virtual T mean_mass(T m_lower, T m_upper) override
     {
 		if (m_lower == m_upper)
 		{
 			return m_lower;
 		}
-
-		/******************************************************************************
-		p(m) = b * m^a
-		******************************************************************************/
 
 		/******************************************************************************
 		integrate over entire range of masses to get normalization factor
@@ -198,18 +196,13 @@ public:
 
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
-	\param slope -- slope for the distribution
 	******************************************************************************/
-	__host__ __device__ virtual T mean_mass2(T m_lower, T m_upper, T slope, ...)
+	__host__ __device__ virtual T mean_mass2(T m_lower, T m_upper) override
     {
 		if (m_lower == m_upper)
 		{
 			return m_lower;
 		}
-
-		/******************************************************************************
-		p(m) = b * m^a
-		******************************************************************************/
 
 		/******************************************************************************
 		integrate over entire range of masses to get normalization factor
@@ -229,18 +222,13 @@ public:
 
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
-	\param slope -- slope for the distribution
 	******************************************************************************/
-	__host__ __device__ virtual T mean_mass2_ln_mass(T m_lower, T m_upper, T slope, ...)
+	__host__ __device__ virtual T mean_mass2_ln_mass(T m_lower, T m_upper) override
     {
 		if (m_lower == m_upper)
 		{
 			return m_lower;
 		}
-
-		/******************************************************************************
-		p(m) = b * m^a
-		******************************************************************************/
 
 		/******************************************************************************
 		integrate over entire range of masses to get normalization factor

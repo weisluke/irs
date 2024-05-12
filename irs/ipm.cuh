@@ -598,6 +598,10 @@ private:
 			{
 				generate_star_field_kernel<T, massfunctions::Salpeter<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
 			}
+			else if (mass_function_str == "kroupa")
+			{
+				generate_star_field_kernel<T, massfunctions::Kroupa<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
+			}
 			else
 			{
 				std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";

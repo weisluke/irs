@@ -24,6 +24,7 @@
     <ClInclude Include="irs.cuh" />
     <ClInclude Include="mass_functions.cuh" />
     <ClInclude Include="mass_functions\equal.cuh" />
+    <ClInclude Include="mass_functions\kroupa.cuh" />
     <ClInclude Include="mass_functions\mass_function_base.cuh" />
     <ClInclude Include="mass_functions\power_law.cuh" />
     <ClInclude Include="mass_functions\salpeter.cuh" />

@@ -23,9 +23,6 @@
     <ClInclude Include="irs_functions.cuh">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="mass_function.cuh">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="star.cuh">
       <Filter>include</Filter>
     </ClInclude>
@@ -82,6 +79,9 @@
     </ClInclude>
     <ClInclude Include="mass_functions\equal.cuh">
       <Filter>include\mass_functions</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions.cuh">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

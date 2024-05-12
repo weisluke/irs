@@ -18,10 +18,12 @@ public:
 	calculate mass drawn from a mass function given a probability.
 
 	\param p -- number drawn uniformly in [0,1]
+	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
+	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
 
 	\return 1, as mass can be arbitrarily scaled
 	******************************************************************************/
-	__host__ __device__ T mass(T p, ...)
+	__host__ __device__ T mass(T p, T m_lower, T m_upper) override
 	{
 		return 1;
 	}
@@ -29,9 +31,12 @@ public:
 	/******************************************************************************
 	calculate <mass> for a mass function
 
+	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
+	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
+
 	\return 1, as mass can be arbitrarily scaled
 	******************************************************************************/
-	__host__ __device__ T mean_mass(...)
+	__host__ __device__ T mean_mass(T m_lower, T m_upper) override
 	{
 		return 1;
 	}
@@ -39,9 +44,12 @@ public:
 	/******************************************************************************
 	calculate <mass^2> for a mass function
 
+	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
+	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
+
 	\return 1, as mass can be arbitrarily scaled
 	******************************************************************************/
-	__host__ __device__ T mean_mass2(...)
+	__host__ __device__ T mean_mass2(T m_lower, T m_upper) override
 	{
 		return 1;
 	}
@@ -49,9 +57,12 @@ public:
 	/******************************************************************************
 	calculate <mass^2 ln(mass)> for a mass function
 
+	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
+	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
+
     \return 0, as all masses are the same
 	******************************************************************************/
-	__host__ __device__ virtual T mean_mass2_ln_mass(...)
+	__host__ __device__ T mean_mass2_ln_mass(T m_lower, T m_upper) override
     {
         return 0;
     }

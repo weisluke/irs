@@ -5,7 +5,7 @@
 #include "complex.cuh"
 #include "fmm.cuh"
 #include "irs_functions.cuh"
-#include "mass_function.cuh"
+#include "mass_functions.cuh"
 #include "star.cuh"
 #include "stopwatch.hpp"
 #include "tree_node.cuh"
@@ -22,6 +22,7 @@
 #include <fstream> //for writing files
 #include <iostream>
 #include <limits> //for std::numeric_limits
+#include <memory> //for std::shared_ptr
 #include <string>
 #include <vector>
 
@@ -91,7 +92,7 @@ private:
 	/******************************************************************************
 	derived variables
 	******************************************************************************/
-	massfunctions::massfunction mass_function;
+	std::shared_ptr<massfunctions::MassFunction<T>> mass_function;
 	T mean_mass;
 	T mean_mass2;
 
@@ -215,7 +216,7 @@ private:
 			return false;
 		}
 
-		if (starfile == "" && !massfunctions::MASS_FUNCTIONS.count(mass_function_str))
+		if (starfile == "" && !massfunctions::MASS_FUNCTIONS<T>.count(mass_function_str))
 		{
 			std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
 			return false;
@@ -332,13 +333,18 @@ private:
 				set_param("m_lower", m_lower, 1, verbose);
 				set_param("m_upper", m_upper, 1, verbose);
 			}
+			else
+			{
+				set_param("m_lower", m_lower, m_lower * m_solar, verbose);
+				set_param("m_upper", m_upper, m_upper * m_solar, verbose);
+			}
 
 			/******************************************************************************
 			determine mass function, <m>, and <m^2>
 			******************************************************************************/
-			mass_function = massfunctions::MASS_FUNCTIONS.at(mass_function_str);
-			set_param("mean_mass", mean_mass, MassFunction<T>(mass_function).mean_mass(m_solar, m_lower, m_upper), verbose);
-			set_param("mean_mass2", mean_mass2, MassFunction<T>(mass_function).mean_mass2(m_solar, m_lower, m_upper), verbose);
+			mass_function = massfunctions::MASS_FUNCTIONS<T>.at(mass_function_str);
+			set_param("mean_mass", mean_mass, mass_function->mean_mass(m_lower, m_upper), verbose);
+			set_param("mean_mass2", mean_mass2, mass_function->mean_mass2(m_lower, m_upper), verbose);
 		}
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
@@ -579,7 +585,28 @@ private:
 			******************************************************************************/
 			initialize_curand_states_kernel<T> <<<blocks, threads>>> (states, num_stars, random_seed);
 			if (cuda_error("initialize_curand_states_kernel", true, __FILE__, __LINE__)) return false;
-			generate_star_field_kernel<T> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, mass_function, m_solar, m_lower, m_upper);
+			
+			/******************************************************************************
+			mass function must be a template for the kernel due to polymorphism
+			we therefore must check all possible options
+			******************************************************************************/
+			if (mass_function_str == "equal")
+			{
+				generate_star_field_kernel<T, massfunctions::Equal<T>> << <blocks, threads >> > (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+			}
+			else if (mass_function_str == "uniform")
+			{
+				generate_star_field_kernel<T, massfunctions::Uniform<T>> << <blocks, threads >> > (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+			}
+			else if (mass_function_str == "salpeter")
+			{
+				generate_star_field_kernel<T, massfunctions::Salpeter<T>> << <blocks, threads >> > (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+			}
+			else
+			{
+				std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
+				return false;
+			}
 			if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return false;
 
 			t_elapsed = stopwatch.stop();

@@ -132,6 +132,10 @@ public:
 
 	T slope; //slope a of the distribution p(m) = b * m^a
 
+	__host__ __device__ PowerLaw()
+	{
+		slope = static_cast<T>(0);
+	}
 	template <typename U>
 	__host__ __device__ PowerLaw(U a)
 	{

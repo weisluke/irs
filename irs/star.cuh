@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "complex.cuh"
-#include "mass_function.cuh"
+#include "mass_functions.cuh"
 #include "util.cuh"
 
 #include <curand_kernel.h>
@@ -57,15 +57,13 @@ generate random star field
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the field of point mass
 				 lenses
-\param mf -- enum for the mass function
-\param msolar -- solar mass in arbitrary units
-\param mL -- lower mass cutoff for the distribution in arbitrary units
-\param mH -- upper mass cutoff for the distribution in arbitrary units
+\param m_lower -- lower mass cutoff for the distribution in arbitrary units
+\param m_upper -- upper mass cutoff for the distribution in arbitrary units
 ******************************************************************************/
-template <typename T>
-__global__ void generate_star_field_kernel(curandState* states, star<T>* stars, int nstars, int rectangular, Complex<T> corner, 
-	massfunctions::massfunction mf = massfunctions::equal, T msolar = 1, T mL = 0.01, T mH = 50)
+template <typename T, class U>
+__global__ void generate_star_field_kernel(curandState* states, star<T>* stars, int nstars, int rectangular, Complex<T> corner, T m_lower, T m_upper)
 {
+	U mass_function;
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
 
@@ -104,7 +102,7 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 		}
 
 		stars[i].position = Complex<T>(x1, x2);
-		stars[i].mass = MassFunction<T>(mf).mass(curand_uniform_double(&states[i]), msolar, mL, mH);
+		stars[i].mass = mass_function.mass(curand_uniform_double(&states[i]), m_lower, m_upper);
 	}
 }
 

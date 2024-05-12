@@ -592,15 +592,15 @@ private:
 			******************************************************************************/
 			if (mass_function_str == "equal")
 			{
-				generate_star_field_kernel<T, massfunctions::Equal<T>> << <blocks, threads >> > (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+				generate_star_field_kernel<T, massfunctions::Equal<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
 			}
 			else if (mass_function_str == "uniform")
 			{
-				generate_star_field_kernel<T, massfunctions::Uniform<T>> << <blocks, threads >> > (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+				generate_star_field_kernel<T, massfunctions::Uniform<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
 			}
 			else if (mass_function_str == "salpeter")
 			{
-				generate_star_field_kernel<T, massfunctions::Salpeter<T>> << <blocks, threads >> > (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+				generate_star_field_kernel<T, massfunctions::Salpeter<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
 			}
 			else
 			{

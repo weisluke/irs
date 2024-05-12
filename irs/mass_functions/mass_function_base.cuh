@@ -18,8 +18,9 @@ public:
 	\param p -- number drawn uniformly in [0,1]
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
+	\param m_solar -- solar mass in arbitrary units
 	******************************************************************************/
-	__host__ __device__ virtual T mass(T p, T m_lower, T m_upper)
+	__host__ __device__ virtual T mass(T p, T m_lower, T m_upper, T m_solar)
 	{
 		return 0;
 	}
@@ -29,8 +30,9 @@ public:
 
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
+	\param m_solar -- solar mass in arbitrary units
 	******************************************************************************/
-	__host__ __device__ virtual T mean_mass(T m_lower, T m_upper)
+	__host__ __device__ virtual T mean_mass(T m_lower, T m_upper, T m_solar)
 	{
 		return 0;
 	}
@@ -40,8 +42,9 @@ public:
 
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
+	\param m_solar -- solar mass in arbitrary units
 	******************************************************************************/
-	__host__ __device__ virtual T mean_mass2(T m_lower, T m_upper)
+	__host__ __device__ virtual T mean_mass2(T m_lower, T m_upper, T m_solar)
 	{
 		return 0;
 	}
@@ -51,8 +54,9 @@ public:
 
 	\param m_lower -- lower mass cutoff for the distribution in arbitrary units
 	\param m__upper -- upper mass cutoff for the distribution in arbitrary units
+	\param m_solar -- solar mass in arbitrary units
 	******************************************************************************/
-	__host__ __device__ virtual T mean_mass2_ln_mass(T m_lower, T m_upper)
+	__host__ __device__ virtual T mean_mass2_ln_mass(T m_lower, T m_upper, T m_solar)
 	{
 		return 0;
 	}

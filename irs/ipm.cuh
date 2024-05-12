@@ -339,8 +339,8 @@ private:
 			determine mass function, <m>, and <m^2>
 			******************************************************************************/
 			mass_function = massfunctions::MASS_FUNCTIONS<T>.at(mass_function_str);
-			set_param("mean_mass", mean_mass, mass_function->mean_mass(m_lower, m_upper), verbose);
-			set_param("mean_mass2", mean_mass2, mass_function->mean_mass2(m_lower, m_upper), verbose);
+			set_param("mean_mass", mean_mass, mass_function->mean_mass(m_lower, m_upper, m_solar), verbose);
+			set_param("mean_mass2", mean_mass2, mass_function->mean_mass2(m_lower, m_upper, m_solar), verbose);
 		}
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
@@ -588,15 +588,15 @@ private:
 			******************************************************************************/
 			if (mass_function_str == "equal")
 			{
-				generate_star_field_kernel<T, massfunctions::Equal<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+				generate_star_field_kernel<T, massfunctions::Equal<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
 			}
 			else if (mass_function_str == "uniform")
 			{
-				generate_star_field_kernel<T, massfunctions::Uniform<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+				generate_star_field_kernel<T, massfunctions::Uniform<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
 			}
 			else if (mass_function_str == "salpeter")
 			{
-				generate_star_field_kernel<T, massfunctions::Salpeter<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper);
+				generate_star_field_kernel<T, massfunctions::Salpeter<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
 			}
 			else
 			{

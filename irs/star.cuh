@@ -59,9 +59,11 @@ generate random star field
 				 lenses
 \param m_lower -- lower mass cutoff for the distribution in arbitrary units
 \param m_upper -- upper mass cutoff for the distribution in arbitrary units
+\param m_solar -- solar mass in arbitrary units
 ******************************************************************************/
 template <typename T, class U>
-__global__ void generate_star_field_kernel(curandState* states, star<T>* stars, int nstars, int rectangular, Complex<T> corner, T m_lower, T m_upper)
+__global__ void generate_star_field_kernel(curandState* states, star<T>* stars, int nstars, int rectangular, Complex<T> corner, 
+	T m_lower, T m_upper, T m_solar)
 {
 	U mass_function;
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -102,7 +104,7 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 		}
 
 		stars[i].position = Complex<T>(x1, x2);
-		stars[i].mass = mass_function.mass(curand_uniform_double(&states[i]), m_lower, m_upper);
+		stars[i].mass = mass_function.mass(curand_uniform_double(&states[i]), m_lower, m_upper, m_solar);
 	}
 }
 

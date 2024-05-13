@@ -7,6 +7,9 @@
     <Filter Include="src">
       <UniqueIdentifier>{72dc7cd9-7ff6-4dd0-b6e0-c8a59dc928e6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="include\mass_functions">
+      <UniqueIdentifier>{6a66d479-19b5-4f3a-b259-4e586abfd027}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="main.cu">
@@ -18,9 +21,6 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="irs_functions.cuh">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="mass_function.cuh">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="star.cuh">
@@ -64,6 +64,27 @@
     </ClInclude>
     <ClInclude Include="array_functions.cuh">
       <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions\mass_function_base.cuh">
+      <Filter>include\mass_functions</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions\power_law.cuh">
+      <Filter>include\mass_functions</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions\salpeter.cuh">
+      <Filter>include\mass_functions</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions\uniform.cuh">
+      <Filter>include\mass_functions</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions\equal.cuh">
+      <Filter>include\mass_functions</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions.cuh">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="mass_functions\kroupa.cuh">
+      <Filter>include\mass_functions</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

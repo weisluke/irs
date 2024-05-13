@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "complex.cuh"
-#include "mass_function.cuh"
+#include "mass_functions.cuh"
 #include "util.cuh"
 
 #include <curand_kernel.h>
@@ -57,15 +57,15 @@ generate random star field
 \param rectangular -- whether the star field is rectangular or not
 \param corner -- complex number denoting the corner of the field of point mass
 				 lenses
-\param mf -- enum for the mass function
-\param msolar -- solar mass in arbitrary units
-\param mL -- lower mass cutoff for the distribution in arbitrary units
-\param mH -- upper mass cutoff for the distribution in arbitrary units
+\param m_lower -- lower mass cutoff for the distribution in arbitrary units
+\param m_upper -- upper mass cutoff for the distribution in arbitrary units
+\param m_solar -- solar mass in arbitrary units
 ******************************************************************************/
-template <typename T>
+template <typename T, class U>
 __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, int nstars, int rectangular, Complex<T> corner, 
-	massfunctions::massfunction mf = massfunctions::equal, T msolar = 1, T mL = 0.01, T mH = 50)
+	T m_lower, T m_upper, T m_solar)
 {
+	U mass_function;
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
 
@@ -104,7 +104,7 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 		}
 
 		stars[i].position = Complex<T>(x1, x2);
-		stars[i].mass = MassFunction<T>(mf).mass(curand_uniform_double(&states[i]), msolar, mL, mH);
+		stars[i].mass = mass_function.mass(curand_uniform_double(&states[i]), m_lower, m_upper, m_solar);
 	}
 }
 
@@ -122,10 +122,11 @@ determines star field parameters from the given array
 \param m_up -- upper mass cutoff
 \param meanmass -- mean mass <m>
 \param meanmass2 -- mean mass squared <m^2>
+\param meanmass2lnmass -- mean mass squared * ln(mass) <m^2 * ln(m)>
 ******************************************************************************/
 template <typename T>
 void calculate_star_params(int nstars, int rectangular, Complex<T> corner, T theta, star<T>* stars,
-	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2)
+	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, T& meanmass2lnmass)
 {
 	const T PI = static_cast<T>(3.1415926535898);
 
@@ -134,16 +135,19 @@ void calculate_star_params(int nstars, int rectangular, Complex<T> corner, T the
 
 	T mtot = 0;
 	T m2tot = 0;
+	T m2lnmtot = 0;
 
 	for (int i = 0; i < nstars; i++)
 	{
 		mtot += stars[i].mass;
 		m2tot += stars[i].mass * stars[i].mass;
+		m2lnmtot += stars[i].mass * stars[i].mass * std::log(stars[i].mass);
 		m_low = std::min(m_low, stars[i].mass);
 		m_up = std::max(m_up, stars[i].mass);
 	}
 	meanmass = mtot / nstars;
 	meanmass2 = m2tot / nstars;
+	meanmass2lnmass = m2lnmtot / nstars;
 
 	if (rectangular)
 	{
@@ -444,13 +448,14 @@ read star field file
 \param m_up -- upper mass cutoff
 \param meanmass -- mean mass <m>
 \param meanmass2 -- mean mass squared <m^2>
+\param meanmass2lnmass -- mean mass squared * ln(mass) <m^2 * ln(m)>
 \param starfile -- location of the star field file
 
 \return bool -- true if file is successfully read, false if not
 ******************************************************************************/
 template <typename T>
 bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars,
-	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, const std::string& starfile)
+	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, T& meanmass2lnmass, const std::string& starfile)
 {
 	std::filesystem::path starpath = starfile;
 
@@ -474,7 +479,7 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 		return false;
 	}
 
-	calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, m_low, m_up, meanmass, meanmass2);
+	calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, m_low, m_up, meanmass, meanmass2, meanmass2lnmass);
 
 	return true;
 }

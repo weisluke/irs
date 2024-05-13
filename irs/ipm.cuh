@@ -5,7 +5,11 @@
 #include "complex.cuh"
 #include "fmm.cuh"
 #include "ipm_functions.cuh"
-#include "mass_function.cuh"
+#include "mass_functions.cuh"
+#include "mass_functions/equal.cuh"
+#include "mass_functions/kroupa.cuh"
+#include "mass_functions/salpeter.cuh"
+#include "mass_functions/uniform.cuh"
 #include "star.cuh"
 #include "stopwatch.hpp"
 #include "tree_node.cuh"
@@ -21,6 +25,7 @@
 #include <fstream> //for writing files
 #include <iostream>
 #include <limits> //for std::numeric_limits
+#include <memory> //for std::shared_ptr
 #include <string>
 #include <vector>
 
@@ -42,7 +47,7 @@ public:
 	T m_lower = static_cast<T>(0.01);
 	T m_upper = static_cast<T>(50);
 	T light_loss = static_cast<T>(0.001); //average fraction of light lost due to scatter by the microlenses in the large deflection angle limit
-	int rectangular = 1; //whether star field is rectangular or circular
+	int rectangular = 0; //whether star field is rectangular or circular
 	int approx = 0; //whether terms for alpha_smooth are exact or approximate
 	T safety_scale = static_cast<T>(1.37); //multiplicative factor over the shooting region to distribute the microlenses within
 	std::string starfile = "";
@@ -90,9 +95,10 @@ private:
 	/******************************************************************************
 	derived variables
 	******************************************************************************/
-	massfunctions::massfunction mass_function;
+	std::shared_ptr<massfunctions::MassFunction<T>> mass_function;
 	T mean_mass;
 	T mean_mass2;
+	T mean_mass2_ln_mass;
 
 	int num_stars;
 	T kappa_star_actual;
@@ -100,6 +106,7 @@ private:
 	T m_upper_actual;
 	T mean_mass_actual;
 	T mean_mass2_actual;
+	T mean_mass2_ln_mass_actual;
 
 	T mu_ave;
 	T num_rays_x; //number density of rays per unit area in the image plane
@@ -211,7 +218,7 @@ private:
 			return false;
 		}
 
-		if (starfile == "" && !massfunctions::MASS_FUNCTIONS.count(mass_function_str))
+		if (starfile == "" && !massfunctions::MASS_FUNCTIONS<T>.count(mass_function_str))
 		{
 			std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
 			return false;
@@ -328,13 +335,19 @@ private:
 				set_param("m_lower", m_lower, 1, verbose);
 				set_param("m_upper", m_upper, 1, verbose);
 			}
+			else
+			{
+				set_param("m_lower", m_lower, m_lower * m_solar, verbose);
+				set_param("m_upper", m_upper, m_upper * m_solar, verbose);
+			}
 
 			/******************************************************************************
 			determine mass function, <m>, and <m^2>
 			******************************************************************************/
-			mass_function = massfunctions::MASS_FUNCTIONS.at(mass_function_str);
-			set_param("mean_mass", mean_mass, MassFunction<T>(mass_function).mean_mass(m_solar, m_lower, m_upper), verbose);
-			set_param("mean_mass2", mean_mass2, MassFunction<T>(mass_function).mean_mass2(m_solar, m_lower, m_upper), verbose);
+			mass_function = massfunctions::MASS_FUNCTIONS<T>.at(mass_function_str);
+			set_param("mean_mass", mean_mass, mass_function->mean_mass(m_lower, m_upper, m_solar), verbose);
+			set_param("mean_mass2", mean_mass2, mass_function->mean_mass2(m_lower, m_upper, m_solar), verbose);
+			set_param("mean_mass2_ln_mass", mean_mass2_ln_mass, mass_function->mean_mass2_ln_mass(m_lower, m_upper, m_solar), verbose);
 		}
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
@@ -346,7 +359,7 @@ private:
 			std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
 
 			if (!read_star_file<T>(num_stars, rectangular, corner, theta_star, stars,
-				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, starfile))
+				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, mean_mass2_ln_mass, starfile))
 			{
 				std::cerr << "Error. Unable to read star field parameters from file " << starfile << "\n";
 				return false;
@@ -366,6 +379,7 @@ private:
 			set_param("m_upper", m_upper, m_upper, verbose);
 			set_param("mean_mass", mean_mass, mean_mass, verbose);
 			set_param("mean_mass2", mean_mass2, mean_mass2, verbose);
+			set_param("mean_mass2_ln_mass", mean_mass2_ln_mass, mean_mass2_ln_mass, verbose);
 
 			std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n";
 		}
@@ -575,7 +589,32 @@ private:
 			******************************************************************************/
 			initialize_curand_states_kernel<T> <<<blocks, threads>>> (states, num_stars, random_seed);
 			if (cuda_error("initialize_curand_states_kernel", true, __FILE__, __LINE__)) return false;
-			generate_star_field_kernel<T> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, mass_function, m_solar, m_lower, m_upper);
+
+			/******************************************************************************
+			mass function must be a template for the kernel due to polymorphism
+			we therefore must check all possible options
+			******************************************************************************/
+			if (mass_function_str == "equal")
+			{
+				generate_star_field_kernel<T, massfunctions::Equal<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
+			}
+			else if (mass_function_str == "uniform")
+			{
+				generate_star_field_kernel<T, massfunctions::Uniform<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
+			}
+			else if (mass_function_str == "salpeter")
+			{
+				generate_star_field_kernel<T, massfunctions::Salpeter<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
+			}
+			else if (mass_function_str == "kroupa")
+			{
+				generate_star_field_kernel<T, massfunctions::Kroupa<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
+			}
+			else
+			{
+				std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
+				return false;
+			}
 			if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return false;
 
 			t_elapsed = stopwatch.stop();
@@ -594,13 +633,14 @@ private:
 		and mean_mass2_actual based on star information
 		******************************************************************************/
 		calculate_star_params<T>(num_stars, rectangular, corner, theta_star, stars,
-			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
+			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual, mean_mass2_ln_mass_actual);
 
 		set_param("kappa_star_actual", kappa_star_actual, kappa_star_actual, verbose);
 		set_param("m_lower_actual", m_lower_actual, m_lower_actual, verbose);
 		set_param("m_upper_actual", m_upper_actual, m_upper_actual, verbose);
 		set_param("mean_mass_actual", mean_mass_actual, mean_mass_actual, verbose);
-		set_param("mean_mass2_actual", mean_mass2_actual, mean_mass2_actual, verbose, true);
+		set_param("mean_mass2_actual", mean_mass2_actual, mean_mass2_actual, verbose);
+		set_param("mean_mass2_ln_mass_actual", mean_mass2_ln_mass_actual, mean_mass2_ln_mass_actual, verbose, true);
 
 		/******************************************************************************
 		END populating star array
@@ -960,11 +1000,13 @@ private:
 			outfile << "m_upper " << m_upper << "\n";
 			outfile << "mean_mass " << mean_mass << "\n";
 			outfile << "mean_mass2 " << mean_mass2 << "\n";
+			outfile << "mean_mass2_ln_mass " << mean_mass2_ln_mass << "\n";
 		}
 		outfile << "m_lower_actual " << m_lower_actual << "\n";
 		outfile << "m_upper_actual " << m_upper_actual << "\n";
 		outfile << "mean_mass_actual " << mean_mass_actual << "\n";
 		outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
+		outfile << "mean_mass2_ln_mass_actual " << mean_mass2_ln_mass_actual << "\n";
 		outfile << "light_loss " << light_loss << "\n";
 		outfile << "num_stars " << num_stars << "\n";
 		if (rectangular)

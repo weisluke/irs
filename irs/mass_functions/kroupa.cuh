@@ -60,7 +60,7 @@ namespace massfunctions {
 
 			if (m_upper < m0)
 			{
-				probs[0] = power_integral(m_lower, m_upper, slopes[0]);
+				probs[0] = this->power_integral(m_lower, m_upper, slopes[0]);
 				b[0] = 1 / probs[0];
 				probs[0] *= b[0];
 			}
@@ -68,8 +68,8 @@ namespace massfunctions {
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
 
 					b[0] = 1 / (probs[0] + probs[1]);
 					probs[0] *= b[0];
@@ -79,7 +79,7 @@ namespace massfunctions {
 				}
 				else
 				{
-					probs[1] = power_integral(m_lower, m_upper, slopes[1]);
+					probs[1] = this->power_integral(m_lower, m_upper, slopes[1]);
 					b[1] = 1 / probs[1];
 					probs[1] *= b[1];
 				}
@@ -88,9 +88,9 @@ namespace massfunctions {
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[0] = 1 / (probs[0] + probs[1] + probs[2]);
 					probs[0] *= b[0];
@@ -102,8 +102,8 @@ namespace massfunctions {
 				}
 				else if (m_lower < m1)
 				{
-					probs[1] = power_integral(m_lower, m1, slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
+					probs[1] = this->power_integral(m_lower, m1, slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[1] = 1 / (probs[1] + probs[2]);
 					probs[1] *= b[1];
@@ -113,7 +113,7 @@ namespace massfunctions {
 				}
 				else
 				{
-					probs[2] = power_integral(m_lower, m_upper, slopes[2]);
+					probs[2] = this->power_integral(m_lower, m_upper, slopes[2]);
 					b[2] = 1 / probs[2];
 					probs[2] *= b[2];
 				}
@@ -127,32 +127,32 @@ namespace massfunctions {
 
 			if (p < probs[0])
 			{
-				m = invert_power_integral(p, m_lower, slopes[0], b[0]);
+				m = this->invert_power_integral(p, m_lower, slopes[0], b[0]);
 			}
 			else if (p < (probs[0] + probs[1]))
 			{
 				if (m_lower < m0)
 				{
-					m = invert_power_integral(p - probs[0], m0, slopes[1], b[1]);
+					m = this->invert_power_integral(p - probs[0], m0, slopes[1], b[1]);
 				}
 				else
 				{
-					m = invert_power_integral(p, m_lower, slopes[1], b[1]);
+					m = this->invert_power_integral(p, m_lower, slopes[1], b[1]);
 				}
 			}
 			else
 			{
 				if (m_lower < m0)
 				{
-					m = invert_power_integral(p - probs[0] - probs[1], m1, slopes[2], b[2]);
+					m = this->invert_power_integral(p - probs[0] - probs[1], m1, slopes[2], b[2]);
 				}
 				else if (m_lower < m1)
 				{
-					m = invert_power_integral(p - probs[1], m1, slopes[2], b[2]);
+					m = this->invert_power_integral(p - probs[1], m1, slopes[2], b[2]);
 				}
 				else
 				{
-					m = invert_power_integral(p, m_lower, slopes[2], b[2]);
+					m = this->invert_power_integral(p, m_lower, slopes[2], b[2]);
 				}
 			}
 
@@ -193,18 +193,18 @@ namespace massfunctions {
 
 			if (m_upper < m0)
 			{
-				probs[0] = power_integral(m_lower, m_upper, slopes[0]);
+				probs[0] = this->power_integral(m_lower, m_upper, slopes[0]);
 				b[0] = 1 / probs[0];
 				probs[0] *= b[0];
 
-				m = power_integral(m_lower, m_upper, slopes[0] + 1, b[0]);
+				m = this->power_integral(m_lower, m_upper, slopes[0] + 1, b[0]);
 			}
 			else if (m_upper < m1)
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
 
 					b[0] = 1 / (probs[0] + probs[1]);
 					probs[0] *= b[0];
@@ -212,25 +212,25 @@ namespace massfunctions {
 
 					b[1] = b[0] * pow(m0, slopes[0] - slopes[1]);
 
-					m = power_integral(m_lower, m0, slopes[0] + 1, b[0]) 
-						+ power_integral(m0, m_upper, slopes[1] + 1, b[1]);
+					m = this->power_integral(m_lower, m0, slopes[0] + 1, b[0]) 
+						+ this->power_integral(m0, m_upper, slopes[1] + 1, b[1]);
 				}
 				else
 				{
-					probs[1] = power_integral(m_lower, m_upper, slopes[1]);
+					probs[1] = this->power_integral(m_lower, m_upper, slopes[1]);
 					b[1] = 1 / probs[1];
 					probs[1] *= b[1];
 
-					m = power_integral(m_lower, m_upper, slopes[1] + 1, b[1]);
+					m = this->power_integral(m_lower, m_upper, slopes[1] + 1, b[1]);
 				}
 			}
 			else
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[0] = 1 / (probs[0] + probs[1] + probs[2]);
 					probs[0] *= b[0];
@@ -240,14 +240,14 @@ namespace massfunctions {
 					b[1] = b[0] * pow(m0, slopes[0] - slopes[1]);
 					b[2] = b[1] * pow(m1, slopes[1] - slopes[2]);
 
-					m = power_integral(m_lower, m0, slopes[0] + 1, b[0]) 
-						+ power_integral(m0, m1, slopes[1] + 1, b[1])
-						+ power_integral(m1, m_upper, slopes[2] + 1, b[2]);
+					m = this->power_integral(m_lower, m0, slopes[0] + 1, b[0]) 
+						+ this->power_integral(m0, m1, slopes[1] + 1, b[1])
+						+ this->power_integral(m1, m_upper, slopes[2] + 1, b[2]);
 				}
 				else if (m_lower < m1)
 				{
-					probs[1] = power_integral(m_lower, m1, slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
+					probs[1] = this->power_integral(m_lower, m1, slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[1] = 1 / (probs[1] + probs[2]);
 					probs[1] *= b[1];
@@ -255,16 +255,16 @@ namespace massfunctions {
 
 					b[2] = b[1] * pow(m1, slopes[1] - slopes[2]);
 
-					m = power_integral(m_lower, m1, slopes[1] + 1, b[1])
-						+ power_integral(m1, m_upper, slopes[2] + 1, b[2]);
+					m = this->power_integral(m_lower, m1, slopes[1] + 1, b[1])
+						+ this->power_integral(m1, m_upper, slopes[2] + 1, b[2]);
 				}
 				else
 				{
-					probs[2] = power_integral(m_lower, m_upper, slopes[2]);
+					probs[2] = this->power_integral(m_lower, m_upper, slopes[2]);
 					b[2] = 1 / probs[2];
 					probs[2] *= b[2];
 
-					m = power_integral(m_lower, m_upper, slopes[2] + 1, b[2]);
+					m = this->power_integral(m_lower, m_upper, slopes[2] + 1, b[2]);
 				}
 
 			}
@@ -306,18 +306,18 @@ namespace massfunctions {
 
 			if (m_upper < m0)
 			{
-				probs[0] = power_integral(m_lower, m_upper, slopes[0]);
+				probs[0] = this->power_integral(m_lower, m_upper, slopes[0]);
 				b[0] = 1 / probs[0];
 				probs[0] *= b[0];
 
-				m = power_integral(m_lower, m_upper, slopes[0] + 2, b[0]);
+				m = this->power_integral(m_lower, m_upper, slopes[0] + 2, b[0]);
 			}
 			else if (m_upper < m1)
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
 
 					b[0] = 1 / (probs[0] + probs[1]);
 					probs[0] *= b[0];
@@ -325,25 +325,25 @@ namespace massfunctions {
 
 					b[1] = b[0] * pow(m0, slopes[0] - slopes[1]);
 
-					m = power_integral(m_lower, m0, slopes[0] + 2, b[0])
-						+ power_integral(m0, m_upper, slopes[1] + 2, b[1]);
+					m = this->power_integral(m_lower, m0, slopes[0] + 2, b[0])
+						+ this->power_integral(m0, m_upper, slopes[1] + 2, b[1]);
 				}
 				else
 				{
-					probs[1] = power_integral(m_lower, m_upper, slopes[1]);
+					probs[1] = this->power_integral(m_lower, m_upper, slopes[1]);
 					b[1] = 1 / probs[1];
 					probs[1] *= b[1];
 
-					m = power_integral(m_lower, m_upper, slopes[1] + 2, b[1]);
+					m = this->power_integral(m_lower, m_upper, slopes[1] + 2, b[1]);
 				}
 			}
 			else
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[0] = 1 / (probs[0] + probs[1] + probs[2]);
 					probs[0] *= b[0];
@@ -353,14 +353,14 @@ namespace massfunctions {
 					b[1] = b[0] * pow(m0, slopes[0] - slopes[1]);
 					b[2] = b[1] * pow(m1, slopes[1] - slopes[2]);
 
-					m = power_integral(m_lower, m0, slopes[0] + 2, b[0])
-						+ power_integral(m0, m1, slopes[1] + 2, b[1])
-						+ power_integral(m1, m_upper, slopes[2] + 2, b[2]);
+					m = this->power_integral(m_lower, m0, slopes[0] + 2, b[0])
+						+ this->power_integral(m0, m1, slopes[1] + 2, b[1])
+						+ this->power_integral(m1, m_upper, slopes[2] + 2, b[2]);
 				}
 				else if (m_lower < m1)
 				{
-					probs[1] = power_integral(m_lower, m1, slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
+					probs[1] = this->power_integral(m_lower, m1, slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[1] = 1 / (probs[1] + probs[2]);
 					probs[1] *= b[1];
@@ -368,16 +368,16 @@ namespace massfunctions {
 
 					b[2] = b[1] * pow(m1, slopes[1] - slopes[2]);
 
-					m = power_integral(m_lower, m1, slopes[1] + 2, b[1])
-						+ power_integral(m1, m_upper, slopes[2] + 2, b[2]);
+					m = this->power_integral(m_lower, m1, slopes[1] + 2, b[1])
+						+ this->power_integral(m1, m_upper, slopes[2] + 2, b[2]);
 				}
 				else
 				{
-					probs[2] = power_integral(m_lower, m_upper, slopes[2]);
+					probs[2] = this->power_integral(m_lower, m_upper, slopes[2]);
 					b[2] = 1 / probs[2];
 					probs[2] *= b[2];
 
-					m = power_integral(m_lower, m_upper, slopes[2] + 2, b[2]);
+					m = this->power_integral(m_lower, m_upper, slopes[2] + 2, b[2]);
 				}
 
 			}
@@ -419,18 +419,18 @@ namespace massfunctions {
 
 			if (m_upper < m0)
 			{
-				probs[0] = power_integral(m_lower, m_upper, slopes[0]);
+				probs[0] = this->power_integral(m_lower, m_upper, slopes[0]);
 				b[0] = 1 / probs[0];
 				probs[0] *= b[0];
 
-				m = power_log_integral(m_lower, m_upper, slopes[0] + 2, b[0]);
+				m = this->power_log_integral(m_lower, m_upper, slopes[0] + 2, b[0]);
 			}
 			else if (m_upper < m1)
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m_upper, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
 
 					b[0] = 1 / (probs[0] + probs[1]);
 					probs[0] *= b[0];
@@ -438,25 +438,25 @@ namespace massfunctions {
 
 					b[1] = b[0] * pow(m0, slopes[0] - slopes[1]);
 
-					m = power_log_integral(m_lower, m0, slopes[0] + 2, b[0])
-						+ power_log_integral(m0, m_upper, slopes[1] + 2, b[1]);
+					m = this->power_log_integral(m_lower, m0, slopes[0] + 2, b[0])
+						+ this->power_log_integral(m0, m_upper, slopes[1] + 2, b[1]);
 				}
 				else
 				{
-					probs[1] = power_integral(m_lower, m_upper, slopes[1]);
+					probs[1] = this->power_integral(m_lower, m_upper, slopes[1]);
 					b[1] = 1 / probs[1];
 					probs[1] *= b[1];
 
-					m = power_log_integral(m_lower, m_upper, slopes[1] + 2, b[1]);
+					m = this->power_log_integral(m_lower, m_upper, slopes[1] + 2, b[1]);
 				}
 			}
 			else
 			{
 				if (m_lower < m0)
 				{
-					probs[0] = power_integral(m_lower, m0, slopes[0]);
-					probs[1] = power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
+					probs[0] = this->power_integral(m_lower, m0, slopes[0]);
+					probs[1] = this->power_integral(m0, m1, slopes[1]) * pow(m0, slopes[0] - slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m0, slopes[0] - slopes[1]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[0] = 1 / (probs[0] + probs[1] + probs[2]);
 					probs[0] *= b[0];
@@ -466,14 +466,14 @@ namespace massfunctions {
 					b[1] = b[0] * pow(m0, slopes[0] - slopes[1]);
 					b[2] = b[1] * pow(m1, slopes[1] - slopes[2]);
 
-					m = power_log_integral(m_lower, m0, slopes[0] + 2, b[0])
-						+ power_log_integral(m0, m1, slopes[1] + 2, b[1])
-						+ power_log_integral(m1, m_upper, slopes[2] + 2, b[2]);
+					m = this->power_log_integral(m_lower, m0, slopes[0] + 2, b[0])
+						+ this->power_log_integral(m0, m1, slopes[1] + 2, b[1])
+						+ this->power_log_integral(m1, m_upper, slopes[2] + 2, b[2]);
 				}
 				else if (m_lower < m1)
 				{
-					probs[1] = power_integral(m_lower, m1, slopes[1]);
-					probs[2] = power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
+					probs[1] = this->power_integral(m_lower, m1, slopes[1]);
+					probs[2] = this->power_integral(m1, m_upper, slopes[2]) * pow(m1, slopes[1] - slopes[2]);
 
 					b[1] = 1 / (probs[1] + probs[2]);
 					probs[1] *= b[1];
@@ -481,16 +481,16 @@ namespace massfunctions {
 
 					b[2] = b[1] * pow(m1, slopes[1] - slopes[2]);
 
-					m = power_log_integral(m_lower, m1, slopes[1] + 2, b[1])
-						+ power_log_integral(m1, m_upper, slopes[2] + 2, b[2]);
+					m = this->power_log_integral(m_lower, m1, slopes[1] + 2, b[1])
+						+ this->power_log_integral(m1, m_upper, slopes[2] + 2, b[2]);
 				}
 				else
 				{
-					probs[2] = power_integral(m_lower, m_upper, slopes[2]);
+					probs[2] = this->power_integral(m_lower, m_upper, slopes[2]);
 					b[2] = 1 / probs[2];
 					probs[2] *= b[2];
 
-					m = power_log_integral(m_lower, m_upper, slopes[2] + 2, b[2]);
+					m = this->power_log_integral(m_lower, m_upper, slopes[2] + 2, b[2]);
 				}
 
 			}

@@ -30,16 +30,7 @@ protected:
 	__host__ __device__ T power_integral(T x1, T x2, T a, T b = 1)
 	{
 		T result;
-#ifdef CUDA_ARCH
-		if (a != -1)
-		{
-			result = b * (pow(x2, a + 1) - pow(x1, a + 1)) / (a + 1);
-		}
-		else
-		{
-			result = b * (log(x2) - log(x1));
-		}
-#else
+		
 		if (a != -1)
 		{
 			result = b * (std::pow(x2, a + 1) - std::pow(x1, a + 1)) / (a + 1);
@@ -48,7 +39,7 @@ protected:
 		{
 			result = b * (std::log(x2) - std::log(x1));
 		}
-#endif
+		
 		return result;
 	}
 
@@ -68,16 +59,7 @@ protected:
 	__host__ __device__ T power_log_integral(T x1, T x2, T a, T b = 1)
 	{
 		T result;
-#ifdef CUDA_ARCH
-		if (a != -1)
-		{
-			result = b * (pow(x2, a + 1) * ((a + 1) * log(x2) - 1) - pow(x1, a + 1) * ((a + 1) * log(x1) - 1)) / ((a + 1) * (a + 1));
-		}
-		else
-		{
-			result = b * (log(x2) * log(x2) - log(x1) * log(x1)) / 2;
-		}
-#else
+		
 		if (a != -1)
 		{
 			result = b * (std::pow(x2, a + 1) * ((a + 1) * std::log(x2) - 1) - std::pow(x1, a + 1) * ((a + 1) * std::log(x1) - 1)) / ((a + 1) * (a + 1));
@@ -86,7 +68,7 @@ protected:
 		{
 			result = b * (std::log(x2) * std::log(x2) - std::log(x1) * std::log(x1)) / 2;
 		}
-#endif
+		
 		return result;
 	}
 
@@ -105,16 +87,7 @@ protected:
 	__host__ __device__ T invert_power_integral(T p, T x1, T a, T b)
 	{
 		T result;
-#ifdef CUDA_ARCH
-		if (a != -1)
-		{
-			result = pow(p * (a + 1) / b + pow(x1, a + 1), 1 / (a + 1));
-		}
-		else
-		{
-			result = x1 * exp(p / b);
-		}
-#else
+		
 		if (a != -1)
 		{
 			result = std::pow(p * (a + 1) / b + std::pow(x1, a + 1), 1 / (a + 1));
@@ -123,7 +96,7 @@ protected:
 		{
 			result = x1 * std::exp(p / b);
 		}
-#endif
+		
 		return result;
 	}
 	

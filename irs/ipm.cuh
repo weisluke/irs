@@ -98,6 +98,7 @@ private:
 	std::shared_ptr<massfunctions::MassFunction<T>> mass_function;
 	T mean_mass;
 	T mean_mass2;
+	T mean_mass2_ln_mass;
 
 	int num_stars;
 	T kappa_star_actual;
@@ -105,6 +106,7 @@ private:
 	T m_upper_actual;
 	T mean_mass_actual;
 	T mean_mass2_actual;
+	T mean_mass2_ln_mass_actual;
 
 	T mu_ave;
 	T num_rays_x; //number density of rays per unit area in the image plane
@@ -345,6 +347,7 @@ private:
 			mass_function = massfunctions::MASS_FUNCTIONS<T>.at(mass_function_str);
 			set_param("mean_mass", mean_mass, mass_function->mean_mass(m_lower, m_upper, m_solar), verbose);
 			set_param("mean_mass2", mean_mass2, mass_function->mean_mass2(m_lower, m_upper, m_solar), verbose);
+			set_param("mean_mass2_ln_mass", mean_mass2_ln_mass, mass_function->mean_mass2_ln_mass(m_lower, m_upper, m_solar), verbose);
 		}
 		/******************************************************************************
 		if star file is specified, check validity of values and set num_stars,
@@ -356,7 +359,7 @@ private:
 			std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
 
 			if (!read_star_file<T>(num_stars, rectangular, corner, theta_star, stars,
-				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, starfile))
+				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, mean_mass2_ln_mass, starfile))
 			{
 				std::cerr << "Error. Unable to read star field parameters from file " << starfile << "\n";
 				return false;
@@ -376,6 +379,7 @@ private:
 			set_param("m_upper", m_upper, m_upper, verbose);
 			set_param("mean_mass", mean_mass, mean_mass, verbose);
 			set_param("mean_mass2", mean_mass2, mean_mass2, verbose);
+			set_param("mean_mass2_ln_mass", mean_mass2_ln_mass, mean_mass2_ln_mass, verbose);
 
 			std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n";
 		}
@@ -629,13 +633,14 @@ private:
 		and mean_mass2_actual based on star information
 		******************************************************************************/
 		calculate_star_params<T>(num_stars, rectangular, corner, theta_star, stars,
-			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual);
+			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual, mean_mass2_ln_mass_actual);
 
 		set_param("kappa_star_actual", kappa_star_actual, kappa_star_actual, verbose);
 		set_param("m_lower_actual", m_lower_actual, m_lower_actual, verbose);
 		set_param("m_upper_actual", m_upper_actual, m_upper_actual, verbose);
 		set_param("mean_mass_actual", mean_mass_actual, mean_mass_actual, verbose);
-		set_param("mean_mass2_actual", mean_mass2_actual, mean_mass2_actual, verbose, true);
+		set_param("mean_mass2_actual", mean_mass2_actual, mean_mass2_actual, verbose);
+		set_param("mean_mass2_ln_mass_actual", mean_mass2_ln_mass_actual, mean_mass2_ln_mass_actual, verbose, true);
 
 		/******************************************************************************
 		END populating star array
@@ -995,11 +1000,13 @@ private:
 			outfile << "m_upper " << m_upper << "\n";
 			outfile << "mean_mass " << mean_mass << "\n";
 			outfile << "mean_mass2 " << mean_mass2 << "\n";
+			outfile << "mean_mass2_ln_mass " << mean_mass2_ln_mass << "\n";
 		}
 		outfile << "m_lower_actual " << m_lower_actual << "\n";
 		outfile << "m_upper_actual " << m_upper_actual << "\n";
 		outfile << "mean_mass_actual " << mean_mass_actual << "\n";
 		outfile << "mean_mass2_actual " << mean_mass2_actual << "\n";
+		outfile << "mean_mass2_ln_mass_actual " << mean_mass2_ln_mass_actual << "\n";
 		outfile << "light_loss " << light_loss << "\n";
 		outfile << "num_stars " << num_stars << "\n";
 		if (rectangular)

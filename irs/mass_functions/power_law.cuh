@@ -107,7 +107,7 @@ public:
 
 	__host__ __device__ PowerLaw()
 	{
-		slope = static_cast<T>(0);
+		slope = 0;
 	}
 	template <typename U>
 	__host__ __device__ PowerLaw(U a)

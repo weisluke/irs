@@ -346,7 +346,7 @@ private:
 			}
 
 			/******************************************************************************
-			determine mass function, <m>, and <m^2>
+			determine mass function, <m>, <m^2>, and <m^2 * ln(m)>
 			******************************************************************************/
 			mass_function = massfunctions::MASS_FUNCTIONS<T>.at(mass_function_str);
 			set_param("mean_mass", mean_mass, mass_function->mean_mass(m_lower, m_upper, m_solar), verbose);
@@ -634,7 +634,7 @@ private:
 
 		/******************************************************************************
 		calculate kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual,
-		and mean_mass2_actual based on star information
+		mean_mass2_actual, and mean_mass2_ln_mass_actual based on star information
 		******************************************************************************/
 		calculate_star_params<T>(num_stars, rectangular, corner, theta_star, stars,
 			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual, mean_mass2_ln_mass_actual);

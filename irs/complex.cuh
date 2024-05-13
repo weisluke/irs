@@ -81,12 +81,7 @@ public:
 	******************************************************************************/
 	__host__ __device__ T abs()
 	{
-		/*use device or host square root function*/
-#ifdef CUDA_ARCH
-		return sqrt(re * re + im * im);
-#else
 		return std::sqrt(re * re + im * im);
-#endif
 	}
 
 	/******************************************************************************
@@ -94,11 +89,7 @@ public:
 	******************************************************************************/
 	__host__ __device__ T arg()
 	{
-#ifdef CUDA_ARCH
-		return atan2(im, re);
-#else
 		return std::atan2(im, re);
-#endif
 	}
 
 	/******************************************************************************
@@ -106,11 +97,7 @@ public:
 	******************************************************************************/
 	__host__ __device__ Complex exp()
 	{
-#ifdef CUDA_ARCH
-		return Complex(exp(re) * cos(im), exp(re) * sin(im));
-#else
 		return Complex(std::exp(re) * std::cos(im), std::exp(re) * std::sin(im));
-#endif
 	}
 
 	/******************************************************************************
@@ -120,11 +107,8 @@ public:
 	{
 		T abs = this->abs();
 		T arg = this->arg();
-#ifdef CUDA_ARCH
-		return Complex(log(abs), arg);
-#else
+		
 		return Complex(std::log(abs), arg);
-#endif
 	}
 
 	/******************************************************************************

@@ -128,9 +128,8 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 				if (threadIdx.x == 0 && threadIdx.y == 0)
 				{
 					unsigned long long int p = atomicAdd(percentage, 1);
-					unsigned long long int imax = num_ray_threads.re;
-					imax *= num_ray_threads.im;
-					imax /= (blockDim.x * blockDim.y);
+					unsigned long long int imax = ((num_ray_threads.re - 1) / blockDim.x + 1);
+					imax *= ((num_ray_threads.im - 1) / blockDim.y + 1);
 					if (p * 100 / imax > (p - 1) * 100 / imax)
 					{
 						device_print_progress(p, imax);
@@ -152,9 +151,8 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 				if (threadIdx.x == 0 && threadIdx.y == 0)
 				{
 					unsigned long long int p = atomicAdd(percentage, 1);
-					unsigned long long int imax = num_ray_threads.re;
-					imax *= num_ray_threads.im;
-					imax /= (blockDim.x * blockDim.y);
+					unsigned long long int imax = ((num_ray_threads.re - 1) / blockDim.x + 1);
+					imax *= ((num_ray_threads.im - 1) / blockDim.y + 1);
 					if (p * 100 / imax > (p - 1) * 100 / imax)
 					{
 						device_print_progress(p, imax);
@@ -199,9 +197,8 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 			if (threadIdx.x == 0 && threadIdx.y == 0)
 			{
 				unsigned long long int p = atomicAdd(percentage, 1);
-				unsigned long long int imax = num_ray_threads.re;
-				imax *= num_ray_threads.im;
-				imax /= (blockDim.x * blockDim.y);
+				unsigned long long int imax = ((num_ray_threads.re - 1) / blockDim.x + 1);
+				imax *= ((num_ray_threads.im - 1) / blockDim.y + 1);
 				if (p * 100 / imax > (p - 1) * 100 / imax)
 				{
 					device_print_progress(p, imax);

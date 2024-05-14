@@ -27,9 +27,9 @@ using dtype = double; //type to be used throughout this program. float or double
 #error "Error. One, and only one, of is_float or is_double must be defined"
 #endif
 
-#if defined(IPM_map) && !defined(IRS_map)
+#if defined(is_ipm) && !defined(is_irs)
 IPM<dtype> map_maker;
-#elif !defined(IPM_map) && defined(IRS_map)
+#elif !defined(is_ipm) && defined(is_irs)
 IRS<dtype> map_maker;
 #else
 #error "Error. One, and only one, of IPM_map or IRS_map must be defined"

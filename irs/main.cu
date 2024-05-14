@@ -6,12 +6,12 @@ Email: weisluke@alum.mit.edu
 ******************************************************************************/
 
 
-#if defined(IPM_map) && !defined(IRS_map)
+#if defined(is_ipm) && !defined(is_irs)
 #include "ipm.cuh"
-#elif !defined(IPM_map) && defined(IRS_map)
+#elif !defined(is_ipm) && defined(is_irs)
 #include "irs.cuh"
 #else
-#error "Error. One, and only one, of IPM_map or IRS_map must be defined"
+#error "Error. One, and only one, of is_ipm or is_irs must be defined"
 #endif
 #include "util.cuh"
 

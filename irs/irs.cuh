@@ -486,7 +486,9 @@ private:
 			}
 		}
 
-		alpha_error = half_length_y.abs() / (10 * Complex<T>(num_pixels_y).abs()); //error is a circle of radius 1/10 of a pixel
+		alpha_error = std::min(half_length_y.re / (10 * num_pixels_y.re), 
+			half_length_y.im / (10 * num_pixels_y.im)); //error is a circle of radius 1/10 of smallest pixel scale
+		set_param("alpha_error", alpha_error, alpha_error, verbose);
 
 		taylor_smooth = std::max(
 			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),
@@ -756,7 +758,7 @@ private:
 		******************************************************************************/
 
 		expansion_order = static_cast<int>(2 * std::log2(theta_star) - std::log2(root_half_length * alpha_error))
-			 + tree_levels + 1;
+			+ tree_levels + 1;
 		set_param("expansion_order", expansion_order, expansion_order, verbose, true);
 		if (expansion_order < 3)
 		{

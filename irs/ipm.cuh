@@ -482,7 +482,9 @@ private:
 			}
 		}
 
-		alpha_error = half_length_y.abs() / (10 * Complex<T>(num_pixels_y).abs()); //error is a circle of radius 1/10 of a pixel
+		alpha_error = std::min(half_length_y.re / (10 * num_pixels_y.re), 
+			half_length_y.im / (10 * num_pixels_y.im)); //error is a circle of radius 1/10 of smallest pixel scale
+		set_param("alpha_error", alpha_error, alpha_error, verbose);
 
 		taylor_smooth = std::max(
 			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),

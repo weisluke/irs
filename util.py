@@ -127,3 +127,4 @@ def read_complex_array(fname, is_double = False):
         dat = np.fromfile(f, dtype=dtype)
         dat = dat.reshape(nrows, ncols, 2)
     return dat
+

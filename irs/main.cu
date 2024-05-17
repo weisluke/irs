@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-s") || argv[i] == std::string("--smooth_fraction"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -280,7 +280,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ks") || argv[i] == std::string("--kappa_star"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -296,7 +296,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-t") || argv[i] == std::string("--theta_star"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -312,7 +312,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-mf") || argv[i] == std::string("--mass_function"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -320,7 +320,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ms") || argv[i] == std::string("--m_solar"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -336,7 +336,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-ml") || argv[i] == std::string("--m_lower"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -352,7 +352,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-mh") || argv[i] == std::string("--m_upper"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -380,7 +380,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-r") || argv[i] == std::string("--rectangular"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -508,7 +508,7 @@ int main(int argc, char* argv[])
 		}
 		else if (argv[i] == std::string("-rs") || argv[i] == std::string("--random_seed"))
 		{
-			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file"))
+			if (cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile"))
 			{
 				continue;
 			}
@@ -564,7 +564,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if (!(cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--star_file")) &&
+	if (!(cmd_option_exists(argv, argv + argc, "-sf") || cmd_option_exists(argv, argv + argc, "--starfile")) &&
 		!(cmd_option_exists(argv, argv + argc, "-ks") || cmd_option_exists(argv, argv + argc, "--kappa_star")))
 	{
 		set_param("kappa_star", map_maker.kappa_star, (1 - smooth_fraction) * map_maker.kappa_tot, verbose);

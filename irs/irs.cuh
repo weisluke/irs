@@ -646,7 +646,23 @@ private:
 		set_param("m_upper_actual", m_upper_actual, m_upper_actual, verbose);
 		set_param("mean_mass_actual", mean_mass_actual, mean_mass_actual, verbose);
 		set_param("mean_mass2_actual", mean_mass2_actual, mean_mass2_actual, verbose);
-		set_param("mean_mass2_ln_mass_actual", mean_mass2_ln_mass_actual, mean_mass2_ln_mass_actual, verbose, true);
+		set_param("mean_mass2_ln_mass_actual", mean_mass2_ln_mass_actual, mean_mass2_ln_mass_actual, verbose, starfile != "");
+
+		if (starfile == "")
+		{
+			if (rectangular)
+			{
+				corner = Complex<T>(std::sqrt(corner.re / corner.im), std::sqrt(corner.im / corner.re));
+				corner *= std::sqrt(PI * theta_star * theta_star * num_stars * mean_mass_actual / (4 * kappa_star));
+				set_param("corner", corner, corner, verbose, true);
+			}
+			else
+			{
+				corner = corner / corner.abs();
+				corner *= std::sqrt(theta_star * theta_star * num_stars * mean_mass_actual / kappa_star);
+				set_param("corner", corner, corner, verbose, true);
+			}
+		}
 
 		/******************************************************************************
 		END populating star array

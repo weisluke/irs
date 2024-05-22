@@ -181,7 +181,7 @@ public:
     {
 		if (m_lower == m_upper)
 		{
-			return m_lower;
+			return m_lower * m_lower;
 		}
 
 		/******************************************************************************
@@ -208,7 +208,7 @@ public:
     {
 		if (m_lower == m_upper)
 		{
-			return m_lower;
+			return m_lower * m_lower * std::log(m_lower);
 		}
 
 		/******************************************************************************

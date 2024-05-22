@@ -220,7 +220,7 @@ private:
 
 		if (starfile == "" && !massfunctions::MASS_FUNCTIONS<T>.count(mass_function_str))
 		{
-			std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
+			std::cerr << "Error. mass_function must be equal, uniform, Salpeter, Kroupa, or optical_depth.\n";
 			return false;
 		}
 
@@ -612,9 +612,13 @@ private:
 			{
 				generate_star_field_kernel<T, massfunctions::Kroupa<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
 			}
+			else if (mass_function_str == "optical_depth")
+			{
+				generate_star_field_kernel<T, massfunctions::OpticalDepth<T>> <<<blocks, threads>>> (states, stars, num_stars, rectangular, corner, m_lower, m_upper, m_solar);
+			}
 			else
 			{
-				std::cerr << "Error. mass_function must be equal, uniform, Salpeter, or Kroupa.\n";
+				std::cerr << "Error. mass_function must be equal, uniform, Salpeter, Kroupa, or optical_depth.\n";
 				return false;
 			}
 			if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return false;

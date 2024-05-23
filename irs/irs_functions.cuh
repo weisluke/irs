@@ -116,7 +116,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 	{
 		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < num_ray_threads.re; i += blockDim.x * gridDim.x)
 		{
-			Complex<T> z = -hlx + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
+			Complex<T> z = center_x - hlx + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
 			TreeNode<T>* node = treenode::get_nearest_node(z, root);
 			Complex<T> w = complex_image_to_source<T>(z, kappa, gamma, theta, stars, kappastar, node, rectangular, corner, approx, taylor_smooth);
 			

@@ -119,7 +119,7 @@ __global__ void shoot_cells_kernel(T kappa, T gamma, T theta, star<T>* stars, T 
 		{
 			Complex<T> x[4];
 
-			Complex<T> z = -hlx + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
+			Complex<T> z = center_x - hlx + ray_half_sep + 2 * Complex<T>(ray_half_sep.re * i, ray_half_sep.im * j);
 
 			x[0] = z + ray_half_sep;
 			x[1] = z - ray_half_sep.conj();

@@ -86,5 +86,8 @@
     <ClInclude Include="mass_functions\kroupa.cuh">
       <Filter>include\mass_functions</Filter>
     </ClInclude>
+    <ClInclude Include="mass_functions\optical_depth.cuh">
+      <Filter>include\mass_functions</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

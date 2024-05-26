@@ -26,6 +26,7 @@
     <ClInclude Include="mass_functions\equal.cuh" />
     <ClInclude Include="mass_functions\kroupa.cuh" />
     <ClInclude Include="mass_functions\mass_function_base.cuh" />
+    <ClInclude Include="mass_functions\optical_depth.cuh" />
     <ClInclude Include="mass_functions\power_law.cuh" />
     <ClInclude Include="mass_functions\salpeter.cuh" />
     <ClInclude Include="mass_functions\uniform.cuh" />
@@ -83,9 +84,10 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" -D IPM_map -D is_float %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" -D is_ipm -D is_float %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_75,sm_75</CodeGeneration>
+      <GenerateLineInfo>true</GenerateLineInfo>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -105,7 +107,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" -D IPM_map -D is_float %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-std=c++17 -Xcompiler "/std:c++17" -D is_ipm -D is_float %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_75,sm_75</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>

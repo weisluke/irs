@@ -432,7 +432,7 @@ private:
 			far_img *= theta_star * std::sqrt(num_stars * mean_mass); //in units of theta_star for total mass
 			half_length_x = far_img * Complex<T>(1, 1);
 
-			T far_src = std::sqrt(2 * (501 * std::sqrt(1001) - 1001) / 1001) //source plane position for the image with mu=1.001
+			T far_src = std::sqrt(2 * (501 * std::sqrt(1001) - 1001) / 1001); //source plane position for the image with mu=1.001
 			if (std::abs(half_length_y.re) > far_src || std::fabs(half_length_y.im) > far_src)
 			{
 				std::cerr << "Warning. Source plane region is larger than expected. Edge effects may be present.\n";

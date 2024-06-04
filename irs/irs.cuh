@@ -199,9 +199,9 @@ private:
 		std::cout << "Checking input parameters...\n";
 
 
-		if (kappa_tot < std::numeric_limits<T>::min())
+		if (kappa_tot < 0)
 		{
-			std::cerr << "Error. kappa_tot must be >= " << std::numeric_limits<T>::min() << "\n";
+			std::cerr << "Error. kappa_tot must be >= 0\n";
 			return false;
 		}
 
@@ -373,11 +373,18 @@ private:
 			set_param("rectangular", rectangular, rectangular, verbose);
 			set_param("corner", corner, corner, verbose);
 			set_param("theta_star", theta_star, theta_star, verbose);
-			set_param("kappa_star", kappa_star, kappa_star, verbose);
-			if (static_cast<int>(kappa_star * 10000000) > static_cast<int>(kappa_tot * 1000000000))
+			if (kappa_tot > 0)
 			{
-				std::cerr << "Error. kappa_star must be <= kappa_tot\n";
-				return false;
+				set_param("kappa_star", kappa_star, kappa_star, verbose);
+				if (static_cast<int>(kappa_star * 10000000) > static_cast<int>(kappa_tot * 1000000000))
+				{
+					std::cerr << "Error. kappa_star must be <= kappa_tot\n";
+					return false;
+				}
+			}
+			else //planetary microlensing
+			{
+				set_param("kappa_star", kappa_star, 0, verbose);
 			}
 			set_param("m_lower", m_lower, m_lower, verbose);
 			set_param("m_upper", m_upper, m_upper, verbose);
@@ -414,8 +421,17 @@ private:
 		the region of images visible for a macro-image which on average loses no more
 		than the desired amount of flux
 		******************************************************************************/
-		half_length_x = half_length_y + theta_star * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)) * Complex<T>(1, 1);
-		half_length_x = Complex<T>(half_length_x.re / std::abs(1 - kappa_tot + shear), half_length_x.im / std::abs(1 - kappa_tot - shear));
+		if (kappa_tot > 0)
+		{
+			half_length_x = half_length_y + theta_star * std::sqrt(kappa_star * mean_mass2 / (mean_mass * light_loss)) * Complex<T>(1, 1);
+			half_length_x = Complex<T>(half_length_x.re / std::abs(1 - kappa_tot + shear), half_length_x.im / std::abs(1 - kappa_tot - shear));
+		}
+		else //planetary microlensing
+		{
+			T far_img = std::sqrt(2 * (501 * std::sqrt(1001) - 1001) / 1001); //source distance from center for second image to have mu=0.001 for point mass lens
+			far_img *= theta_star * std::sqrt(num_stars * mean_mass); //in units of theta_star for total mass
+			half_length_x = far_img * Complex<T>(1, 1);
+		}
 		/******************************************************************************
 		make shooting region a multiple of the ray separation
 		******************************************************************************/
@@ -424,7 +440,14 @@ private:
 		set_param("half_length_x", half_length_x, half_length_x, verbose);
 		set_param("num_ray_threads", num_ray_threads, 2 * num_ray_threads, verbose);
 
-		center_x = Complex<T>(center_y.re / (1 - kappa_tot + shear), center_y.im / (1 - kappa_tot - shear));
+		if (kappa_tot > 0)
+		{
+			center_x = Complex<T>(center_y.re / (1 - kappa_tot + shear), center_y.im / (1 - kappa_tot - shear));
+		}
+		else //planetary microlensing
+		{
+			center_x = Complex<T>(); //assumes masses are near the origin and we are always interested in a region around the origin
+		}
 		set_param("center_x", center_x, center_x, verbose);
 
 		/******************************************************************************
@@ -465,7 +488,7 @@ private:
 		/******************************************************************************
 		otherwise, check that the star file actually has a large enough field of stars
 		******************************************************************************/
-		else
+		else if (kappa_tot > 0)
 		{
 			Complex<T> tmp_corner = Complex<T>(std::abs(center_x.re) + half_length_x.re, std::abs(center_x.im) + half_length_x.im);
 
@@ -484,6 +507,11 @@ private:
 				std::cerr << "Try decreasing the safety_scale, or providing a larger field of stars.\n";
 				return false;
 			}
+		}
+		else //planetary microlensing
+		{
+			corner = Complex<T>(std::abs(center_x.re) + half_length_x.re, std::abs(center_x.im) + half_length_x.im);
+			set_param("corner", corner, corner, verbose);
 		}
 
 		alpha_error = std::min(half_length_y.re / (10 * num_pixels_y.re), 
@@ -645,7 +673,14 @@ private:
 		calculate_star_params<T>(num_stars, rectangular, corner, theta_star, stars,
 			kappa_star_actual, m_lower_actual, m_upper_actual, mean_mass_actual, mean_mass2_actual, mean_mass2_ln_mass_actual);
 
-		set_param("kappa_star_actual", kappa_star_actual, kappa_star_actual, verbose);
+		if (kappa_tot > 0)
+		{
+			set_param("kappa_star_actual", kappa_star_actual, kappa_star_actual, verbose);
+		}
+		else //planetary microlensing
+		{
+			set_param("kappa_star_actual", kappa_star_actual, 0, verbose);
+		}
 		set_param("m_lower_actual", m_lower_actual, m_lower_actual, verbose);
 		set_param("m_upper_actual", m_upper_actual, m_upper_actual, verbose);
 		set_param("mean_mass_actual", mean_mass_actual, mean_mass_actual, verbose);

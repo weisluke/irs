@@ -428,9 +428,15 @@ private:
 		}
 		else //planetary microlensing
 		{
-			T far_img = std::sqrt(2 * (501 * std::sqrt(1001) - 1001) / 1001); //source distance from center for second image to have mu=0.001 for point mass lens
+			T far_img = std::pow(1001, 0.25); //image position that has mu=1.001 for a point mass lens
 			far_img *= theta_star * std::sqrt(num_stars * mean_mass); //in units of theta_star for total mass
 			half_length_x = far_img * Complex<T>(1, 1);
+
+			T far_src = std::sqrt(2 * (501 * std::sqrt(1001) - 1001) / 1001) //source plane position for the image with mu=1.001
+			if (std::abs(half_length_y.re) > far_src || std::fabs(half_length_y.im) > far_src)
+			{
+				std::cerr << "Warning. Source plane region is larger than expected. Edge effects may be present.\n";
+			}
 		}
 		/******************************************************************************
 		make shooting region a multiple of the ray separation

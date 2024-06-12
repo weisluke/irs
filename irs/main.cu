@@ -38,7 +38,7 @@ IRS<dtype> map_maker;
 /******************************************************************************
 constants to be used
 ******************************************************************************/
-constexpr int OPTS_SIZE = 2 * 28;
+constexpr int OPTS_SIZE = 2 * 29;
 const std::string OPTS[OPTS_SIZE] =
 {
 	"-h", "--help",
@@ -65,6 +65,7 @@ const std::string OPTS[OPTS_SIZE] =
 	"-npy2", "--num_pixels_y2",
 	"-nry", "--num_rays_y",
 	"-rs", "--random_seed",
+	"-ws", "--write_stars",
 	"-wm", "--write_maps",
 	"-wp", "--write_parities",
 	"-wh", "--write_histograms",
@@ -131,6 +132,10 @@ void display_usage(char* name)
 		<< "                           values for num_stars, rectangular, corner,\n"
 		<< "                           theta_star, and the star positions and masses, in an\n"
 		<< "                           order as defined in this source code.\n"
+		<< "                           A whitespace delimited text file where each line\n"
+		<< "                           contains the x1 and x2 coordinates and the mass of a\n"
+		<< "                           microlens, in units where theta_star = 1, is also\n"
+		<< "                           accepted.\n"
 		<< "  -cy1, --center_y1        Specify the y1 and y2 coordinates of the center of\n"
 		<< "  -cy2, --center_y2        the magnification map.\n"
 		<< "                           Default value: " << map_maker.center_y << "\n"
@@ -145,6 +150,8 @@ void display_usage(char* name)
 		<< "                           Default value: " << map_maker.num_rays_y << "\n"
 		<< "  -rs,--random_seed        Specify the random seed for star field generation.\n"
 		<< "                           A value of 0 is reserved for star input files.\n"
+		<< "  -ws,--write_stars        Specify whether to write stars (1) or not (0).\n"
+		<< "                           Default value: " << map_maker.write_stars << "\n"
 		<< "  -wm,--write_maps         Specify whether to write magnification maps (1) or\n"
 		<< "                           not (0). Default value: " << map_maker.write_maps << "\n"
 		<< "  -wp,--write_parities     Specify whether to write parity specific\n"
@@ -519,6 +526,18 @@ int main(int argc, char* argv[])
 			catch (...)
 			{
 				std::cerr << "Error. Invalid random_seed input.\n";
+				return -1;
+			}
+		}
+		else if (argv[i] == std::string("-ws") || argv[i] == std::string("--write_stars"))
+		{
+			try
+			{
+				set_param("write_stars", map_maker.write_stars, std::stoi(cmdinput), verbose);
+			}
+			catch (...)
+			{
+				std::cerr << "Error. Invalid write_stars input.\n";
 				return -1;
 			}
 		}

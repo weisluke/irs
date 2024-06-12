@@ -56,6 +56,7 @@ public:
 	Complex<int> num_pixels_y = Complex<int>(1000, 1000);
 	int num_rays_y = 1; //number density of rays per pixel in the source plane
 	int random_seed = 0;
+	int write_stars = 1;
 	int write_maps = 1;
 	int write_parities = 0;
 	int write_histograms = 1;
@@ -292,6 +293,12 @@ private:
 		if (num_rays_y < 1)
 		{
 			std::cerr << "Error. num_rays_y must be an integer > 0\n";
+			return false;
+		}
+
+		if (write_stars != 0 && write_stars != 1)
+		{
+			std::cerr << "Error. write_stars must be 1 (true) or 0 (false).\n";
 			return false;
 		}
 
@@ -1070,14 +1077,17 @@ private:
 		std::cout << "Done writing parameter info to file " << fname << "\n\n";
 
 
-		std::cout << "Writing star info...\n";
-		fname = outfile_prefix + "ipm_stars" + outfile_type;
-		if (!write_star_file<T>(num_stars, rectangular, corner, theta_star, stars, fname))
+		if (write_stars)
 		{
-			std::cerr << "Error. Unable to write star info to file " << fname << "\n";
-			return false;
+			std::cout << "Writing star info...\n";
+			fname = outfile_prefix + "ipm_stars" + outfile_type;
+			if (!write_star_file<T>(num_stars, rectangular, corner, theta_star, stars, fname))
+			{
+				std::cerr << "Error. Unable to write star info to file " << fname << "\n";
+				return false;
+			}
+			std::cout << "Done writing star info to file " << fname << "\n\n";
 		}
-		std::cout << "Done writing star info to file " << fname << "\n\n";
 
 
 		/******************************************************************************
@@ -1166,13 +1176,13 @@ public:
 		if (!populate_star_array(verbose)) return false;
 		if (!create_tree(verbose)) return false;
 		if (!shoot_cells(verbose)) return false;
+		if (!create_histograms(verbose)) return false;
 
 		return true;
 	}
 
 	bool save(bool verbose)
 	{
-		if (!create_histograms(verbose)) return false;
 		if (!write_files(verbose)) return false;
 
 		return true;

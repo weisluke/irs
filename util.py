@@ -75,6 +75,26 @@ def write_stars(fname, nstars, rectangular, corner, theta_star, stars, is_double
         f.write(s)
         f.close()
 
+def read_array(fname, dtype, is_complex = False):
+    '''
+    Read in a binary file of a 2d array of numbers
+
+    fname - name of the file to read
+    dtype - type for the array
+    is_complex - bool, whether the numbers are complex
+                 or not
+                 default: False
+    '''
+    with open(fname) as f:
+        nrows, ncols = np.fromfile(f, dtype=np.int32, count=2)
+        dat = np.fromfile(f, dtype=dtype)
+        if is_complex:
+            dat = dat.reshape(nrows, ncols, 2)
+        else:
+            dat = dat.reshape(nrows, ncols)
+
+    return dat
+
 def read_map(fname, is_ipm = True, is_double = False):
     '''
     Read in a binary file of map information
@@ -87,19 +107,13 @@ def read_map(fname, is_ipm = True, is_double = False):
                 double precision
                 default: False
     '''
-    if is_double:
-        dtype = np.float64
-    else:
-        dtype = np.float32
-
-    with open(fname) as f:
-        nrows, ncols = np.fromfile(f, dtype=np.int32, count=2)
-        if is_ipm:
-            dat = np.fromfile(f, dtype=dtype)
+    if is_ipm:
+        if is_double:
+            return read_array(fname, np.float64)
         else:
-            dat = np.fromfile(f, dtype=np.int32)
-        dat = dat.reshape(nrows,ncols)
-    return dat
+            return read_array(fname, np.float32)
+    else:
+        return read_array(fname, np.int32)
 
 def read_hist(fname):
     '''
@@ -107,24 +121,4 @@ def read_hist(fname):
     (value, num_pixels) lines
     '''
     return np.loadtxt(fname, dtype=np.int32)
-
-def read_complex_array(fname, is_double = False):
-    '''
-    Read in a binary file of a 2d array of complex numbers
-
-    fname - name of the file to read
-    is_double - bool, whether the numbers are in single or
-                double precision
-                default: False
-    '''
-    if is_double:
-        dtype = np.float64
-    else:
-        dtype = np.float32
-
-    with open(fname) as f:
-        nrows, ncols = np.fromfile(f, dtype=np.int32, count=2)
-        dat = np.fromfile(f, dtype=dtype)
-        dat = dat.reshape(nrows, ncols, 2)
-    return dat
 

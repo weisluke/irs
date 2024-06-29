@@ -81,7 +81,7 @@ public:
 	******************************************************************************/
 	__host__ __device__ T abs()
 	{
-		return std::sqrt(re * re + im * im);
+		return std::hypot(re, im); //avoids under/overflow
 	}
 
 	/******************************************************************************
@@ -179,6 +179,8 @@ public:
 
 	/******************************************************************************
 	multiplication
+	(a + b * i) * (c + d * i)
+	= (a * c - b * d) + (a * d  + b * c) * i
 	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator*=(Complex<U> c1)
 	{
@@ -209,12 +211,30 @@ public:
 
 	/******************************************************************************
 	division
+	(a + b * i) / (c + d * i) = (a + b * i) * (c - d * i) / (c^2 + d^2)
+	= (a * c + b * d) / (c^2 + d^2) + (b * c - a * d) * i / (c^2 + d^2)
+	= (a + b * d / c) / (c + d * d / c) + (b - a * d / c) * i / (c + d * d / c)
+	= (a * c / d + b) / (c * c / d + d) + (b * c / d - a) * i / (c * c / d + d)
 	******************************************************************************/
 	template <typename U> __host__ __device__ Complex& operator/=(Complex<U> c1)
 	{
-		T norm2 = c1.re * c1.re + c1.im * c1.im;
-		T new_re = (re * c1.re + im * c1.im) / norm2;
-		T new_im = (im * c1.re - re * c1.im) / norm2;
+		T new_re;
+		T new_im;
+		
+		//use Smith's formula
+		if (std::abs(c1.im) < std::abs(c1.re))
+		{
+			T f = c1.im / c1.re;
+			new_re = (re + im * f) / (c1.re + c1.im * f);
+			new_im = (im - re * f) / (c1.re + c1.im * f);
+		}
+		else
+		{
+			T f = c1.re / c1.im;
+			new_re = (re * f + im) / (c1.re * f + c1.im);
+			new_im = (im * f - re) / (c1.re * f + c1.im);
+		}
+
 		re = new_re;
 		im = new_im;
 		return *this;
@@ -227,8 +247,19 @@ public:
 	}
 	template <typename U> __host__ __device__ friend Complex operator/(Complex c1, Complex<U> c2)
 	{
-		T norm2 = c2.re * c2.re + c2.im * c2.im;
-		return Complex((c1.re * c2.re + c1.im * c2.im) / norm2, (c1.im * c2.re - c1.re * c2.im) / norm2);
+		//use Smith's formula
+		if (std::abs(c2.im) < std::abs(c2.re))
+		{
+			T f = c2.im / c2.re;
+			return Complex((c1.re + c1.im * f) / (c2.re + c2.im * f), 
+							(c1.im - c1.re * f) / (c2.re + c2.im * f));
+		}
+		else
+		{
+			T f = c2.re / c2.im;
+			return Complex((c1.re * f + c1.im) / (c2.re * f + c2.im), 
+							(c1.im * f - c1.re) / (c2.re * f + c2.im));
+		}
 	}
 	template <typename U> __host__ __device__ friend Complex operator/(Complex c1, U num)
 	{
@@ -236,8 +267,17 @@ public:
 	}
 	template <typename U> __host__ __device__ friend Complex operator/(T num, Complex<U> c1)
 	{
-		T norm2 = c1.re * c1.re + c1.im * c1.im;
-		return Complex(num * c1.re / norm2, -num * c1.im / norm2);
+		//use Smith's formula
+		if (std::abs(c1.im) < std::abs(c1.re))
+		{
+			T f = c1.im / c1.re;
+			return Complex(num / (c1.re + c1.im * f), (-num * f) / (c1.re + c1.im * f));
+		}
+		else
+		{
+			T f = c1.re / c1.im;
+			return Complex((num * f) / (c1.re * f + c1.im), -num / (c1.re * f + c1.im));
+		}
 	}
 
 	/******************************************************************************

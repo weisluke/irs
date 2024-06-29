@@ -1,1 +1,2 @@
-nvcc -std=c++17 --use_fast_math -O3 -D is_ipm -D is_float -o ipm_gpu ./irs/main.cu
+# introduction
+This repository contains the source code for a gpu microlensing magnification map generator

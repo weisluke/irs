@@ -1,0 +1,2 @@
+nvcc -std=c++17 --use_fast_math -O3 -D is_ipm -D is_float -o ipm_gpu ./irs/main.cu
+nvcc -std=c++17 --use_fast_math -O3 -D is_ipm -D is_double -o ipm_gpu_double ./irs/main.cu

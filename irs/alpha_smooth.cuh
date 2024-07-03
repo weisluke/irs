@@ -175,33 +175,20 @@ __device__ Complex<T> d_alpha_smooth_d_zbar(Complex<T> z, T kappastar, int recta
 	{
 		if (approx)
 		{
-			Complex<T> r1 = z.conj() / corner;
-			Complex<T> r2 = z.conj() / corner.conj();
-
-			Complex<T> s1;
-			Complex<T> s2;
-
-			for (int i = (taylor_smooth % 2 == 0 ? taylor_smooth : taylor_smooth - 1); i >= 2; i -= 2)
-			{
-				s1 *= i;
-				s1 += 1;
-				s1 /= i;
-
-				s2 *= i;
-				s2 += 1;
-				s2 /= i;
-
-				s1 *= (r1 * r1);
-				s2 *= (r2 * r2);
-			}
-			d_a_smooth_d_zbar += s1 - s2;
-			d_a_smooth_d_zbar *= 2;
+			Complex<T> r = z.conj() / corner; //geometric series ratio
+			Complex<T> phase = Complex<T>(0, 2 * corner.arg());
 
 			if (taylor_smooth % 2 == 0)
 			{
-				d_a_smooth_d_zbar += r1.pow(taylor_smooth) * 2;
-				d_a_smooth_d_zbar -= r2.pow(taylor_smooth) * 2;
+				d_a_smooth_d_zbar = (1 - (phase * taylor_smooth).exp());
 			}
+
+			for (int i = (taylor_smooth % 2 == 0 ? taylor_smooth : taylor_smooth - 1); i >= 2; i -= 2)
+			{
+				d_a_smooth_d_zbar += (1 - (phase * i).exp()) / i;
+				d_a_smooth_d_zbar *= (r * r);
+			}
+			d_a_smooth_d_zbar *= 2;
 
 			d_a_smooth_d_zbar *= Complex<T>(0, -kappastar / PI);
 			d_a_smooth_d_zbar += kappastar - 4 * kappastar * corner.arg() / PI;

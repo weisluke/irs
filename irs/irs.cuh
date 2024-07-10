@@ -381,7 +381,7 @@ private:
 			set_param("corner", corner, corner, verbose);
 			set_param("theta_star", theta_star, theta_star, verbose);
 			set_param("kappa_star", kappa_star, kappa_star, verbose);
-			if (static_cast<int>(kappa_star * 10000000) > static_cast<int>(kappa_tot * 1000000000))
+			if (static_cast<int>(kappa_star * 10000000) > static_cast<int>(kappa_tot * 10000000))
 			{
 				std::cerr << "Error. kappa_star must be <= kappa_tot\n";
 				return false;

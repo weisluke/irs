@@ -497,11 +497,23 @@ private:
 			half_length_y.im / (10 * num_pixels_y.im)); //error is a circle of radius 1/10 of smallest pixel scale
 		set_param("alpha_error", alpha_error, alpha_error, verbose);
 
-		taylor_smooth = std::max(
-			static_cast<int>(std::log(2 * kappa_star * corner.abs() / (alpha_error * PI)) / std::log(safety_scale)),
-			1
-		);
+		taylor_smooth = 31;
+		/******************************************************************************
+		if phase * (taylor_smooth - 1), a term in the approximation of alpha_smooth, is
+		not in the correct fractional range of pi, increase taylor_smooth
+		this is due to NOT wanting cos(phase * (taylor_smooth - 1)) = 0, within errors
+		******************************************************************************/
+		while (std::fmod(corner.arg() * (taylor_smooth - 1), PI) < 0.1 * PI 
+			|| std::fmod(corner.arg() * (taylor_smooth - 1), PI) > 0.9 * PI)
+		{
+			taylor_smooth += 2;
+		}		
 		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose && rectangular && approx);
+		if (taylor_smooth > 101) //arbitrary limit to the expansion order to avoid numerical precision loss from high degree polynomials
+		{
+			std::cerr << "Error. taylor_smooth must be <= 101\n";
+			return false;
+		}
 
 		t_elapsed = stopwatch.stop();
 		std::cout << "Done calculating derived parameters. Elapsed time: " << t_elapsed << " seconds.\n\n";

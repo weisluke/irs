@@ -305,13 +305,9 @@ public:
 
 		return res;
 	}
-	template <typename U> __host__ __device__ Complex pow(Complex<U> num)
-	{
-		throw std::logic_error("Complex pow(Complex<U> num) not implemented.");
-	}
 	template <typename U> __host__ __device__ Complex pow(U num)
 	{
-		throw std::logic_error("Complex pow(U num) not implemented.");
+		return (num * this->log()).exp();
 	}
 
 };

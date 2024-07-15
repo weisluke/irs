@@ -129,6 +129,114 @@ __global__ void histogram_kernel(T* pixels, Complex<int> npixels, int hist_min, 
 }
 
 /******************************************************************************
+read array of complex values from disk into array
+
+\param vals -- pointer to array of values
+\param nrows -- pointer to number of rows in array
+\param ncols -- pointer to number of columns in array
+\param fname -- location of the .bin file to read from
+
+\return bool -- true if file is successfully read, false if not
+******************************************************************************/
+template <typename T>
+bool read_complex_array(Complex<T>*& vals, int& nrows, int& ncols, const std::string& fname)
+{
+	std::filesystem::path fpath = fname;
+
+	if (fpath.extension() != ".bin")
+	{
+		std::cerr << "Error. File " << fname << " is not a .bin file.\n";
+		return false;
+	}
+
+	std::ifstream infile;
+
+	std::error_code err;
+	std::uintmax_t fsize = std::filesystem::file_size(fname, err);
+
+	if (err)
+	{
+		std::cerr << "Error determining size of input file " << fname << "\n";
+		return false;
+	}
+
+	infile.open(fname, std::ios_base::binary);
+
+	if (!infile.is_open())
+	{
+		std::cerr << "Error. Failed to open file " << fname << "\n";
+		return false;
+	}
+
+	infile.read((char*)(&nrows), sizeof(int));
+	infile.read((char*)(&ncols), sizeof(int));
+	if (nrows < 1 || ncols < 1)
+	{
+		std::cerr << "Error. File " << fname << " does not contain valid values for num_rows and num_cols.\n";
+		return false;
+	}
+
+	/******************************************************************************
+	allocate memory for array if needed
+	******************************************************************************/
+	if (vals == nullptr)
+	{
+		cudaMallocManaged(&vals, nrows * ncols * sizeof(Complex<T>));
+		if (cuda_error("cudaMallocManaged(*vals)", false, __FILE__, __LINE__)) return false;
+	}
+
+
+	/******************************************************************************
+	objects in the file are nrows + ncols + complex values
+	******************************************************************************/
+	if (fsize == 2 * sizeof(int) + nrows * ncols * sizeof(Complex<T>))
+	{
+		infile.read((char*)vals, nrows * ncols * sizeof(Complex<T>));
+	}
+	else if (fsize == 2 * sizeof(int) + nrows * ncols * sizeof(Complex<float>))
+	{
+		Complex<float>* temp_vals = new (std::nothrow) Complex<float>[nrows * ncols];
+		if (!temp_vals)
+		{
+			std::cerr << "Error. Memory allocation for *temp_vals failed.\n";
+			return false;
+		}
+		infile.read((char*)temp_vals, nrows * ncols * sizeof(Complex<float>));
+		for (int i = 0; i < nrows * ncols; i++)
+		{
+			vals[i] = Complex<T>(temp_vals[i]);
+		}
+		delete[] temp_vals;
+		temp_vals = nullptr;
+	}
+	else if (fsize == 2 * sizeof(int) + nrows * ncols * sizeof(Complex<double>))
+	{
+		Complex<double>* temp_vals = new (std::nothrow) Complex<double>[nrows * ncols];
+		if (!temp_vals)
+		{
+			std::cerr << "Error. Memory allocation for *temp_vals failed.\n";
+			return false;
+		}
+		infile.read((char*)temp_vals, nrows * ncols * sizeof(Complex<double>));
+		for (int i = 0; i < nrows * ncols; i++)
+		{
+			vals[i] = Complex<T>(temp_vals[i]);
+		}
+		delete[] temp_vals;
+		temp_vals = nullptr;
+	}
+	else
+	{
+		std::cerr << "Error. Binary file does not contain valid single or double precision numbers.\n";
+		return false;
+	}
+
+	infile.close();
+
+	return true;
+}
+
+/******************************************************************************
 write array of values to disk
 
 \param vals -- pointer to array of values

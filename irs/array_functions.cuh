@@ -34,6 +34,29 @@ __global__ void initialize_array_kernel(T* vals, int nrows, int ncols)
 }
 
 /******************************************************************************
+transpose array
+
+\param z1 -- pointer to array of values
+\param nrows -- number of rows in array
+\param ncols -- number of columns in array
+\param z2 -- pointer to transposed array of values
+******************************************************************************/
+template <typename T>
+__global__ void transpose_array_kernel(T* z1, int nrows, int ncols, T* z2)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	for (int a = x_index; a < nrows * ncols; a += x_stride)
+	{
+		int col = a % ncols;
+		int row = (a - col) / ncols;
+
+		z2[col * nrows + row] = z1[a];
+	}
+}
+
+/******************************************************************************
 complex point in the source plane converted to pixel position
 
 \param w -- complex source plane position

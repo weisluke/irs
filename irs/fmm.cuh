@@ -132,7 +132,7 @@ namespace fmm
             }
             result -= node->multipole_coeffs[0] / power;
             result *= dz.pow(power);
-            result /= (1 << power);
+            result /= 1 << power;
         }
 
         coeffs[power] = result;
@@ -217,7 +217,7 @@ namespace fmm
             result *= dz;
         }
         result /= dz.pow(power);
-        result /= (1 << power);
+        result /= 1 << power;
 
         coeffs[power] = result;
     }

@@ -14,6 +14,7 @@
 #include <iostream>
 #include <limits> //for std::numeric_limits
 #include <new>
+#include <numbers>
 #include <string>
 #include <system_error> //for std::error_code
 
@@ -55,8 +56,7 @@ generate random star field
 \param stars -- pointer to array of point mass lenses
 \param nstars -- number of stars to generate
 \param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the field of point mass
-				 lenses
+\param corner -- corner of the rectangular field of point mass lenses
 \param m_lower -- lower mass cutoff for the distribution in arbitrary units
 \param m_upper -- upper mass cutoff for the distribution in arbitrary units
 \param m_solar -- solar mass in arbitrary units
@@ -68,8 +68,6 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 	U mass_function;
 	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
 	int x_stride = blockDim.x * gridDim.x;
-
-	const T PI = static_cast<T>(3.1415926535898);
 
 	for (int i = x_index; i < nstars; i += x_stride)
 	{
@@ -89,7 +87,7 @@ __global__ void generate_star_field_kernel(curandState* states, star<T>* stars, 
 			/******************************************************************************
 			random angle
 			******************************************************************************/
-			T a = curand_uniform_double(&states[i]) * 2 * PI;
+			T a = curand_uniform_double(&states[i]) * 2 * std::numbers::pi_v<T>;
 			/******************************************************************************
 			random radius uses square root of random number as numbers need to be evenly
 			dispersed in 2-D space
@@ -113,49 +111,42 @@ determines star field parameters from the given array
 
 \param nstars -- number of point mass lenses
 \param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the field of point mass
-				 lenses
+\param corner -- corner of the rectangular field of point mass lenses
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
 \param kappastar -- convergence in point mass lenses
-\param m_low -- lower mass cutoff
-\param m_up -- upper mass cutoff
-\param meanmass -- mean mass <m>
-\param meanmass2 -- mean mass squared <m^2>
-\param meanmass2lnmass -- mean mass squared * ln(mass) <m^2 * ln(m)>
+\param m_lower -- lower mass cutoff
+\param m_upper -- upper mass cutoff
+\param mean_mass -- mean mass <m>
+\param mean_mass2 -- mean mass squared <m^2>
+\param mean_mass2_ln_mass -- mean mass squared * ln(mass) <m^2 * ln(m)>
 ******************************************************************************/
 template <typename T>
 void calculate_star_params(int nstars, int rectangular, Complex<T> corner, T theta, star<T>* stars,
-	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, T& meanmass2lnmass)
+	T& kappastar, T& m_lower, T& m_upper, T& mean_mass, T& mean_mass2, T& mean_mass2_ln_mass)
 {
-	const T PI = static_cast<T>(3.1415926535898);
-
-	m_low = std::numeric_limits<T>::max();
-	m_up = std::numeric_limits<T>::min();
-
-	T mtot = 0;
-	T m2tot = 0;
-	T m2lnmtot = 0;
+	m_lower = std::numeric_limits<T>::max();
+	m_upper = std::numeric_limits<T>::min();
+	mean_mass = 0;
+	mean_mass2 = 0;
+	mean_mass2_ln_mass = 0;
 
 	for (int i = 0; i < nstars; i++)
 	{
-		mtot += stars[i].mass;
-		m2tot += stars[i].mass * stars[i].mass;
-		m2lnmtot += stars[i].mass * stars[i].mass * std::log(stars[i].mass);
-		m_low = std::min(m_low, stars[i].mass);
-		m_up = std::max(m_up, stars[i].mass);
+		mean_mass += stars[i].mass / nstars;
+		mean_mass2 += stars[i].mass * stars[i].mass / nstars;
+		mean_mass2_ln_mass += stars[i].mass * stars[i].mass * std::log(stars[i].mass) / nstars;
+		m_lower = std::min(m_lower, stars[i].mass);
+		m_upper = std::max(m_upper, stars[i].mass);
 	}
-	meanmass = mtot / nstars;
-	meanmass2 = m2tot / nstars;
-	meanmass2lnmass = m2lnmtot / nstars;
 
 	if (rectangular)
 	{
-		kappastar = mtot * PI * theta * theta / (4 * corner.re * corner.im);
+		kappastar = mean_mass * nstars * std::numbers::pi_v<T> * theta * theta / (4 * corner.re * corner.im);
 	}
 	else
 	{
-		kappastar = mtot * theta * theta / (corner.abs() * corner.abs());
+		kappastar = mean_mass * nstars * theta * theta / (corner.abs() * corner.abs());
 	}
 }
 
@@ -164,8 +155,7 @@ read binary star field file
 
 \param nstars -- number of point mass lenses
 \param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the field of point mass
-				 lenses
+\param corner -- corner of the rectangular field of point mass lenses
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
 \param starfile -- location of the star field file
@@ -324,8 +314,7 @@ read txt star field file
 
 \param nstars -- number of point mass lenses
 \param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the field of point mass
-				 lenses
+\param corner -- corner of the rectangular field of point mass lenses
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
 \param starfile -- location of the star field file
@@ -405,7 +394,7 @@ bool read_star_file_txt(int& nstars, int& rectangular, Complex<T>& corner, T& th
 		I_stars += m * (x1 * x1 + x2 * x2); //moment of inertia of a point mass
 		max_x1 = std::max(max_x1, std::abs(x1));
 		max_x2 = std::max(max_x2, std::abs(x2));
-		max_rad = std::max(max_rad, std::sqrt(x1 * x1 + x2 * x2));
+		max_rad = std::max(max_rad, std::hypot(x1, x2));
 	}
 	infile.close();
 
@@ -439,36 +428,35 @@ read star field file
 
 \param nstars -- number of point mass lenses
 \param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the field of point mass
-				 lenses
+\param corner -- corner of the rectangular field of point mass lenses
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
 \param kappastar -- convergence in point mass lenses
-\param m_low -- lower mass cutoff
-\param m_up -- upper mass cutoff
-\param meanmass -- mean mass <m>
-\param meanmass2 -- mean mass squared <m^2>
-\param meanmass2lnmass -- mean mass squared * ln(mass) <m^2 * ln(m)>
+\param m_lower -- lower mass cutoff
+\param m_upper -- upper mass cutoff
+\param mean_mass -- mean mass <m>
+\param mean_mass2 -- mean mass squared <m^2>
+\param mean_mass2_ln_mass -- mean mass squared * ln(mass) <m^2 * ln(m)>
 \param starfile -- location of the star field file
 
 \return bool -- true if file is successfully read, false if not
 ******************************************************************************/
 template <typename T>
 bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta, star<T>*& stars,
-	T& kappastar, T& m_low, T& m_up, T& meanmass, T& meanmass2, T& meanmass2lnmass, const std::string& starfile)
+	T& kappastar, T& m_lower, T& m_upper, T& mean_mass, T& mean_mass2, T& mean_mass2_ln_mass, const std::string& starfile)
 {
 	std::filesystem::path starpath = starfile;
 
 	if (starpath.extension() == ".bin")
 	{
-		if (!read_star_file_bin(nstars, rectangular, corner, theta, stars, starfile))
+		if (!read_star_file_bin<T>(nstars, rectangular, corner, theta, stars, starfile))
 		{
 			return false;
 		}
 	}
 	else if (starpath.extension() == ".txt")
 	{
-		if (!read_star_file_txt(nstars, rectangular, corner, theta, stars, starfile))
+		if (!read_star_file_txt<T>(nstars, rectangular, corner, theta, stars, starfile))
 		{
 			return false;
 		}
@@ -479,7 +467,8 @@ bool read_star_file(int& nstars, int& rectangular, Complex<T>& corner, T& theta,
 		return false;
 	}
 
-	calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, m_low, m_up, meanmass, meanmass2, meanmass2lnmass);
+	calculate_star_params<T>(nstars, rectangular, corner, theta, stars, kappastar, 
+		m_lower, m_upper, mean_mass, mean_mass2, mean_mass2_ln_mass);
 
 	return true;
 }
@@ -489,8 +478,7 @@ write star field file
 
 \param nstars -- number of point mass lenses
 \param rectangular -- whether the star field is rectangular or not
-\param corner -- complex number denoting the corner of the field of point mass
-				 lenses
+\param corner -- corner of the rectangular field of point mass lenses
 \param theta -- size of the Einstein radius of a unit mass point lens
 \param stars -- pointer to array of point mass lenses
 \param starfile -- location of the star field file

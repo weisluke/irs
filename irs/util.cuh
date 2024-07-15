@@ -113,7 +113,7 @@ void print_verbose(const std::string& what, bool verbose)
 
 /******************************************************************************
 function to print out progress bar of loops
-examples: [====    ] 50%       [=====  ] 73%
+examples: [====    ] 50 %       [=====  ] 73 %
 
 \param icurr -- current position in the loop
 \param imax -- maximum position in the loop
@@ -217,7 +217,7 @@ void set_threads(dim3& threads, int x = 1, int y = 1, int z = 1)
 			t_y = threads.y;
 			t_z = threads.z;
 
-			double factor = std::cbrt(1.0 * prop.maxThreadsPerBlock / (t_x * t_y * t_z));
+			double factor = std::cbrt((1.0 * prop.maxThreadsPerBlock) / (t_x * t_y * t_z));
 
 			threads.x = static_cast<int>(factor * t_x) + 1;
 			threads.y = static_cast<int>(factor * t_y) + 1;
@@ -231,9 +231,9 @@ set the number of blocks for the kernel
 
 \param threads -- reference to threads
 \param blocks -- reference to blocks
-\param x -- number of threads in x dimension
-\param y -- number of threads in y dimension
-\param z -- number of threads in z dimension
+\param x -- number of total threads in x dimension
+\param y -- number of total threads in y dimension
+\param z -- number of total threads in z dimension
 ******************************************************************************/
 void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
 {
@@ -257,7 +257,7 @@ void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
 			b_y = blocks.y;
 			b_z = blocks.z;
 
-			double factor = std::cbrt(1.0 * prop.multiProcessorCount / (b_x * b_y * b_z));
+			double factor = std::cbrt((1.0 * prop.multiProcessorCount) / (b_x * b_y * b_z));
 
 			blocks.x = static_cast<int>(factor * b_x) + 1;
 			blocks.y = static_cast<int>(factor * b_y) + 1;

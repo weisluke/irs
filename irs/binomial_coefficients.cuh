@@ -28,7 +28,7 @@ void calculate_binomial_coeffs(int* binom_coeffs, int n)
 	/******************************************************************************
 	rows of Pascal's triangle
 	******************************************************************************/
-	int row_start = n * (n + 1) / 2;
+	int row_start = n * (n + 1) / 2; //index of row within array is triangular number
 	int prev_row_start = (n - 1) * n / 2;
 	for (int i = 0; i <= n; i++)
 	{
@@ -59,7 +59,7 @@ __host__ __device__ int get_binomial_coeff(int* binom_coeffs, int n, int k)
 	{
 		return 0;
 	}
-	int row_start = n * (n + 1) / 2;
+	int row_start = n * (n + 1) / 2; //index of row within array is triangular number
 	return binom_coeffs[row_start + k];
 }
 

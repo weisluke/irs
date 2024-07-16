@@ -32,7 +32,7 @@ __device__ T heaviside(T x)
 \param corner -- corner of the rectangular region
 
 \return 1 if z lies within or on the border of the rectangle defined by corner,
-        0 if it is outside
+		0 if it is outside
 ******************************************************************************/
 template <typename T>
 __device__ T boxcar(Complex<T> z, Complex<T> corner)
@@ -118,7 +118,7 @@ __device__ Complex<T> alpha_smooth(Complex<T> z, T kappastar, int rectangular, C
 			}
 			else
 			{
-				a_smooth = -kappastar * corner.abs().pow(2) / z.conj();
+				a_smooth = -kappastar * corner.abs() * corner.abs() / z.conj();
 			}
 		}
 	}
@@ -162,7 +162,7 @@ __device__ T d_alpha_smooth_d_z(Complex<T> z, T kappastar, int rectangular, Comp
 		}
 		else
 		{
-			d_a_smooth_d_z = -kappastar * heaviside(corner.abs() - z.abs());			
+			d_a_smooth_d_z = -kappastar * heaviside(corner.abs() - z.abs());
 		}
 	}
 
@@ -228,7 +228,7 @@ __device__ Complex<T> d_alpha_smooth_d_zbar(Complex<T> z, T kappastar, int recta
 		}
 		else
 		{
-			d_a_smooth_d_zbar = kappastar * corner.abs().pow(2) / z.conj().pow(2);
+			d_a_smooth_d_zbar = kappastar * corner.abs() * corner.abs() / z.conj().pow(2);
 		}
 	}
 
@@ -293,7 +293,7 @@ __device__ Complex<T> d2_alpha_smooth_d_zbar2(Complex<T> z, T kappastar, int rec
 		}
 		else
 		{
-			d2_a_smooth_d_zbar2 = -2 * kappastar * corner.abs().pow(2) / z.conj().pow(3);
+			d2_a_smooth_d_zbar2 = -2 * kappastar * corner.abs() * corner.abs() / z.conj().pow(3);
 		}
 	}
 

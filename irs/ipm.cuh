@@ -49,8 +49,8 @@ public:
 	T m_upper = static_cast<T>(50);
 	T light_loss = static_cast<T>(0.001); //average fraction of light lost due to scatter by the microlenses in the large deflection angle limit
 	int rectangular = 0; //whether star field is rectangular or circular
-	int approx = 0; //whether terms for alpha_smooth are exact or approximate
-	T safety_scale = static_cast<T>(1.37); //multiplicative factor over the shooting region to distribute the microlenses within
+	int approx = 1; //whether terms for alpha_smooth are exact or approximate
+	T safety_scale = static_cast<T>(1.37); //ratio of the size of the star field to the size of the shooting region
 	std::string starfile = "";
 	Complex<T> center_y = Complex<T>();
 	Complex<T> half_length_y = Complex<T>(5, 5);
@@ -494,7 +494,13 @@ private:
 			half_length_y.im / (10 * num_pixels_y.im)); //error is a circle of radius 1/10 of smallest pixel scale
 		set_param("alpha_error", alpha_error, alpha_error, verbose);
 
-		taylor_smooth = 31;
+		taylor_smooth = 1;
+		while ((kappa_star / std::numbers::pi_v<T> * 4 / (taylor_smooth + 1) * corner.abs() * (safety_scale + 1) / (safety_scale - 1)
+				* std::pow(1 / safety_scale, taylor_smooth + 1) > alpha_error)
+				&& taylor_smooth <= MAX_TAYLOR_SMOOTH)
+		{
+			taylor_smooth += 2;
+		}
 		/******************************************************************************
 		if phase * (taylor_smooth - 1), a term in the approximation of alpha_smooth, is
 		not in the correct fractional range of pi, increase taylor_smooth

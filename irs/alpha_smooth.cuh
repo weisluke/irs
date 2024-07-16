@@ -106,7 +106,21 @@ __device__ Complex<T> alpha_smooth(Complex<T> z, T kappastar, int rectangular, C
 	}
 	else
 	{
-		a_smooth = -kappastar * z;
+		if (approx)
+		{
+			a_smooth = -kappastar * z;
+		}
+		else
+		{
+			if (z.abs() <= corner.abs())
+			{
+				a_smooth = -kappastar * z;
+			}
+			else
+			{
+				a_smooth = -kappastar * corner.abs().pow(2) / z.conj();
+			}
+		}
 	}
 
 	return a_smooth;
@@ -127,11 +141,29 @@ smooth matter
 template <typename T>
 __device__ T d_alpha_smooth_d_z(Complex<T> z, T kappastar, int rectangular, Complex<T> corner, int approx)
 {
-	T d_a_smooth_d_z = -kappastar;
+	T d_a_smooth_d_z;
 
-	if (rectangular && !approx)
+	if (rectangular)
 	{
-		d_a_smooth_d_z *= boxcar(z, corner);
+		if (approx)
+		{
+			d_a_smooth_d_z = -kappastar;
+		}
+		else
+		{
+			d_a_smooth_d_z = -kappastar * boxcar(z, corner);
+		}
+	}
+	else
+	{
+		if (approx)
+		{
+			d_a_smooth_d_z = -kappastar;
+		}
+		else
+		{
+			d_a_smooth_d_z = -kappastar * heaviside(corner.abs() - z.abs());			
+		}
 	}
 
 	return d_a_smooth_d_z;
@@ -188,6 +220,17 @@ __device__ Complex<T> d_alpha_smooth_d_zbar(Complex<T> z, T kappastar, int recta
 			d_a_smooth_d_zbar -= kappastar * boxcar(z, corner);
 		}
 	}
+	else
+	{
+		if (approx)
+		{
+			d_a_smooth_d_zbar = 0;
+		}
+		else
+		{
+			d_a_smooth_d_zbar = kappastar * corner.abs().pow(2) / z.conj().pow(2);
+		}
+	}
 
 	return d_a_smooth_d_zbar;
 }
@@ -240,6 +283,17 @@ __device__ Complex<T> d2_alpha_smooth_d_zbar2(Complex<T> z, T kappastar, int rec
 
 			d2_a_smooth_d_zbar2 = -1 / c1 + 1 / c2 + 1 / c3 - 1 / c4;
 			d2_a_smooth_d_zbar2 *= Complex<T>(0, -kappastar * std::numbers::inv_pi_v<T>);
+		}
+	}
+	else
+	{
+		if (approx)
+		{
+			d2_a_smooth_d_zbar2 = 0;
+		}
+		else
+		{
+			d2_a_smooth_d_zbar2 = -2 * kappastar * corner.abs().pow(2) / z.conj().pow(3);
 		}
 	}
 

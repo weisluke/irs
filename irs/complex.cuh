@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <stdexcept> //for std::logic_error
 
 
 /******************************************************************************

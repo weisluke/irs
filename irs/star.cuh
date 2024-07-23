@@ -127,26 +127,36 @@ void calculate_star_params(int nstars, int rectangular, Complex<T> corner, T the
 {
 	m_lower = std::numeric_limits<T>::max();
 	m_upper = std::numeric_limits<T>::min();
-	mean_mass = 0;
-	mean_mass2 = 0;
-	mean_mass2_ln_mass = 0;
+	
+	/******************************************************************************
+	use doubles to avoid issues for floats when all the stars are of unit mass and
+	the number of stars is greater than 2^24. incrementation fails at that value
+	due to the mantissa needing to be 2^-24, smaller than the 23 mantissa bits of a
+	float allow
+	******************************************************************************/
+	double m_tot = 0;
+	double m2_tot = 0;
+	double m2_ln_mass_tot = 0;
 
 	for (int i = 0; i < nstars; i++)
 	{
-		mean_mass += stars[i].mass / nstars;
-		mean_mass2 += stars[i].mass * stars[i].mass / nstars;
-		mean_mass2_ln_mass += stars[i].mass * stars[i].mass * std::log(stars[i].mass) / nstars;
+		m_tot += stars[i].mass;
+		m2_tot += stars[i].mass * stars[i].mass;
+		m2_ln_mass_tot += stars[i].mass * stars[i].mass * std::log(stars[i].mass);
 		m_lower = std::min(m_lower, stars[i].mass);
 		m_upper = std::max(m_upper, stars[i].mass);
 	}
+	mean_mass = m_tot / nstars;
+	mean_mass2 = m2_tot / nstars;
+	mean_mass2_ln_mass = m2_ln_mass_tot / nstars;
 
 	if (rectangular)
 	{
-		kappastar = mean_mass * nstars * std::numbers::pi_v<T> * theta * theta / (4 * corner.re * corner.im);
+		kappastar = m_tot * std::numbers::pi_v<T> * theta * theta / (4 * corner.re * corner.im);
 	}
 	else
 	{
-		kappastar = mean_mass * nstars * theta * theta / (corner.abs() * corner.abs());
+		kappastar = m_tot * theta * theta / (corner.abs() * corner.abs());
 	}
 }
 
@@ -375,8 +385,8 @@ bool read_star_file_txt(int& nstars, int& rectangular, Complex<T>& corner, T& th
 	T max_x1 = 0;
 	T max_x2 = 0;
 	T max_rad = 0;
-	T total_mass = 0;
-	T I_stars = 0;
+	double total_mass = 0;
+	double I_stars = 0;
 
 	infile.open(starfile);
 	if (!infile.is_open())
@@ -402,8 +412,8 @@ bool read_star_file_txt(int& nstars, int& rectangular, Complex<T>& corner, T& th
 	determine whether a star field is circular or rectangular by using the moment
 	of inertia
 	******************************************************************************/
-	T I_circ = total_mass * max_rad * max_rad / 2; //moment of inertia of a disk of radius max_rad
-	T I_rect = total_mass * (max_x1 * max_x1 + max_x2 * max_x2) / 3; //moment of inertia of a rectangle with corner (max_x1, max_x2)
+	double I_circ = total_mass * max_rad * max_rad / 2; //moment of inertia of a disk of radius max_rad
+	double I_rect = total_mass * (max_x1 * max_x1 + max_x2 * max_x2) / 3; //moment of inertia of a rectangle with corner (max_x1, max_x2)
 
 	if (I_stars / I_circ > I_stars / I_rect)
 	{

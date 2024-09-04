@@ -102,7 +102,7 @@ __global__ void add_arrays_kernel(T* arr1, T* arr2, T* arr3, int nrows, int ncol
 }
 
 /******************************************************************************
-calculate the histogram of rays for the pixel array
+calculate the histogram of values for the pixel array
 
 \param pixels -- pointer to array of pixels
 \param npixels -- number of pixels for one side of the receiving square
@@ -125,6 +125,35 @@ __global__ void histogram_kernel(T* pixels, Complex<int> npixels, int hist_min, 
 		for (int j = y_index; j < npixels.im; j += y_stride)
 		{
 			int index = std::round(1.0 * pixels[j * npixels.re + i] * factor - hist_min);
+			atomicAdd(&histogram[index], 1);
+		}
+	}
+}
+
+/******************************************************************************
+calculate the histogram of log_10(values) for the pixel array
+
+\param pixels -- pointer to array of pixels
+\param npixels -- number of pixels for one side of the receiving square
+\param hist_min -- minimum value in the histogram
+\param histogram -- pointer to histogram
+\param factor -- factor by which to multiply the pixel values before casting
+                 to integers for the histogram
+******************************************************************************/
+template <typename T>
+__global__ void log_histogram_kernel(T* pixels, Complex<int> npixels, int hist_min, int* histogram, int factor = 1)
+{
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int x_stride = blockDim.x * gridDim.x;
+
+	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int y_stride = blockDim.y * gridDim.y;
+
+	for (int i = x_index; i < npixels.re; i += x_stride)
+	{
+		for (int j = y_index; j < npixels.im; j += y_stride)
+		{
+			int index = std::round(std::log10(pixels[j * npixels.re + i]) * factor - hist_min);
 			atomicAdd(&histogram[index], 1);
 		}
 	}

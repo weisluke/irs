@@ -142,11 +142,18 @@ private:
 	T* pixels_saddles = nullptr;
 
 	int min_mag = std::numeric_limits<int>::max();
-	int max_mag = 0;
+	int max_mag = std::numeric_limits<int>::lowest();
 	int histogram_length = 0;
 	int* histogram = nullptr;
 	int* histogram_minima = nullptr;
 	int* histogram_saddles = nullptr;
+
+	int min_log_mag = std::numeric_limits<int>::max();
+	int max_log_mag = std::numeric_limits<int>::lowest();
+	int log_histogram_length = 0;
+	int* log_histogram = nullptr;
+	int* log_histogram_minima = nullptr;
+	int* log_histogram_saddles = nullptr;
 
 
 
@@ -914,12 +921,16 @@ private:
 			stopwatch.start();
 
 			/******************************************************************************
-			factor by which to multiply magnifications before casting to integers
-			in this way, the histogram will be of the magnification * 1000
+			factor by which to multiply values before casting to integers
+			in this way, the histogram will be of the value * 1000
 			(i.e., accurate to 3 decimals)
 			******************************************************************************/
 			int factor = 1000;
 
+
+			/******************************************************************************
+			histogram of mu
+			******************************************************************************/
 			min_mag = std::round(*thrust::min_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor);
 			max_mag = std::round(*thrust::max_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor);
 
@@ -952,10 +963,8 @@ private:
 				int min_mag_saddles = std::round(*thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor);
 				int max_mag_saddles = std::round(*thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor);
 
-				min_mag = min_mag < min_mag_minima ? min_mag :
-					(min_mag_minima < min_mag_saddles ? min_mag_minima : min_mag_saddles);
-				max_mag = max_mag > max_mag_minima ? max_mag :
-					(max_mag_minima > max_mag_saddles ? max_mag_minima : max_mag_saddles);
+				min_mag = std::min({min_mag, min_mag_minima, min_mag_saddles});
+				max_mag = std::max({max_mag, max_mag_minima, max_mag_saddles});
 			}
 
 			histogram_length = max_mag - min_mag + 1;
@@ -997,6 +1006,68 @@ private:
 				histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels_y, min_mag, histogram_saddles, factor);
 				if (cuda_error("histogram_kernel", true, __FILE__, __LINE__)) return false;
 			}
+			
+
+			/******************************************************************************
+			histogram of log_10(mu)
+			******************************************************************************/
+
+			min_log_mag = std::round(std::log10(*thrust::min_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im)) * factor);
+			max_log_mag = std::round(std::log10(*thrust::max_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im)) * factor);
+
+			if (write_parities)
+			{
+				int min_log_mag_minima = std::round(std::log10(*thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im)) * factor);
+				int max_log_mag_minima = std::round(std::log10(*thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im)) * factor);
+
+				int min_log_mag_saddles = std::round(std::log10(*thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im)) * factor);
+				int max_log_mag_saddles = std::round(std::log10(*thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im)) * factor);
+
+				min_log_mag = std::min({min_log_mag, min_log_mag_minima, min_log_mag_saddles});
+				max_log_mag = std::max({max_log_mag, max_log_mag_minima, max_log_mag_saddles});
+			}
+
+			log_histogram_length = max_log_mag - min_log_mag + 1;
+
+			cudaMallocManaged(&log_histogram, log_histogram_length * sizeof(int));
+			if (cuda_error("cudaMallocManaged(*log_histogram)", false, __FILE__, __LINE__)) return false;
+			if (write_parities)
+			{
+				cudaMallocManaged(&log_histogram_minima, log_histogram_length * sizeof(int));
+				if (cuda_error("cudaMallocManaged(*log_histogram_minima)", false, __FILE__, __LINE__)) return false;
+				cudaMallocManaged(&log_histogram_saddles, log_histogram_length * sizeof(int));
+				if (cuda_error("cudaMallocManaged(*log_histogram_saddles)", false, __FILE__, __LINE__)) return false;
+			}
+
+
+			set_threads(threads, 512);
+			set_blocks(threads, blocks, log_histogram_length);
+
+			initialize_array_kernel<int> <<<blocks, threads>>> (log_histogram, 1, log_histogram_length);
+			if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
+			if (write_parities)
+			{
+				initialize_array_kernel<int> <<<blocks, threads>>> (log_histogram_minima, 1, log_histogram_length);
+				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
+				initialize_array_kernel<int> <<<blocks, threads>>> (log_histogram_saddles, 1, log_histogram_length);
+				if (cuda_error("initialize_array_kernel", true, __FILE__, __LINE__)) return false;
+			}
+
+
+			set_threads(threads, 16, 16);
+			set_blocks(threads, blocks, num_pixels_y.re, num_pixels_y.im);
+
+			log_histogram_kernel<T> <<<blocks, threads>>> (pixels, num_pixels_y, min_log_mag, log_histogram, factor);
+			if (cuda_error("log_histogram_kernel", true, __FILE__, __LINE__)) return false;
+			if (write_parities)
+			{
+				log_histogram_kernel<T> <<<blocks, threads>>> (pixels_minima, num_pixels_y, min_log_mag, log_histogram_minima, factor);
+				if (cuda_error("log_histogram_kernel", true, __FILE__, __LINE__)) return false;
+				log_histogram_kernel<T> <<<blocks, threads>>> (pixels_saddles, num_pixels_y, min_log_mag, log_histogram_saddles, factor);
+				if (cuda_error("log_histogram_kernel", true, __FILE__, __LINE__)) return false;
+			}
+
+
 			t_elapsed = stopwatch.stop();
 			std::cout << "Done creating histograms. Elapsed time: " << t_elapsed << " seconds.\n\n";
 		}
@@ -1124,6 +1195,15 @@ private:
 				return false;
 			}
 			std::cout << "Done writing magnification histogram to file " << fname << "\n";
+
+			fname = outfile_prefix + "ipm_log_mags_numpixels.txt";
+			if (!write_histogram<int>(log_histogram, log_histogram_length, min_log_mag, fname))
+			{
+				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
+				return false;
+			}
+			std::cout << "Done writing magnification histogram to file " << fname << "\n";
+
 			if (write_parities)
 			{
 				fname = outfile_prefix + "ipm_mags_numpixels_minima.txt";
@@ -1134,8 +1214,24 @@ private:
 				}
 				std::cout << "Done writing magnification histogram to file " << fname << "\n";
 
+				fname = outfile_prefix + "ipm_log_mags_numpixels_minima.txt";
+				if (!write_histogram<int>(log_histogram_minima, log_histogram_length, min_log_mag, fname))
+				{
+					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
+					return false;
+				}
+				std::cout << "Done writing magnification histogram to file " << fname << "\n";
+
 				fname = outfile_prefix + "ipm_mags_numpixels_saddles.txt";
 				if (!write_histogram<int>(histogram_saddles, histogram_length, min_mag, fname))
+				{
+					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
+					return false;
+				}
+				std::cout << "Done writing magnification histogram to file " << fname << "\n";
+
+				fname = outfile_prefix + "ipm_log_mags_numpixels_saddles.txt";
+				if (!write_histogram<int>(log_histogram_saddles, log_histogram_length, min_log_mag, fname))
 				{
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;

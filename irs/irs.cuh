@@ -146,7 +146,7 @@ private:
 	int* pixels_saddles = nullptr;
 
 	int min_rays = std::numeric_limits<int>::max();
-	int max_rays = 0;
+	int max_rays = std::numeric_limits<int>::lowest();
 	int histogram_length = 0;
 	int* histogram = nullptr;
 	int* histogram_minima = nullptr;
@@ -946,10 +946,8 @@ private:
 				int min_rays_saddles = *thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im);
 				int max_rays_saddles = *thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im);
 
-				min_rays = min_rays < min_rays_minima ? min_rays : 
-					(min_rays_minima < min_rays_saddles ? min_rays_minima : min_rays_saddles);
-				max_rays = max_rays > max_rays_minima ? max_rays : 
-					(max_rays_minima > max_rays_saddles ? max_rays_minima : max_rays_saddles);
+				min_rays = std::min({min_rays, min_rays_minima, min_rays_saddles});
+				max_rays = std::max({max_rays, max_rays_minima, max_rays_saddles});
 			}
 
 			histogram_length = max_rays - min_rays + 1;

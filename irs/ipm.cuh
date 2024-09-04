@@ -920,8 +920,8 @@ private:
 			******************************************************************************/
 			int factor = 1000;
 
-			min_mag = static_cast<int>(*thrust::min_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
-			max_mag = static_cast<int>(*thrust::max_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
+			min_mag = std::round(*thrust::min_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor);
+			max_mag = std::round(*thrust::max_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im) * factor);
 
 			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
 			T mu_min_actual = 1.0 * min_mag / factor;
@@ -936,8 +936,8 @@ private:
 
 			if (write_parities)
 			{
-				int min_mag_minima = static_cast<int>(*thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
-				int max_mag_minima = static_cast<int>(*thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
+				int min_mag_minima = std::round(*thrust::min_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im) * factor);
+				int max_mag_minima = std::round(*thrust::max_element(thrust::device, pixels_minima, pixels_minima + num_pixels_y.re * num_pixels_y.im) * factor);
 
 				mu_min_actual = 1.0 * min_mag_minima / factor;
 
@@ -949,8 +949,8 @@ private:
 					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
 				}
 
-				int min_mag_saddles = static_cast<int>(*thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
-				int max_mag_saddles = static_cast<int>(*thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor + 0.5);
+				int min_mag_saddles = std::round(*thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor);
+				int max_mag_saddles = std::round(*thrust::max_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im) * factor);
 
 				min_mag = min_mag < min_mag_minima ? min_mag :
 					(min_mag_minima < min_mag_saddles ? min_mag_minima : min_mag_saddles);

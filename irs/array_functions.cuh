@@ -124,7 +124,8 @@ __global__ void histogram_kernel(T* pixels, Complex<int> npixels, int hist_min, 
 	{
 		for (int j = y_index; j < npixels.im; j += y_stride)
 		{
-			atomicAdd(&histogram[static_cast<int>(pixels[j * npixels.re + i] * factor + 0.5 - hist_min)], 1);
+			int index = std::round(pixels[j * npixels.re + i] * factor - hist_min);
+			atomicAdd(&histogram[index], 1);
 		}
 	}
 }

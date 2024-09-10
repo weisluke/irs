@@ -385,11 +385,9 @@ private:
 			set_param("corner", corner, corner, verbose);
 			set_param("theta_star", theta_star, theta_star, verbose);
 			set_param("kappa_star", kappa_star, kappa_star, verbose);
-			//check that kappa_star is less than kappa_tot, to within 7 decimals, with an error of 1 * 10^-7
-			if (std::round(kappa_star * 10000000) - std::round(kappa_tot * 10000000) > 1)
+			if (kappa_star > kappa_tot)
 			{
-				std::cerr << "Error. kappa_star must be <= kappa_tot\n";
-				return false;
+				std::cerr << "Warning. kappa_star > kappa_tot\n";
 			}
 			set_param("m_lower", m_lower, m_lower, verbose);
 			set_param("m_upper", m_upper, m_upper, verbose);

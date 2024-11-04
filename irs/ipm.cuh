@@ -519,7 +519,7 @@ private:
 			taylor_smooth += 2;
 		}		
 		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose && rectangular && approx);
-		if (taylor_smooth > MAX_TAYLOR_SMOOTH)
+		if (rectangular && taylor_smooth > MAX_TAYLOR_SMOOTH)
 		{
 			std::cerr << "Error. taylor_smooth must be <= " << MAX_TAYLOR_SMOOTH << "\n";
 			return false;

@@ -961,6 +961,7 @@ private:
 				std::cerr << "   mu_min_actual = min_num_rays / mean_num_rays = " << min_rays << " / " << num_rays_y << " = " << mu_min_actual << "\n";
 				std::cerr << "   mu_min_theory = 1 / (1 - (kappa_tot - kappa_star))^2\n";
 				std::cerr << "                 = 1 / (1 - (" << kappa_tot << " - " << kappa_star << "))^2 = " << mu_min_theory << "\n\n";
+				print_verbose("\n", verbose * (!write_parities && verbose < 2), 1);
 			}
 
 			if (write_parities)
@@ -976,6 +977,7 @@ private:
 					std::cerr << "   mu_min_actual = min_num_rays / mean_num_rays = " << min_rays_minima << " / " << num_rays_y << " = " << mu_min_actual << "\n";
 					std::cerr << "   mu_min_theory = 1 / (1 - (kappa_tot - kappa_star))^2\n";
 					std::cerr << "                 = 1 / (1 - (" << kappa_tot << " - " << kappa_star << "))^2 = " << mu_min_theory << "\n\n";
+					print_verbose("\n", verbose * (verbose < 2), 1);
 				}
 
 				int min_rays_saddles = *thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im);

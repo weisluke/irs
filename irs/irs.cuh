@@ -1045,7 +1045,7 @@ private:
 		std::string fname;
 
 
-		std::cout << "Writing parameter info...\n";
+		print_verbose("Writing parameter info...\n", verbose, 2);
 		fname = outfile_prefix + "irs_parameter_info.txt";
 		outfile.open(fname);
 		if (!outfile.is_open())
@@ -1123,19 +1123,21 @@ private:
 		outfile << "num_rays_shot " << num_rays_shot << "\n";
 		outfile << "num_rays_received " << num_rays_received << "\n";
 		outfile.close();
-		std::cout << "Done writing parameter info to file " << fname << "\n\n";
+		print_verbose("Done writing parameter info to file " << fname << "\n", verbose, 1);
+		print_verbose("\n", verbose, 2);
 
 
 		if (write_stars)
 		{
-			std::cout << "Writing star info...\n";
+			print_verbose("Writing star info...\n", verbose, 2);
 			fname = outfile_prefix + "irs_stars" + outfile_type;
 			if (!write_star_file<T>(num_stars, rectangular, corner, theta_star, stars, fname))
 			{
 				std::cerr << "Error. Unable to write star info to file " << fname << "\n";
 				return false;
 			}
-			std::cout << "Done writing star info to file " << fname << "\n\n";
+			print_verbose("Done writing star info to file " << fname << "\n", verbose, 1);
+			print_verbose("\n", verbose, 2);
 		}
 
 
@@ -1144,7 +1146,7 @@ private:
 		******************************************************************************/
 		if (write_histograms)
 		{
-			std::cout << "Writing magnification histograms...\n";
+			print_verbose("Writing magnification histograms...\n", verbose, 2);
 
 			fname = outfile_prefix + "irs_numrays_numpixels.txt";
 			if (!write_histogram<int>(histogram, histogram_length, min_rays, fname))
@@ -1152,7 +1154,8 @@ private:
 				std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 				return false;
 			}
-			std::cout << "Done writing magnification histogram to file " << fname << "\n";
+			print_verbose("Done writing magnification histogram to file " << fname << "\n", verbose, 1);
+
 			if (write_parities)
 			{
 				fname = outfile_prefix + "irs_numrays_numpixels_minima.txt";
@@ -1161,7 +1164,7 @@ private:
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;
 				}
-				std::cout << "Done writing magnification histogram to file " << fname << "\n";
+				print_verbose("Done writing magnification histogram to file " << fname << "\n", verbose, 1);
 
 				fname = outfile_prefix + "irs_numrays_numpixels_saddles.txt";
 				if (!write_histogram<int>(histogram_saddles, histogram_length, min_rays, fname))
@@ -1169,9 +1172,9 @@ private:
 					std::cerr << "Error. Unable to write magnification histogram to file " << fname << "\n";
 					return false;
 				}
-				std::cout << "Done writing magnification histogram to file " << fname << "\n";
+				print_verbose("Done writing magnification histogram to file " << fname << "\n", verbose, 1);
 			}
-			std::cout << "\n";
+			print_verbose("\n", verbose, 2);
 		}
 
 
@@ -1180,7 +1183,7 @@ private:
 		******************************************************************************/
 		if (write_maps)
 		{
-			std::cout << "Writing magnifications...\n";
+			print_verbose("Writing magnifications...\n", verbose, 2);
 
 			fname = outfile_prefix + "irs_magnifications" + outfile_type;
 			if (!write_array<int>(pixels, num_pixels_y.im, num_pixels_y.re, fname))
@@ -1188,7 +1191,7 @@ private:
 				std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 				return false;
 			}
-			std::cout << "Done writing magnifications to file " << fname << "\n";
+			print_verbose("Done writing magnifications to file " << fname << "\n", verbose, 1);
 			if (write_parities)
 			{
 				fname = outfile_prefix + "irs_magnifications_minima" + outfile_type;
@@ -1197,7 +1200,7 @@ private:
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 					return false;
 				}
-				std::cout << "Done writing magnifications to file " << fname << "\n";
+				print_verbose("Done writing magnifications to file " << fname << "\n", verbose, 1);
 
 				fname = outfile_prefix + "irs_magnifications_saddles" + outfile_type;
 				if (!write_array<int>(pixels_saddles, num_pixels_y.im, num_pixels_y.re, fname))
@@ -1205,9 +1208,8 @@ private:
 					std::cerr << "Error. Unable to write magnifications to file " << fname << "\n";
 					return false;
 				}
-				std::cout << "Done writing magnifications to file " << fname << "\n";
+				print_verbose("Done writing magnifications to file " << fname << "\n", verbose, 1);
 			}
-			std::cout << "\n";
 		}
 
 		return true;

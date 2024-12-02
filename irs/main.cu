@@ -585,7 +585,7 @@ int main(int argc, char* argv[])
 		set_param("kappa_star", map_maker.kappa_star, (1 - smooth_fraction) * map_maker.kappa_tot, verbose);
 	}
 
-	std::cout << "\n";
+	print_verbose("\n", verbose, 2);
 
 	/******************************************************************************
 	END read in options and values, checking correctness and exiting if necessary

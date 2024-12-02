@@ -124,38 +124,65 @@ private:
 	int expansion_order;
 
 	T root_half_length;
-	int tree_levels = 0;
-	std::vector<TreeNode<T>*> tree = {};
-	std::vector<int> num_nodes = {};
+	int tree_levels;
+	std::vector<TreeNode<T>*> tree;
+	std::vector<int> num_nodes;
 
 	/******************************************************************************
 	dynamic memory
 	******************************************************************************/
-	curandState* states = nullptr;
-	star<T>* stars = nullptr;
-	star<T>* temp_stars = nullptr;
+	curandState* states;
+	star<T>* stars;
+	star<T>* temp_stars;
 
-	int* binomial_coeffs = nullptr;
+	int* binomial_coeffs;
 
-	T* pixels = nullptr;
-	T* pixels_minima = nullptr;
-	T* pixels_saddles = nullptr;
+	T* pixels;
+	T* pixels_minima;
+	T* pixels_saddles;
 
-	int min_mag = std::numeric_limits<int>::max();
-	int max_mag = std::numeric_limits<int>::lowest();
-	int histogram_length = 0;
-	int* histogram = nullptr;
-	int* histogram_minima = nullptr;
-	int* histogram_saddles = nullptr;
+	int min_mag;
+	int max_mag;
+	int histogram_length;
+	int* histogram;
+	int* histogram_minima;
+	int* histogram_saddles;
 
-	int min_log_mag = std::numeric_limits<int>::max();
-	int max_log_mag = std::numeric_limits<int>::lowest();
-	int log_histogram_length = 0;
-	int* log_histogram = nullptr;
-	int* log_histogram_minima = nullptr;
-	int* log_histogram_saddles = nullptr;
+	int min_log_mag;
+	int max_log_mag;
+	int log_histogram_length;
+	int* log_histogram;
+	int* log_histogram_minima;
+	int* log_histogram_saddles;
 
 
+
+	bool clear_memory(int verbose)
+	{
+		cudaDeviceReset(); //free all previously allocated memory
+		if (cuda_error("cudaDeviceReset", false, __FILE__, __LINE__)) return false;
+		
+		//and set variables to nullptr
+		states = nullptr;
+		stars = nullptr;
+		temp_stars = nullptr;
+
+		binomial_coeffs = nullptr;
+
+		pixels = nullptr;
+		pixels_minima = nullptr;
+		pixels_saddles = nullptr;
+
+		histogram = nullptr;
+		histogram_minima = nullptr;
+		histogram_saddles = nullptr;
+
+		log_histogram = nullptr;
+		log_histogram_minima = nullptr;
+		log_histogram_saddles = nullptr;
+
+		return true;
+	}
 
 	bool set_cuda_devices(int verbose)
 	{
@@ -718,7 +745,12 @@ private:
 		{
 			root_half_length = corner.abs();
 		}
-		set_param("root_half_length", root_half_length, root_half_length * 1.1, verbose); //slight buffer for containing all the stars
+		set_param("root_half_length", root_half_length, root_half_length * 1.1, verbose, true); //slight buffer for containing all the stars
+
+		//initialize variables
+		tree_levels = 0;
+		tree = {};
+		num_nodes = {};
 
 		/******************************************************************************
 		push empty pointer into tree, add 1 to number of nodes, and allocate memory
@@ -1284,6 +1316,7 @@ public:
 
 	bool run(int verbose)
 	{
+		if (!clear_memory(verbose)) return false;
 		if (!set_cuda_devices(verbose)) return false;
 		if (!check_input_params(verbose)) return false;
 		if (!calculate_derived_params(verbose)) return false;

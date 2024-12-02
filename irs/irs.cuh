@@ -125,34 +125,57 @@ private:
 	int expansion_order;
 
 	T root_half_length;
-	int tree_levels = 0;
-	std::vector<TreeNode<T>*> tree = {};
-	std::vector<int> num_nodes = {};
+	int tree_levels;
+	std::vector<TreeNode<T>*> tree;
+	std::vector<int> num_nodes;
 
-	unsigned long int num_rays_shot = 0;
-	unsigned long int num_rays_received = 0;
+	unsigned long int num_rays_shot;
+	unsigned long int num_rays_received;
 
 	/******************************************************************************
 	dynamic memory
 	******************************************************************************/
-	curandState* states = nullptr;
-	star<T>* stars = nullptr;
-	star<T>* temp_stars = nullptr;
+	curandState* states;
+	star<T>* stars;
+	star<T>* temp_stars;
 
-	int* binomial_coeffs = nullptr;
+	int* binomial_coeffs;
 
-	int* pixels = nullptr;
-	int* pixels_minima = nullptr;
-	int* pixels_saddles = nullptr;
+	int* pixels;
+	int* pixels_minima;
+	int* pixels_saddles;
 
-	int min_rays = std::numeric_limits<int>::max();
-	int max_rays = std::numeric_limits<int>::lowest();
-	int histogram_length = 0;
-	int* histogram = nullptr;
-	int* histogram_minima = nullptr;
-	int* histogram_saddles = nullptr;
+	int min_rays;
+	int max_rays;
+	int histogram_length;
+	int* histogram;
+	int* histogram_minima;
+	int* histogram_saddles;
 
 
+
+	bool clear_memory(int verbose)
+	{
+		cudaDeviceReset(); //free all previously allocated memory
+		if (cuda_error("cudaDeviceReset", false, __FILE__, __LINE__)) return false;
+		
+		//and set variables to nullptr
+		states = nullptr;
+		stars = nullptr;
+		temp_stars = nullptr;
+
+		binomial_coeffs = nullptr;
+
+		pixels = nullptr;
+		pixels_minima = nullptr;
+		pixels_saddles = nullptr;
+
+		histogram = nullptr;
+		histogram_minima = nullptr;
+		histogram_saddles = nullptr;
+
+		return true;
+	}
 
 	bool set_cuda_devices(int verbose)
 	{
@@ -715,7 +738,12 @@ private:
 		{
 			root_half_length = corner.abs();
 		}
-		set_param("root_half_length", root_half_length, root_half_length * 1.1, verbose); //slight buffer for containing all the stars
+		set_param("root_half_length", root_half_length, root_half_length * 1.1, verbose, true); //slight buffer for containing all the stars
+
+		//initialize variables
+		tree_levels = 0;
+		tree = {};
+		num_nodes = {};
 
 		/******************************************************************************
 		push empty pointer into tree, add 1 to number of nodes, and allocate memory
@@ -896,6 +924,7 @@ private:
 		num_rays_shot *= num_ray_threads.im;
 		set_param("num_rays_shot", num_rays_shot, num_rays_shot, verbose);
 
+		num_rays_received = 0;
 		num_rays_received = thrust::reduce(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im, num_rays_received);
 		set_param("num_rays_received", num_rays_received, num_rays_received, verbose, true);
 
@@ -1183,6 +1212,7 @@ public:
 
 	bool run(int verbose)
 	{
+		if (!clear_memory(verbose)) return false;
 		if (!set_cuda_devices(verbose)) return false;
 		if (!check_input_params(verbose)) return false;
 		if (!calculate_derived_params(verbose)) return false;

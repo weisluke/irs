@@ -828,7 +828,8 @@ private:
 				if (cuda_error("set_neighbors_kernel", true, __FILE__, __LINE__)) return false;
 			}
 		} while (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT);
-		set_param("tree_levels", tree_levels, tree_levels, verbose);
+		print_verbose("\n", verbose, 3);
+		set_param("tree_levels", tree_levels, tree_levels, verbose, verbose > 2);
 
 		t_elapsed = stopwatch.stop();
 		print_verbose("Done creating children and sorting stars. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 1);
@@ -951,15 +952,15 @@ private:
 			min_rays = *thrust::min_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im);
 			max_rays = *thrust::max_element(thrust::device, pixels, pixels + num_pixels_y.re * num_pixels_y.im);
 
-			T mu_min_theor = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
+			T mu_min_theory = 1 / ((1 - kappa_tot + kappa_star) * (1 - kappa_tot + kappa_star));
 			T mu_min_actual = 1.0 * min_rays / num_rays_y;
 
-			if (mu_ave > 1 && mu_min_actual < mu_min_theor)
+			if (mu_ave > 1 && mu_min_actual < mu_min_theory)
 			{
 				std::cerr << "Warning. Minimum magnification after shooting rays is less than the theoretical minimum.\n";
-				std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays << " / " << num_rays_y << " = " << mu_min_actual << "\n";
-				std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
-				std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
+				std::cerr << "   mu_min_actual = min_num_rays / mean_num_rays = " << min_rays << " / " << num_rays_y << " = " << mu_min_actual << "\n";
+				std::cerr << "   mu_min_theory = 1 / (1 - (kappa_tot - kappa_star))^2\n";
+				std::cerr << "                 = 1 / (1 - (" << kappa_tot << " - " << kappa_star << "))^2 = " << mu_min_theory << "\n\n";
 			}
 
 			if (write_parities)
@@ -969,12 +970,12 @@ private:
 				
 				mu_min_actual = 1.0 * min_rays_minima / num_rays_y;
 
-				if (mu_ave > 1 && mu_min_actual < mu_min_theor)
+				if (mu_ave > 1 && mu_min_actual < mu_min_theory)
 				{
 					std::cerr << "Warning. Minimum positive parity magnification after shooting rays is less than the theoretical minimum.\n";
-					std::cerr << "mu_min_actual = min_num_rays / mean_num_rays = " << min_rays_minima << " / " << num_rays_y << " = " << mu_min_actual << "\n";
-					std::cerr << "mu_min_theor = 1 / (1 - kappa_s)^2 = 1 / (1 - kappa_tot + kappa_star)^2\n";
-					std::cerr << "             = 1 / (1 - " << kappa_tot << " + " << kappa_star << ")^2 = " << mu_min_theor << "\n\n";
+					std::cerr << "   mu_min_actual = min_num_rays / mean_num_rays = " << min_rays_minima << " / " << num_rays_y << " = " << mu_min_actual << "\n";
+					std::cerr << "   mu_min_theory = 1 / (1 - (kappa_tot - kappa_star))^2\n";
+					std::cerr << "                 = 1 / (1 - (" << kappa_tot << " - " << kappa_star << "))^2 = " << mu_min_theory << "\n\n";
 				}
 
 				int min_rays_saddles = *thrust::min_element(thrust::device, pixels_saddles, pixels_saddles + num_pixels_y.re * num_pixels_y.im);

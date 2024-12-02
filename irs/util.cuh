@@ -75,39 +75,37 @@ std::string make_lowercase(const std::string& what)
 }
 
 /******************************************************************************
+function to print a message
+
+\param what -- what to print
+\param verbose -- verbose level
+\param level -- level of the message. only shown if verbose >= level
+
+levels correspond to:
+0 -- always present
+1 -- low level
+2 -- mid level
+3 -- high level
+******************************************************************************/
+#define print_verbose(what, verbose, level) do {if (verbose >= level) {std::cout << what;}} while (false)
+
+/******************************************************************************
 function to set a parameter value and print message if necessary
 
 \param name -- name of the parameter
 \param param -- reference to the parameter
 \param what -- value to set the parameter equal to
-\param verbose -- whether to print message or not
+\param verbose -- verbose level
 \param newline -- whether to add an extra newline to the end or not
 ******************************************************************************/
 template <typename T, typename U>
-void set_param(const std::string& name, T& param, U what, bool verbose, bool newline = false)
+void set_param(const std::string& name, T& param, U what, int verbose, bool newline = false)
 {
 	param = static_cast<T>(what);
-	if (verbose)
+	print_verbose(name << " set to: " << param << "\n", verbose, 2);
+	if (newline) 
 	{
-		std::cout << name << " set to: " << param << "\n";
-		if (newline)
-		{
-			std::cout << "\n";
-		}
-	}
-}
-
-/******************************************************************************
-function to print a message if toggle is true
-
-\param what -- what to print
-\param verbose -- toggle for whether or not to print
-******************************************************************************/
-void print_verbose(const std::string& what, bool verbose)
-{
-	if (verbose)
-	{
-		std::cout << what;
+		print_verbose("\n", verbose, 2);
 	}
 }
 
@@ -115,13 +113,16 @@ void print_verbose(const std::string& what, bool verbose)
 function to print out progress bar of loops
 examples: [====    ] 50 %       [=====  ] 73 %
 
+\param verbose -- verbose level
 \param icurr -- current position in the loop
 \param imax -- maximum position in the loop
 \param num_bars -- number of = symbols inside the bar
 				   default value: 50
 ******************************************************************************/
-void print_progress(unsigned long long int icurr, unsigned long long int imax, int num_bars = 50)
+void print_progress(int verbose, unsigned long long int icurr, unsigned long long int imax, int num_bars = 50)
 {
+	if (verbose < 1) {return;}
+
 	std::cout << "\r[";
 	for (int i = 0; i < num_bars; i++)
 	{
@@ -136,8 +137,9 @@ void print_progress(unsigned long long int icurr, unsigned long long int imax, i
 	}
 	std::cout << "] " << icurr * 100 / imax << " %" << std::flush;
 }
-__device__ void device_print_progress(unsigned long long int icurr, unsigned long long int imax)
+__device__ void device_print_progress(int verbose, unsigned long long int icurr, unsigned long long int imax)
 {
+	if (verbose < 1) {return;}
 	printf("\r%llu %%", icurr * 100 / imax);
 }
 

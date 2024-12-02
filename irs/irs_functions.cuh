@@ -105,12 +105,15 @@ shoot rays from image plane to source plane
 \param pixsad -- pointer to array of negative parity pixels
 \param pixels -- pointer to array of pixels
 \param npixels -- number of pixels for one side of the receiving square
+\int percentage -- pointer to percentage complete
+\param verbose -- verbose level
 ******************************************************************************/
 template <typename T>
 __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T kappastar, TreeNode<T>* root, 
 	int rectangular, Complex<T> corner, int approx, int taylor_smooth,
 	Complex<T> ray_half_sep, Complex<int> num_ray_threads, Complex<T> center_x, Complex<T> hlx, 
-	Complex<T> center_y, Complex<T> hly, int* pixmin, int* pixsad, int* pixels, Complex<int> npixels, unsigned long long int* percentage)
+	Complex<T> center_y, Complex<T> hly, int* pixmin, int* pixsad, int* pixels, Complex<int> npixels, 
+	unsigned long long int* percentage, int verbose)
 {
 	for (int j = blockIdx.y * blockDim.y + threadIdx.y; j < num_ray_threads.im; j += blockDim.y * gridDim.y)
 	{
@@ -132,7 +135,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					imax *= ((num_ray_threads.im - 1) / blockDim.y + 1);
 					if (p * 100 / imax > (p - 1) * 100 / imax)
 					{
-						device_print_progress(p, imax);
+						device_print_progress(verbose, p, imax);
 					}
 				}
 				continue;
@@ -155,7 +158,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 					imax *= ((num_ray_threads.im - 1) / blockDim.y + 1);
 					if (p * 100 / imax > (p - 1) * 100 / imax)
 					{
-						device_print_progress(p, imax);
+						device_print_progress(verbose, p, imax);
 					}
 				}
 				continue;
@@ -201,7 +204,7 @@ __global__ void shoot_rays_kernel(T kappa, T gamma, T theta, star<T>* stars, T k
 				imax *= ((num_ray_threads.im - 1) / blockDim.y + 1);
 				if (p * 100 / imax > (p - 1) * 100 / imax)
 				{
-					device_print_progress(p, imax);
+					device_print_progress(verbose, p, imax);
 				}
 			}
 		}

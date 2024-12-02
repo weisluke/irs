@@ -157,7 +157,7 @@ private:
 
 
 
-	bool set_cuda_devices(bool verbose)
+	bool set_cuda_devices(int verbose)
 	{
 		/******************************************************************************
 		check that a CUDA capable device is present
@@ -199,7 +199,7 @@ private:
 		return true;
 	}
 
-	bool check_input_params(bool verbose)
+	bool check_input_params(int verbose)
 	{
 		std::cout << "Checking input parameters...\n";
 
@@ -334,7 +334,7 @@ private:
 		return true;
 	}
 
-	bool calculate_derived_params(bool verbose)
+	bool calculate_derived_params(int verbose)
 	{
 		std::cout << "Calculating derived parameters...\n";
 		stopwatch.start();
@@ -531,7 +531,7 @@ private:
 		return true;
 	}
 
-	bool allocate_initialize_memory(bool verbose)
+	bool allocate_initialize_memory(int verbose)
 	{
 		std::cout << "Allocating memory...\n";
 		stopwatch.start();
@@ -597,7 +597,7 @@ private:
 		return true;
 	}
 
-	bool populate_star_array(bool verbose)
+	bool populate_star_array(int verbose)
 	{
 		/******************************************************************************
 		BEGIN populating star array
@@ -704,7 +704,7 @@ private:
 		return true;
 	}
 
-	bool create_tree(bool verbose)
+	bool create_tree(int verbose)
 	{
 		/******************************************************************************
 		BEGIN create root node, then create children and sort stars
@@ -872,7 +872,7 @@ private:
 		return true;
 	}
 
-	bool shoot_cells(bool verbose)
+	bool shoot_cells(int verbose)
 	{
 		set_threads(threads, 16, 16);
 		set_blocks(threads, blocks, num_ray_threads.re, num_ray_threads.im);
@@ -890,7 +890,7 @@ private:
 		stopwatch.start();
 		shoot_cells_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_star, stars, kappa_star, tree[0],
 			rectangular, corner, approx, taylor_smooth, ray_half_sep, num_ray_threads, center_x, half_length_x,
-			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels_y, percentage);
+			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels_y, percentage, verbose);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_shoot_cells = stopwatch.stop();
 		std::cout << "\nDone shooting cells. Elapsed time: " << t_shoot_cells << " seconds.\n\n";
@@ -908,7 +908,7 @@ private:
 		return true;
 	}
 
-	bool create_histograms(bool verbose)
+	bool create_histograms(int verbose)
 	{
 		/******************************************************************************
 		create histograms of pixel values
@@ -1078,7 +1078,7 @@ private:
 		return true;
 	}
 
-	bool write_files(bool verbose)
+	bool write_files(int verbose)
 	{
 		/******************************************************************************
 		stream for writing output files
@@ -1282,7 +1282,7 @@ private:
 
 public:
 
-	bool run(bool verbose)
+	bool run(int verbose)
 	{
 		if (!set_cuda_devices(verbose)) return false;
 		if (!check_input_params(verbose)) return false;
@@ -1296,7 +1296,7 @@ public:
 		return true;
 	}
 
-	bool save(bool verbose)
+	bool save(int verbose)
 	{
 		if (!write_files(verbose)) return false;
 

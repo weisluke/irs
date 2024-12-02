@@ -1127,7 +1127,7 @@ private:
 		outfile << "num_rays_received " << num_rays_received << "\n";
 		outfile.close();
 		print_verbose("Done writing parameter info to file " << fname << "\n", verbose, 1);
-		print_verbose("\n", verbose, 2);
+		print_verbose("\n", verbose * (write_stars || write_histograms || write_maps), 2);
 
 
 		if (write_stars)
@@ -1140,7 +1140,7 @@ private:
 				return false;
 			}
 			print_verbose("Done writing star info to file " << fname << "\n", verbose, 1);
-			print_verbose("\n", verbose, 2);
+			print_verbose("\n", verbose * (write_histograms || write_maps), 2);
 		}
 
 
@@ -1177,7 +1177,7 @@ private:
 				}
 				print_verbose("Done writing magnification histogram to file " << fname << "\n", verbose, 1);
 			}
-			print_verbose("\n", verbose, 2);
+			print_verbose("\n", verbose * write_maps, 2);
 		}
 
 

@@ -369,7 +369,7 @@ private:
 
 	bool calculate_derived_params(int verbose)
 	{
-		std::cout << "Calculating derived parameters...\n";
+		print_verbose("Calculating derived parameters...\n", verbose, 3);
 		stopwatch.start();
 
 		/******************************************************************************
@@ -404,7 +404,7 @@ private:
 		******************************************************************************/
 		else
 		{
-			std::cout << "Calculating some parameter values based on star input file " << starfile << "\n";
+			print_verbose("Calculating some parameter values based on star input file " << starfile << "\n", verbose, 3);
 
 			if (!read_star_file<T>(num_stars, rectangular, corner, theta_star, stars,
 				kappa_star, m_lower, m_upper, mean_mass, mean_mass2, mean_mass2_ln_mass, starfile))
@@ -428,7 +428,7 @@ private:
 			set_param("mean_mass2", mean_mass2, mean_mass2, verbose);
 			set_param("mean_mass2_ln_mass", mean_mass2_ln_mass, mean_mass2_ln_mass, verbose);
 
-			std::cout << "Done calculating some parameter values based on star input file " << starfile << "\n";
+			print_verbose("Done calculating some parameter values based on star input file " << starfile << "\n", verbose, 3);
 		}
 
 		/******************************************************************************
@@ -531,7 +531,7 @@ private:
 
 		alpha_error = std::min(half_length_y.re / (10 * num_pixels_y.re), 
 			half_length_y.im / (10 * num_pixels_y.im)); //error is a circle of radius 1/10 of smallest pixel scale
-		set_param("alpha_error", alpha_error, alpha_error, verbose);
+		set_param("alpha_error", alpha_error, alpha_error, verbose, !(rectangular && approx) && verbose < 3);
 
 		taylor_smooth = 1;
 		while ((kappa_star * std::numbers::inv_pi_v<T> * 4 / (taylor_smooth + 1) * corner.abs() * (safety_scale + 1) / (safety_scale - 1)
@@ -551,7 +551,7 @@ private:
 		{
 			taylor_smooth += 2;
 		}		
-		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose && rectangular && approx);
+		set_param("taylor_smooth", taylor_smooth, taylor_smooth, verbose * (rectangular && approx), verbose < 3);
 		if (rectangular && taylor_smooth > MAX_TAYLOR_SMOOTH)
 		{
 			std::cerr << "Error. taylor_smooth must be <= " << MAX_TAYLOR_SMOOTH << "\n";
@@ -559,7 +559,7 @@ private:
 		}
 
 		t_elapsed = stopwatch.stop();
-		std::cout << "Done calculating derived parameters. Elapsed time: " << t_elapsed << " seconds.\n\n";
+		print_verbose("Done calculating derived parameters. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 3);
 
 		return true;
 	}

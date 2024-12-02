@@ -159,6 +159,8 @@ private:
 
 	bool clear_memory(int verbose)
 	{
+		print_verbose("Clearing memory...\n", verbose, 3);
+
 		cudaDeviceReset(); //free all previously allocated memory
 		if (cuda_error("cudaDeviceReset", false, __FILE__, __LINE__)) return false;
 		
@@ -181,11 +183,14 @@ private:
 		log_histogram_minima = nullptr;
 		log_histogram_saddles = nullptr;
 
+		print_verbose("Done clearing memory.\n\n", verbose, 3);
 		return true;
 	}
 
 	bool set_cuda_devices(int verbose)
 	{
+		print_verbose("Setting device...\n", verbose, 3);
+
 		/******************************************************************************
 		check that a CUDA capable device is present
 		******************************************************************************/
@@ -200,7 +205,7 @@ private:
 			return false;
 		}
 
-		if (verbose)
+		if (verbose >= 3)
 		{
 			std::cout << "Available CUDA capable devices:\n\n";
 
@@ -216,19 +221,20 @@ private:
 
 		if (n_devices > 1)
 		{
-			std::cout << "More than one CUDA capable device detected. Defaulting to first device.\n\n";
+			print_verbose("More than one CUDA capable device detected. Defaulting to first device.\n\n", verbose, 2);
 		}
 		cudaSetDevice(0);
 		if (cuda_error("cudaSetDevice", false, __FILE__, __LINE__)) return false;
 		cudaGetDeviceProperties(&cuda_device_prop, 0);
 		if (cuda_error("cudaGetDeviceProperties", false, __FILE__, __LINE__)) return false;
 
+		print_verbose("Done setting device.\n\n", verbose, 3);
 		return true;
 	}
 
 	bool check_input_params(int verbose)
 	{
-		std::cout << "Checking input parameters...\n";
+		print_verbose("Checking input parameters...\n", verbose, 3);
 
 
 		if (kappa_tot < std::numeric_limits<T>::min())
@@ -356,7 +362,7 @@ private:
 		}
 
 
-		std::cout << "Done checking input parameters.\n\n";
+		print_verbose("Done checking input parameters.\n\n", verbose, 3);
 
 		return true;
 	}
@@ -560,7 +566,7 @@ private:
 
 	bool allocate_initialize_memory(int verbose)
 	{
-		std::cout << "Allocating memory...\n";
+		print_verbose("Allocating memory...\n", verbose, 3);
 		stopwatch.start();
 
 		/******************************************************************************
@@ -596,7 +602,7 @@ private:
 		}
 
 		t_elapsed = stopwatch.stop();
-		std::cout << "Done allocating memory. Elapsed time: " << t_elapsed << " seconds.\n\n";
+		print_verbose("Done allocating memory. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 3);
 
 
 		/******************************************************************************
@@ -605,7 +611,7 @@ private:
 		set_threads(threads, 16, 16);
 		set_blocks(threads, blocks, num_pixels_y.re, num_pixels_y.im);
 
-		std::cout << "Initializing pixel values...\n";
+		print_verbose("Initializing array values...\n", verbose, 3);
 		stopwatch.start();
 
 		initialize_array_kernel<T> <<<blocks, threads>>> (pixels, num_pixels_y.im, num_pixels_y.re);
@@ -619,7 +625,7 @@ private:
 		}
 
 		t_elapsed = stopwatch.stop();
-		std::cout << "Done initializing pixel values. Elapsed time: " << t_elapsed << " seconds.\n\n";
+		print_verbose("Done initializing array values. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 3);
 
 		return true;
 	}
@@ -635,16 +641,16 @@ private:
 
 		if (starfile == "")
 		{
-			std::cout << "Generating star field...\n";
+			print_verbose("Generating star field...\n", verbose, 1);
 			stopwatch.start();
 
 			/******************************************************************************
 			if random seed was not provided, get one based on the time
 			******************************************************************************/
-			while (random_seed == 0)
+			do
 			{
 				set_param("random_seed", random_seed, static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count()), verbose);
-			}
+			} while (random_seed == 0); //in case it randomly chooses 0, try again
 
 			/******************************************************************************
 			generate random star field if no star file has been given
@@ -684,7 +690,7 @@ private:
 			if (cuda_error("generate_star_field_kernel", true, __FILE__, __LINE__)) return false;
 
 			t_elapsed = stopwatch.stop();
-			std::cout << "Done generating star field. Elapsed time: " << t_elapsed << " seconds.\n\n";
+			print_verbose("Done generating star field. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 1);
 		}
 		else
 		{
@@ -777,12 +783,12 @@ private:
 		cudaMallocManaged(&num_nonempty_nodes, sizeof(int));
 		if (cuda_error("cudaMallocManaged(*num_nonempty_nodes)", false, __FILE__, __LINE__)) return false;
 
-		std::cout << "Creating children and sorting stars...\n";
+		print_verbose("Creating children and sorting stars...\n", verbose, 1);
 		stopwatch.start();
 
 		do
 		{
-			print_verbose("\nProcessing level " + std::to_string(tree_levels) + "\n", verbose);
+			print_verbose("\nProcessing level " << tree_levels << "\n", verbose, 3);
 
 			*max_num_stars_in_level = 0;
 			*min_num_stars_in_level = num_stars;
@@ -794,27 +800,27 @@ private:
 				num_nonempty_nodes, min_num_stars_in_level, max_num_stars_in_level);
 			if (cuda_error("get_node_star_info_kernel", true, __FILE__, __LINE__)) return false;
 
-			print_verbose("Maximum number of stars in a node and its neighbors is " + std::to_string(*max_num_stars_in_level) + "\n", verbose);
-			print_verbose("Minimum number of stars in a node and its neighbors is " + std::to_string(*min_num_stars_in_level) + "\n", verbose);
+			print_verbose("Maximum number of stars in a node and its neighbors is " << *max_num_stars_in_level << "\n", verbose, 3);
+			print_verbose("Minimum number of stars in a node and its neighbors is " << *min_num_stars_in_level << "\n", verbose, 3);
 
 			if (*max_num_stars_in_level > treenode::MAX_NUM_STARS_DIRECT)
 			{
-				print_verbose("Number of non-empty children: " + std::to_string(*num_nonempty_nodes * treenode::MAX_NUM_CHILDREN) + "\n", verbose);
+				print_verbose("Number of non-empty children: " << *num_nonempty_nodes * treenode::MAX_NUM_CHILDREN << "\n", verbose, 3);
 
-				print_verbose("Allocating memory for children...\n", verbose);
+				print_verbose("Allocating memory for children...\n", verbose, 3);
 				tree.push_back(nullptr);
 				num_nodes.push_back(*num_nonempty_nodes * treenode::MAX_NUM_CHILDREN);
 				cudaMallocManaged(&tree.back(), num_nodes.back() * sizeof(TreeNode<T>));
 				if (cuda_error("cudaMallocManaged(*tree)", false, __FILE__, __LINE__)) return false;
 
-				print_verbose("Creating children...\n", verbose);
+				print_verbose("Creating children...\n", verbose, 3);
 				(*num_nonempty_nodes)--; //subtract one since value is size of array, and instead needs to be the first allocatable element
 				set_threads(threads, 512);
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::create_children_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels], num_nonempty_nodes, tree[tree_levels + 1]);
 				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
 
-				print_verbose("Sorting stars...\n", verbose);
+				print_verbose("Sorting stars...\n", verbose, 3);
 				set_threads(threads, static_cast<int>(512 / *max_num_stars_in_level) + 1, std::min(512, *max_num_stars_in_level));
 				set_blocks(threads, blocks, num_nodes[tree_levels], std::min(512, *max_num_stars_in_level));
 				treenode::sort_stars_kernel<T> <<<blocks, threads, (threads.x + threads.x + threads.x * treenode::MAX_NUM_CHILDREN) * sizeof(int)>>> (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
@@ -822,7 +828,7 @@ private:
 
 				tree_levels++;
 
-				print_verbose("Setting neighbors...\n", verbose);
+				print_verbose("Setting neighbors...\n", verbose, 3);
 				set_threads(threads, 512);
 				set_blocks(threads, blocks, num_nodes[tree_levels]);
 				treenode::set_neighbors_kernel<T> <<<blocks, threads>>> (tree[tree_levels], num_nodes[tree_levels]);
@@ -832,7 +838,7 @@ private:
 		set_param("tree_levels", tree_levels, tree_levels, verbose);
 
 		t_elapsed = stopwatch.stop();
-		std::cout << "Done creating children and sorting stars. Elapsed time: " << t_elapsed << " seconds.\n\n";
+		print_verbose("Done creating children and sorting stars. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 1);
 
 		/******************************************************************************
 		END create root node, then create children and sort stars
@@ -852,16 +858,16 @@ private:
 			return false;
 		}
 
-		print_verbose("Calculating binomial coefficients...\n", verbose);
+		print_verbose("Calculating binomial coefficients...\n", verbose, 3);
 		calculate_binomial_coeffs(binomial_coeffs, 2 * expansion_order);
-		print_verbose("Done calculating binomial coefficients.\n\n", verbose);
+		print_verbose("Done calculating binomial coefficients.\n\n", verbose, 3);
 
 
 		/******************************************************************************
 		BEGIN calculating multipole and local coefficients
 		******************************************************************************/
 
-		std::cout << "Calculating multipole and local coefficients...\n";
+		print_verbose("Calculating multipole and local coefficients...\n", verbose, 1);
 		stopwatch.start();
 
 		for (int i = tree_levels; i >= 0; i--)
@@ -895,7 +901,7 @@ private:
 		if (cuda_error("calculate_coeffs_kernels", true, __FILE__, __LINE__)) return false;
 
 		t_elapsed = stopwatch.stop();
-		std::cout << "Done calculating multipole and local coefficients. Elapsed time: " << t_elapsed << " seconds.\n\n";
+		print_verbose("Done calculating multipole and local coefficients. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 1);
 
 		/******************************************************************************
 		END calculating multipole and local coefficients
@@ -918,23 +924,23 @@ private:
 		/******************************************************************************
 		shoot rays and calculate time taken in seconds
 		******************************************************************************/
-		std::cout << "Shooting cells...\n";
+		print_verbose("Shooting cells...\n", verbose, 1);
 		stopwatch.start();
 		shoot_cells_kernel<T> <<<blocks, threads>>> (kappa_tot, shear, theta_star, stars, kappa_star, tree[0],
 			rectangular, corner, approx, taylor_smooth, ray_half_sep, num_ray_threads, center_x, half_length_x,
 			center_y, half_length_y, pixels_minima, pixels_saddles, pixels, num_pixels_y, percentage, verbose);
 		if (cuda_error("shoot_rays_kernel", true, __FILE__, __LINE__)) return false;
 		t_shoot_cells = stopwatch.stop();
-		std::cout << "\nDone shooting cells. Elapsed time: " << t_shoot_cells << " seconds.\n\n";
+		print_verbose("\nDone shooting cells. Elapsed time: " << t_shoot_cells << " seconds.\n\n", verbose, 1);
 
 		if (write_parities)
 		{
-			print_verbose("Adding arrays...\n", verbose);
+			print_verbose("Adding arrays...\n", verbose, 2);
 			set_threads(threads, 16, 16);
 			set_blocks(threads, blocks, num_pixels_y.re, num_pixels_y.im);
 			add_arrays_kernel<T> <<<blocks, threads>>> (pixels_minima, pixels_saddles, pixels, num_pixels_y.im, num_pixels_y.re);
 			if (cuda_error("add_arrays_kernel", true, __FILE__, __LINE__)) return false;
-			print_verbose("Done adding arrays.\n\n", verbose);
+			print_verbose("Done adding arrays.\n\n", verbose, 2);
 		}
 
 		return true;
@@ -948,7 +954,7 @@ private:
 
 		if (write_histograms)
 		{
-			std::cout << "Creating histograms...\n";
+			print_verbose("Creating histograms...\n", verbose, 2);
 			stopwatch.start();
 
 			/******************************************************************************
@@ -1100,7 +1106,7 @@ private:
 
 
 			t_elapsed = stopwatch.stop();
-			std::cout << "Done creating histograms. Elapsed time: " << t_elapsed << " seconds.\n\n";
+			print_verbose("Done creating histograms. Elapsed time: " << t_elapsed << " seconds.\n\n", verbose, 2);
 		}
 
 		/******************************************************************************

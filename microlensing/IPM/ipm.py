@@ -458,10 +458,8 @@ class IPM(object):
         ax.set_aspect(self.half_length[0] / self.half_length[1])
 
     def plot_hist(self, fig, ax, bins=None, **kwargs):
-        vmin, vmax = (np.min(self.magnitudes.ravel()),
-                      np.max(self.magnitudes.ravel()))
-
         if bins is None:
+            vmin, vmax = (np.min(self.magnitudes), np.max(self.magnitudes))
             bins = np.arange(vmin - 0.01, vmax + 0.01, 0.01)
 
         ax.hist(self.magnitudes.ravel(), bins=bins, density=True, **kwargs)

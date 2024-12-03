@@ -1346,5 +1346,12 @@ public:
 		return true;
 	}
 
+	int get_num_stars()			{return num_stars;}
+	Complex<T> get_corner()		{if (rectangular) {return corner;} else {return Complex<T>(corner.abs(), 0);}}
+	star<T>* get_stars()		{return stars;}
+	T* get_pixels()				{return pixels;}
+	T* get_pixels_minima()		{return pixels_minima;}
+	T* get_pixels_saddles()		{return pixels_saddles;}
+
 };
 

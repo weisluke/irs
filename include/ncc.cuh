@@ -459,5 +459,7 @@ public:
 		return true;
 	}
 
+	int* get_num_crossings()	{return num_crossings;}
+
 };
 

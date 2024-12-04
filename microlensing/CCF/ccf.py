@@ -318,21 +318,21 @@ class CCF(object):
         self.critical_curves = np.ctypeslib.as_array(self.lib.get_critical_curves(self.obj), 
                                                      shape=(self.num_roots * self.num_branches,
                                                             self.num_phi // self.num_branches + 1,
-                                                            2))
+                                                            2)).copy()
         
         self.caustics = np.ctypeslib.as_array(self.lib.get_caustics(self.obj), 
                                               shape=(self.num_roots * self.num_branches,
                                                      self.num_phi // self.num_branches + 1,
-                                                     2))
+                                                     2)).copy()
         if self.write_mu_length_scales:
             self.mu_length_scales = np.ctypeslib.as_array(self.lib.get_mu_length_scales(self.obj), 
                                                           shape=(self.num_roots * self.num_branches,
-                                                                 self.num_phi // self.num_branches + 1))
+                                                                 self.num_phi // self.num_branches + 1)).copy()
         else:
             self.mu_length_scales = None
 
         self.stars = np.ctypeslib.as_array(self.lib.get_stars(self.obj),
-                                           shape=(self.num_stars, 3))
+                                           shape=(self.num_stars, 3)).copy()
     
     def save(self):
         if not self.lib.save(self.obj, self.verbose):

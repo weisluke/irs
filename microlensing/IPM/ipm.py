@@ -400,20 +400,20 @@ class IPM(object):
         
         self.magnifications = np.ctypeslib.as_array(self.lib.get_pixels(self.obj), 
                                                     shape=(self.num_pixels_y2,
-                                                           self.num_pixels_y1))
+                                                           self.num_pixels_y1)).copy()
         if self.write_parities:
             self.magnifications_minima = np.ctypeslib.as_array(self.lib.get_pixels_minima(self.obj), 
                                                                shape=(self.num_pixels_y2,
-                                                                      self.num_pixels_y1))
+                                                                      self.num_pixels_y1)).copy()
             self.magnifications_saddles = np.ctypeslib.as_array(self.lib.get_pixels_saddles(self.obj), 
                                                                 shape=(self.num_pixels_y2,
-                                                                       self.num_pixels_y1))
+                                                                       self.num_pixels_y1)).copy()
         else:
             self.magnifications_minima = None
             self.magnifications_saddles = None
 
         self.stars = np.ctypeslib.as_array(self.lib.get_stars(self.obj),
-                                           shape=(self.num_stars, 3))
+                                           shape=(self.num_stars, 3)).copy()
 
     @property
     def magnitudes(self):

@@ -178,7 +178,7 @@ class NCC(object):
         
         self.num_caustic_crossings = np.ctypeslib.as_array(self.lib.get_num_crossings(self.obj), 
                                                            shape=(self.num_pixels_y2,
-                                                                  self.num_pixels_y1))
+                                                                  self.num_pixels_y1)).copy()
     
     def save(self):
         if not self.lib.save(self.obj, self.verbose):

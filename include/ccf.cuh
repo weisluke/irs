@@ -1286,5 +1286,12 @@ public:
 		return true;
 	}
 
+	int get_num_roots()					{return num_roots;}
+	Complex<T> get_corner()				{if (rectangular) {return corner;} else {return Complex<T>(corner.abs(), 0);}}
+	star<T>* get_stars()				{return stars;}
+	Complex<T>* get_critical_curves()	{return ccs;}
+	Complex<T>* get_caustics()			{return caustics;}
+	T* get_mu_length_scales()			{return mu_length_scales;}
+
 };
 

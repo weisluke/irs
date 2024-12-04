@@ -2,7 +2,7 @@
 
 #include <algorithm> //for std::find, std::transform
 #include <cctype> //for std::tolower
-#include <cmath> //for std::cbrt
+#include <cmath> //for std::cbrt, std::ceil
 #include <iostream>
 #include <string>
 
@@ -221,9 +221,9 @@ void set_threads(dim3& threads, int x = 1, int y = 1, int z = 1)
 
 			double factor = std::cbrt((1.0 * prop.maxThreadsPerBlock) / (t_x * t_y * t_z));
 
-			threads.x = static_cast<int>(factor * t_x) + 1;
-			threads.y = static_cast<int>(factor * t_y) + 1;
-			threads.z = static_cast<int>(factor * t_z) + 1;
+			threads.x = std::ceil(factor * t_x);
+			threads.y = std::ceil(factor * t_y);
+			threads.z = std::ceil(factor * t_z);
 		} while (threads.x != t_x || threads.y != t_y || threads.z != t_z);
 	}
 }
@@ -261,9 +261,9 @@ void set_blocks(dim3& threads, dim3& blocks, int x = 1, int y = 1, int z = 1)
 
 			double factor = std::cbrt((1.0 * prop.multiProcessorCount) / (b_x * b_y * b_z));
 
-			blocks.x = static_cast<int>(factor * b_x) + 1;
-			blocks.y = static_cast<int>(factor * b_y) + 1;
-			blocks.z = static_cast<int>(factor * b_z) + 1;
+			blocks.x = std::ceil(factor * b_x);
+			blocks.y = std::ceil(factor * b_y);
+			blocks.z = std::ceil(factor * b_z);
 		} while (blocks.x != b_x || blocks.y != b_y || blocks.z != b_z);
 	}
 }

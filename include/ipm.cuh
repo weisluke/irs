@@ -480,11 +480,11 @@ private:
 
 			if (rectangular)
 			{
-				num_stars = static_cast<int>(
+				num_stars = std::ceil(
 					safety_scale * 2 * corner.re
 					* safety_scale * 2 * corner.im
 					* kappa_star / (std::numbers::pi_v<T> * theta_star * theta_star * mean_mass)
-					) + 1;
+					);
 				set_param("num_stars", num_stars, num_stars, verbose);
 
 				corner = Complex<T>(std::sqrt(corner.re / corner.im), std::sqrt(corner.im / corner.re));
@@ -493,11 +493,11 @@ private:
 			}
 			else
 			{
-				num_stars = static_cast<int>(
+				num_stars = std::ceil(
 					safety_scale * corner.abs()
 					* safety_scale * corner.abs()
 					* kappa_star / (theta_star * theta_star * mean_mass)
-					) + 1;
+					);
 				set_param("num_stars", num_stars, num_stars, verbose);
 
 				corner = corner / corner.abs();
@@ -821,7 +821,7 @@ private:
 				if (cuda_error("create_children_kernel", true, __FILE__, __LINE__)) return false;
 
 				print_verbose("Sorting stars...\n", verbose, 3);
-				set_threads(threads, static_cast<int>(512 / *max_num_stars_in_level) + 1, std::min(512, *max_num_stars_in_level));
+				set_threads(threads, std::ceil(1.0 * 512 / *max_num_stars_in_level), std::min(512, *max_num_stars_in_level));
 				set_blocks(threads, blocks, num_nodes[tree_levels], std::min(512, *max_num_stars_in_level));
 				treenode::sort_stars_kernel<T> <<<blocks, threads, (threads.x + threads.x + threads.x * treenode::MAX_NUM_CHILDREN) * sizeof(int)>>> (tree[tree_levels], num_nodes[tree_levels], stars, temp_stars);
 				if (cuda_error("sort_stars_kernel", true, __FILE__, __LINE__)) return false;
@@ -845,8 +845,8 @@ private:
 		END create root node, then create children and sort stars
 		******************************************************************************/
 
-		expansion_order = static_cast<int>(2 * std::log2(theta_star) - std::log2(root_half_length * alpha_error))
-			+ tree_levels + 1;
+		expansion_order = std::ceil(2 * std::log2(theta_star) + tree_levels
+									- std::log2(root_half_length) - std::log2(alpha_error));
 		set_param("expansion_order", expansion_order, expansion_order, verbose, true);
 		if (expansion_order < 3)
 		{

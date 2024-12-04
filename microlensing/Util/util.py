@@ -66,6 +66,9 @@ def write_stars(fname: str, nstars: int, rectangular: bool, corner,
     :param stars: array of length nstars in the form (x1, x2, mass)
     :param dtype: data type for the file. default is np.float32
     '''
+    if not fname.endswith('.bin'):
+        raise ValueError('fname must be a .bin file')
+    
     if dtype == np.float64:
         dtype = 'd'
     elif dtype == np.float32:

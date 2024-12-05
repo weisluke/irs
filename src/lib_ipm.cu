@@ -75,6 +75,7 @@ extern "C"
     dtype* get_pixels(IPM<dtype> *self)                         {return self->get_pixels();}
     dtype* get_pixels_minima(IPM<dtype> *self)                  {return self->get_pixels_minima();}
     dtype* get_pixels_saddles(IPM<dtype> *self)                 {return self->get_pixels_saddles();}
+    double get_t_shoot_cells(IPM<dtype> *self)                  {return self->get_t_shoot_cells();}
 
     bool run(IPM<dtype> *self, int verbose)                     {return self->run(verbose);}
     bool save(IPM<dtype> *self, int verbose)                    {return self->save(verbose);}

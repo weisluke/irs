@@ -1352,6 +1352,7 @@ public:
 	T* get_pixels()				{return pixels;}
 	T* get_pixels_minima()		{return pixels_minima;}
 	T* get_pixels_saddles()		{return pixels_saddles;}
+	double get_t_shoot_cells()	{return t_shoot_cells;}
 
 };
 

@@ -414,6 +414,10 @@ class IPM(object):
 
         self.stars = np.ctypeslib.as_array(self.lib.get_stars(self.obj),
                                            shape=(self.num_stars, 3)).copy()
+        
+    @property
+    def t_shoot_cells(self):
+        return self.lib.get_t_shoot_cells(self.obj)
 
     @property
     def magnitudes(self):

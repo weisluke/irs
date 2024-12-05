@@ -127,6 +127,8 @@ lib.get_pixels_minima.argtypes = [ctypes.c_void_p]
 lib.get_pixels_minima.restype = ctypes.POINTER(ctypes.c_float)
 lib.get_pixels_saddles.argtypes = [ctypes.c_void_p]
 lib.get_pixels_saddles.restype = ctypes.POINTER(ctypes.c_float)
+lib.get_t_shoot_cells.argtypes = [ctypes.c_void_p]
+lib.get_t_shoot_cells.restype = ctypes.c_double
 
 lib.run.argtypes = [ctypes.c_void_p, ctypes.c_int]
 lib.run.restype = ctypes.c_bool

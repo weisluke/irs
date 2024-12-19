@@ -1292,6 +1292,7 @@ public:
 	Complex<T>* get_critical_curves()	{return ccs;}
 	Complex<T>* get_caustics()			{return caustics;}
 	T* get_mu_length_scales()			{return mu_length_scales;}
+	double get_t_ccs()					{return t_ccs;}
 
 };
 

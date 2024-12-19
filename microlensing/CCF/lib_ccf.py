@@ -107,6 +107,8 @@ lib.get_caustics.argtypes = [ctypes.c_void_p]
 lib.get_caustics.restype = ctypes.POINTER(ctypes.c_double)
 lib.get_mu_length_scales.argtypes = [ctypes.c_void_p]
 lib.get_mu_length_scales.restype = ctypes.POINTER(ctypes.c_double)
+lib.get_t_ccs.argtypes = [ctypes.c_void_p]
+lib.get_t_ccs.restype = ctypes.c_double
 
 lib.run.argtypes = [ctypes.c_void_p, ctypes.c_int]
 lib.run.restype = ctypes.c_bool

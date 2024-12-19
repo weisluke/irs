@@ -320,10 +320,14 @@ class CCF(object):
                                                             self.num_phi // self.num_branches + 1,
                                                             2)).copy()
         
-        self.caustics = np.ctypeslib.as_array(self.lib.get_caustics(self.obj), 
-                                              shape=(self.num_roots * self.num_branches,
-                                                     self.num_phi // self.num_branches + 1,
-                                                     2)).copy()
+        if self.write_caustics:
+            self.caustics = np.ctypeslib.as_array(self.lib.get_caustics(self.obj), 
+                                                  shape=(self.num_roots * self.num_branches,
+                                                         self.num_phi // self.num_branches + 1,
+                                                         2)).copy()
+        else:
+            self.caustics = None
+            
         if self.write_mu_length_scales:
             self.mu_length_scales = np.ctypeslib.as_array(self.lib.get_mu_length_scales(self.obj), 
                                                           shape=(self.num_roots * self.num_branches,
@@ -333,6 +337,10 @@ class CCF(object):
 
         self.stars = np.ctypeslib.as_array(self.lib.get_stars(self.obj),
                                            shape=(self.num_stars, 3)).copy()
+        
+    @property
+    def t_ccs(self):
+        return self.lib.get_t_ccs(self.obj)
     
     def save(self):
         if not self.lib.save(self.obj, self.verbose):

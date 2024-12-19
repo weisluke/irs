@@ -65,6 +65,7 @@ extern "C"
     dtype* get_critical_curves(CCF<dtype> *self)                {return &(self->get_critical_curves()[0].re);}
     dtype* get_caustics(CCF<dtype> *self)                       {return &(self->get_caustics()[0].re);}
     dtype* get_mu_length_scales(CCF<dtype> *self)               {return self->get_mu_length_scales();}
+    double get_t_ccs(CCF<dtype> *self)                          {return self->get_t_ccs();}
 
     bool run(CCF<dtype> *self, int verbose)                     {return self->run(verbose);}
     bool save(CCF<dtype> *self, int verbose)                    {return self->save(verbose);}
